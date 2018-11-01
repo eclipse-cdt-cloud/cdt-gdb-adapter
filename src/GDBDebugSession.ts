@@ -14,7 +14,7 @@ import { GDBBackend } from './GDBBackend';
 import * as path from 'path';
 import * as exec from './mi/exec';
 import { sendBreakDelete, sendBreakInsert, sendBreakList} from './mi/breakpoint';
-import { sendTargetAttachRequest, sendTargetSelectRequest } from './mi/target';
+import { sendTargetAttachRequest } from './mi/target';
 import { sendThreadInfoRequest } from './mi/thread';
 import { sendStackInfoDepth, sendStackListFramesRequest, sendStackListVariables } from './mi/stack';
 import { sendVarCreate, sendVarListChildren, sendVarUpdate, MIVarCreateResponse, sendVarDelete } from './mi/var';
