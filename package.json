@@ -1,0 +1,31 @@
+{
+  "name": "cdt-gdb-adapter",
+  "version": "0.1.0",
+  "description": "gdb adapter implementing the debug adapter protocol",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --mode production --display-modules",
+    "watch": "webpack --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eclipse-cdt/cdt-gdb-adapter.git"
+  },
+  "author": "Eclipse CDT",
+  "license": "EPL-2.0",
+  "bugs": {
+    "url": "https://github.com/eclipse-cdt/cdt-gdb-adapter/issues"
+  },
+  "homepage": "https://github.com/eclipse-cdt/cdt-gdb-adapter#readme",
+  "dependencies": {
+    "vscode-debugadapter": "^1.32.1"
+  },
+  "devDependencies": {
+    "@types/node": "^10.12.2",
+    "ts-loader": "^5.3.0",
+    "typescript": "^3.1.5",
+    "webpack": "^4.23.1",
+    "webpack-cli": "^3.1.2"
+  }
+}
