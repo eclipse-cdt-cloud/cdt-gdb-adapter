@@ -12,10 +12,8 @@ import { Readable } from "stream";
 import { logger } from "vscode-debugadapter/lib/logger";
 
 export class MIParser {
-    private lastBuff = '';
-    private buff = '';
+    private line = '';
     private pos = 0;
-    private end = 0;
     private commandQueue: any = {};
     private waitReady?: (value?: void | PromiseLike<void>) => void;
 
@@ -25,22 +23,17 @@ export class MIParser {
     parse(stream: Readable): Promise<void> {
         return new Promise(resolve => {
             this.waitReady = resolve;
+            const lineRegex = /(.*)(\r?\n)/;
+            let buff = '';
             stream.on('data', (chunk) => {
-                this.buff = this.lastBuff + chunk.toString();
-                this.pos = 0;
-                this.end = this.buff.indexOf('\n');
-                while (this.end >= 0) {
+                buff += chunk.toString();
+                let regexArray = lineRegex.exec(buff);
+                while (regexArray) {
+                    this.line = regexArray[1];
+                    this.pos = 0;
                     this.handleLine();
-                    this.pos = this.end + 1;
-                    if (this.pos < this.buff.length && this.buff[this.pos] === '\n') {
-                        this.pos++;
-                    }
-                    if (this.pos < this.buff.length) {
-                        this.end = this.buff.indexOf('\n', this.pos);
-                    } else {
-                        this.lastBuff = this.buff.substr(this.pos);
-                        break;
-                    }
+                    buff = buff.substring(regexArray[1].length + regexArray[2].length);
+                    regexArray = lineRegex.exec(buff);
                 }
             });
         });
@@ -51,8 +44,8 @@ export class MIParser {
     }
 
     private next() {
-        if (this.pos < this.end) {
-            return this.buff[this.pos++];
+        if (this.pos < this.line.length) {
+            return this.line[this.pos++];
         } else {
             return null;
         }
@@ -63,7 +56,7 @@ export class MIParser {
     }
 
     private restOfLine() {
-        return this.buff.substr(this.pos, this.end - this.pos);
+        return this.line.substr(this.pos);
     }
 
     private handleToken(firstChar: string) {
@@ -272,7 +265,9 @@ export class MIParser {
                 }
                 break;
             default:
-                logger.warn("GDB: unhandled record " + c);
+                // treat as console output. happens on Windows.
+                this.back();
+                this.gdb.emit('consoleStreamOutput', this.restOfLine() + '\n', 'stdout');
         }
     }
 }
