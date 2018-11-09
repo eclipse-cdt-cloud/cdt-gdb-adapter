@@ -333,7 +333,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 const toDelete = new Array<string>();
 
                 const vars = this.getVars(frame.frameId, frame.threadId, depth);
-                if (vars && vars.length !== 0) {
+                if (vars) {
                     for (const varobj of vars) {
                         if (varobj.isVar) {
                             const vup = await sendVarUpdate(this.gdb, {threadId: frame.threadId, name: varobj.varname});
@@ -440,12 +440,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    // protected async setExpressionRequest(response: DebugProtocol.SetExpressionResponse, args: DebugProtocol.SetExpressionArguments): Promise<void> {
-    //     logger.error("Meep moop!");
-    // }
-
     protected async evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): Promise<void> {
-        // logger.error(`args.expression: ${args.expression} -- args.context: ${args.context} -- args.format : ${args.format} -- args.frameId: ${args.frameId}`);
         response.body = {result: "Error: could not evaluate expression", variablesReference: 0}; // default response
         try {
             switch (args.context) {
@@ -496,7 +491,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
             }
         } catch (err) {
-            logger.error("Sad_trombone.wav");
             this.sendErrorResponse(response, 1, err);
         }
     }
