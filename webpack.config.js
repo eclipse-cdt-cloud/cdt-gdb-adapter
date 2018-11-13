@@ -5,29 +5,16 @@ module.exports = {
     mode: 'none',
     context: __dirname,
     resolve: {
-        extensions: [ '.ts', '.js' ]
+        extensions: [ '.js' ]
     },
     entry: {
-        gdbDebugAdapter: './src/debugAdapter.ts'
+        gdbDebugAdapter: './out/debugAdapter.js'
     },
     output: {
-        path: path.resolve(__dirname, 'out'),
+        path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
         libraryTarget: 'commonjs',
         devtoolModuleFilenameTemplate: '[absolute-resource-path]'
     },
-    devtool: 'source-map',
-    module: {
-        rules: [
-            {
-                test: /\.ts$/,
-                loader: 'ts-loader',
-                options: {
-                    compilerOptions: {
-                        sourceMap: true
-                    }
-                }
-            }
-        ]
-    }
+    devtool: 'source-map'
 };

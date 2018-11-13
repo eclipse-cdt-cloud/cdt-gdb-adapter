@@ -11,9 +11,8 @@
         "noImplicitReturns": true,
         "noUnusedLocals": true,
         "allowSyntheticDefaultImports": true,
-        "experimentalDecorators": true
-    },
-    "exclude": [
-        "node_modules"
-    ]
+        "experimentalDecorators": true,
+        "sourceMap": true,
+        "outDir": "out"
+    }
 }
