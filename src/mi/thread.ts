@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { MIResponse, MIFrameInfo } from "./base";
-import { GDBBackend } from "../GDBBackend";
+import { GDBBackend } from '../GDBBackend';
+import { MIFrameInfo, MIResponse } from './base';
 
 export interface MIThreadInfo {
     id: string;
@@ -36,7 +36,7 @@ export function sendThreadInfoRequest(gdb: GDBBackend,  params: {
 }
 
 export interface MIThreadSelectResponse extends MIResponse {
-    "new-thread-id": string;
+    'new-thread-id': string;
     frame: MIFrameInfo;
 }
 

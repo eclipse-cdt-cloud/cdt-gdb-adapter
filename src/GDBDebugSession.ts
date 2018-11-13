@@ -7,17 +7,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { LoggingDebugSession, Logger, OutputEvent, Thread, InitializedEvent, TerminatedEvent, StoppedEvent, StackFrame, Source, Handles, Scope } from 'vscode-debugadapter/lib/main';
-import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
-import { logger } from 'vscode-debugadapter/lib/logger';
-import { GDBBackend } from './GDBBackend';
 import * as path from 'path';
-import * as exec from './mi/exec';
+import { logger } from 'vscode-debugadapter/lib/logger';
+import { Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Scope,
+    Source, StackFrame, StoppedEvent, TerminatedEvent, Thread } from 'vscode-debugadapter/lib/main';
+import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
+import { GDBBackend } from './GDBBackend';
 import { sendBreakDelete, sendBreakInsert, sendBreakList} from './mi/breakpoint';
+import * as exec from './mi/exec';
+import { sendStackInfoDepth, sendStackListFramesRequest, sendStackListVariables } from './mi/stack';
 import { sendTargetAttachRequest } from './mi/target';
 import { sendThreadInfoRequest } from './mi/thread';
-import { sendStackInfoDepth, sendStackListFramesRequest, sendStackListVariables } from './mi/stack';
-import { sendVarCreate, sendVarListChildren, sendVarUpdate, MIVarCreateResponse, sendVarDelete } from './mi/var';
+import { MIVarCreateResponse, sendVarCreate, sendVarDelete, sendVarListChildren, sendVarUpdate } from './mi/var';
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -51,10 +52,10 @@ export interface ObjectVariableReference {
 
 export type VariableReference = FrameVariableReference | ObjectVariableReference;
 
-interface VarObjType{
-    varname: string; 
+interface VarObjType {
+    varname: string;
     expression: string;
-    numchild: string; 
+    numchild: string;
     value: string;
     type: string;
     isVar: boolean;
@@ -67,11 +68,14 @@ export class GDBDebugSession extends LoggingDebugSession {
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
 
+    private variableMap: Map<string, VarObjType[]> = new Map<string, VarObjType[]>();
+
     constructor() {
-        super("gdb-debug.log");
+        super('gdb-debug.log');
     }
 
-    protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
+    protected initializeRequest(response: DebugProtocol.InitializeResponse,
+                                args: DebugProtocol.InitializeRequestArguments): void {
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         this.sendResponse(response);
@@ -87,7 +91,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
-            this.gdb.on('async', result => this.handleGDBAsync(result));
+            this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
             await this.gdb.attach(args);
 
@@ -109,7 +113,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
-            this.gdb.on('async', result => this.handleGDBAsync(result));
+            this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
             await this.gdb.launch(args);
 
@@ -125,12 +129,13 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
+    protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse,
+                                          args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
         try {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
             // deleting ones not requested and inserting new ones.
-            const file = <string>args.source.path;
+            const file = args.source.path as string;
             const breakpoints = args.breakpoints || [];
 
             let inserts = breakpoints.slice();
@@ -139,22 +144,22 @@ export class GDBDebugSession extends LoggingDebugSession {
             const actual = new Array<DebugProtocol.Breakpoint>();
 
             const result = await sendBreakList(this.gdb);
-            result.BreakpointTable.body.forEach(gdbbp => {
+            result.BreakpointTable.body.forEach((gdbbp) => {
                 if (gdbbp.fullname === file && gdbbp.line) {
                     // TODO probably need more through checks than just line number
-                    const line = parseInt(gdbbp.line);
-                    if (!breakpoints.find(vsbp => vsbp.line === line)) {
+                    const line = parseInt(gdbbp.line, 10);
+                    if (!breakpoints.find((vsbp) => vsbp.line === line)) {
                         deletes.push(gdbbp.number);
                     }
 
-                    inserts = inserts.filter(vsbp => {
+                    inserts = inserts.filter((vsbp) => {
                         if (vsbp.line !== line) {
                             return true;
                         } else {
                             actual.push({
                                 verified: true,
-                                line: gdbbp.line ? parseInt(gdbbp.line) : 0,
-                                id: parseInt(gdbbp.number)
+                                line: gdbbp.line ? parseInt(gdbbp.line, 10) : 0,
+                                id: parseInt(gdbbp.number, 10),
                             });
                             return false;
                         }
@@ -165,14 +170,14 @@ export class GDBDebugSession extends LoggingDebugSession {
             for (const vsbp of inserts) {
                 const gdbbp = await sendBreakInsert(this.gdb, {location: `${file}:${vsbp.line}`});
                 actual.push({
-                    id: parseInt(gdbbp.bkpt.number),
-                    line: gdbbp.bkpt.line ? parseInt(gdbbp.bkpt.line) : 0,
-                    verified: true
+                    id: parseInt(gdbbp.bkpt.number, 10),
+                    line: gdbbp.bkpt.line ? parseInt(gdbbp.bkpt.line, 10) : 0,
+                    verified: true,
                 });
             }
-            
+
             response.body = {
-                breakpoints: actual
+                breakpoints: actual,
             };
 
             if (deletes.length > 0) {
@@ -180,12 +185,13 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
 
             this.sendResponse(response);
-        } catch(err) {
+        } catch (err) {
             this.sendErrorResponse(response, 1, err);
         }
     }
 
-    protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse, args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
+    protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
+                                             args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
         try {
             if (this.isAttach) {
                 await exec.sendExecContinue(this.gdb);
@@ -194,7 +200,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             this.isRunning = true;
             this.sendResponse(response);
-        } catch(err) {
+        } catch (err) {
             this.sendErrorResponse(response, 100, err);
         }
     }
@@ -209,45 +215,12 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
 
             const result = await sendThreadInfoRequest(this.gdb, {});
-            const threads = result.threads.map(thread => {
-                return new Thread(parseInt(thread.id), thread.name ? thread.name : thread.id);
+            const threads = result.threads.map((thread) => {
+                return new Thread(parseInt(thread.id, 10), thread.name ? thread.name : thread.id);
             });
 
             response.body = {
-                threads: threads
-            };
-
-            this.sendResponse(response);
-        } catch(err) {
-            this.sendErrorResponse(response, 1, err);
-        }
-    }
-
-    protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<void> {
-        try {
-            const depthResult = await sendStackInfoDepth(this.gdb, {maxDepth: 100});
-            const depth = parseInt(depthResult.depth);
-            const levels = args.levels ? (args.levels > depth ? depth : args.levels) : depth;
-            const lowFrame = args.startFrame || 0;
-            const highFrame = lowFrame + levels - 1;
-            const listResult = await sendStackListFramesRequest(this.gdb, {lowFrame: lowFrame, highFrame: highFrame});
-
-            const stack = listResult.stack.map(frame => {
-                let source;
-                if (frame.fullname) {
-                    source = new Source(path.basename(frame.file || frame.fullname), frame.fullname);
-                }
-                let line;
-                if (frame.line) {
-                    line = parseInt(frame.line);
-                }
-                const frameHandle = this.frameHandles.create({threadId: args.threadId, frameId: parseInt(frame.level)});
-                return new StackFrame(frameHandle, frame.func || frame.fullname || "", source, line);
-            });
-
-            response.body = {
-                stackFrames: stack,
-                totalFrames: depth
+                threads,
             };
 
             this.sendResponse(response);
@@ -255,17 +228,56 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendErrorResponse(response, 1, err);
         }
     }
-    
-    protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<void> {
+
+    protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse,
+                                      args: DebugProtocol.StackTraceArguments): Promise<void> {
         try {
-            await exec.sendExecNext(this.gdb);
+            const depthResult = await sendStackInfoDepth(this.gdb, {maxDepth: 100});
+            const depth = parseInt(depthResult.depth, 10);
+            const levels = args.levels ? (args.levels > depth ? depth : args.levels) : depth;
+            const lowFrame = args.startFrame || 0;
+            const highFrame = lowFrame + levels - 1;
+            const listResult = await sendStackListFramesRequest(this.gdb, {lowFrame, highFrame});
+
+            const stack = listResult.stack.map((frame) => {
+                let source;
+                if (frame.fullname) {
+                    source = new Source(path.basename(frame.file || frame.fullname), frame.fullname);
+                }
+                let line;
+                if (frame.line) {
+                    line = parseInt(frame.line, 10);
+                }
+                const frameHandle = this.frameHandles.create({
+                    threadId: args.threadId,
+                    frameId: parseInt(frame.level, 10),
+                });
+                return new StackFrame(frameHandle, frame.func || frame.fullname || '', source, line);
+            });
+
+            response.body = {
+                stackFrames: stack,
+                totalFrames: depth,
+            };
+
             this.sendResponse(response);
-        } catch(err) {
+        } catch (err) {
             this.sendErrorResponse(response, 1, err);
         }
     }
 
-    protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<void> {
+    protected async nextRequest(response: DebugProtocol.NextResponse,
+                                args: DebugProtocol.NextArguments): Promise<void> {
+        try {
+            await exec.sendExecNext(this.gdb);
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err);
+        }
+    }
+
+    protected async stepInRequest(response: DebugProtocol.StepInResponse,
+                                  args: DebugProtocol.StepInArguments): Promise<void> {
         try {
             await exec.sendExecStep(this.gdb);
             this.sendResponse(response);
@@ -274,7 +286,8 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<void> {
+    protected async stepOutRequest(response: DebugProtocol.StepOutResponse,
+                                   args: DebugProtocol.StepOutArguments): Promise<void> {
         try {
             await exec.sendExecFinish(this.gdb);
             this.sendResponse(response);
@@ -283,34 +296,37 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<void> {
+    protected async continueRequest(response: DebugProtocol.ContinueResponse,
+                                    args: DebugProtocol.ContinueArguments): Promise<void> {
         try {
             await exec.sendExecContinue(this.gdb);
             this.sendResponse(response);
-        } catch(err) {
+        } catch (err) {
             this.sendErrorResponse(response, 1, err);
         }
     }
 
-    protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void {
+    protected scopesRequest(response: DebugProtocol.ScopesResponse,
+                            args: DebugProtocol.ScopesArguments): void {
         const frame: FrameVariableReference = {
             type: 'frame',
-            frameHandle: args.frameId
+            frameHandle: args.frameId,
         };
 
         response.body = {
             scopes: [
-                new Scope("Local", this.variableHandles.create(frame), false)
-            ]
+                new Scope('Local', this.variableHandles.create(frame), false),
+            ],
         };
 
         this.sendResponse(response);
     }
 
-    protected async variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): Promise<void> {
+    protected async variablesRequest(response: DebugProtocol.VariablesResponse,
+                                     args: DebugProtocol.VariablesArguments): Promise<void> {
         const variables = new Array<DebugProtocol.Variable>();
         response.body = {
-            variables: variables
+            variables,
         };
         try {
             const ref = this.variableHandles.get(args.variablesReference);
@@ -325,11 +341,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                     return;
                 }
 
-                let call_stack = false;
-                let num_vars = 0;
+                let callStack = false;
+                let numVars = 0;
 
                 const stackDepth = await sendStackInfoDepth(this.gdb, {maxDepth: 100});
-                const depth = parseInt(stackDepth.depth);
+                const depth = parseInt(stackDepth.depth, 10);
                 const toDelete = new Array<string>();
 
                 const vars = this.getVars(frame.frameId, frame.threadId, depth);
@@ -340,53 +356,59 @@ export class GDBDebugSession extends LoggingDebugSession {
                             const update = vup.changelist[0];
                             if (update) {
                                 if (update.in_scope === 'true') {
-                                    num_vars++;
+                                    numVars++;
                                     varobj.value = update.value;
                                     variables.push({
                                         name: varobj.expression,
                                         value: update.value,
                                         type: varobj.type,
-                                        variablesReference: parseInt(varobj.numchild) > 0
+                                        variablesReference: parseInt(varobj.numchild, 10) > 0
                                             ? this.variableHandles.create({type: 'object', varobjName: varobj.varname})
-                                            : 0
+                                            : 0,
                                     });
                                 } else {
-                                    call_stack = true;
+                                    callStack = true;
                                     toDelete.push(update.name);
                                 }
                             } else if (varobj.value) {
-                                num_vars++;
+                                numVars++;
                                 variables.push({
                                     name: varobj.expression,
                                     value: varobj.value,
                                     type: varobj.type,
-                                    variablesReference: parseInt(varobj.numchild) > 0
+                                    variablesReference: parseInt(varobj.numchild, 10) > 0
                                         ? this.variableHandles.create({type: 'object', varobjName: varobj.varname})
-                                        : 0
+                                        : 0,
                                 });
                             }
                         }
                     }
                     for (const varname of toDelete) {
                         this.removeVar(frame.frameId, frame.threadId, depth, varname);
-                        await sendVarDelete(this.gdb, {varname: varname});
+                        await sendVarDelete(this.gdb, {varname});
                     }
-                } 
-                if (call_stack === true || num_vars === 0) {
-                    const result = await sendStackListVariables(this.gdb, {thread: frame.threadId, frame: frame.frameId, printValues: 'simple-values'});
+                }
+                if (callStack === true || numVars === 0) {
+                    const result = await sendStackListVariables(this.gdb, {
+                        thread: frame.threadId,
+                        frame: frame.frameId,
+                        printValues: 'simple-values',
+                    });
                     for (const variable of result.variables) {
-                        let varobj = this.getVar(frame.frameId, frame.threadId, depth, variable.name);
+                        const varobj = this.getVar(frame.frameId, frame.threadId, depth, variable.name);
                         if (!varobj) {
-                            const varobj = await sendVarCreate(this.gdb, {frame: 'current', expression: variable.name});
+                            const varobj2 = await sendVarCreate(this.gdb, {
+                                frame: 'current', expression: variable.name,
+                            });
                             variables.push({
                                 name: variable.name,
-                                value: varobj.value,
+                                value: varobj2.value,
                                 type: variable.type,
-                                variablesReference: parseInt(varobj.numchild) > 0
-                                    ? this.variableHandles.create({type: 'object', varobjName: varobj.name})
-                                    : 0
+                                variablesReference: parseInt(varobj2.numchild, 10) > 0
+                                    ? this.variableHandles.create({type: 'object', varobjName: varobj2.name})
+                                    : 0,
                             });
-                                this.addVar(frame.frameId, frame.threadId, depth, variable.name, true, varobj);
+                            this.addVar(frame.frameId, frame.threadId, depth, variable.name, true, varobj2);
                         } else {
                             const vup = await sendVarUpdate(this.gdb, {threadId: frame.threadId, name: varobj.varname});
                             const update = vup.changelist[0];
@@ -398,29 +420,36 @@ export class GDBDebugSession extends LoggingDebugSession {
                                         name: varobj.expression,
                                         value: update.value,
                                         type: varobj.type,
-                                        variablesReference: parseInt(varobj.numchild) > 0
+                                        variablesReference: parseInt(varobj.numchild, 10) > 0
                                             ? this.variableHandles.create({type: 'object', varobjName: varobj.varname})
-                                            : 0
+                                            : 0,
                                     });
                                 } else {
                                     this.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
                                     await sendVarDelete(this.gdb, {varname: varobj.varname});
-                                    const createResponse = await sendVarCreate(this.gdb, {frame: 'current', expression: variable.name});
-                                    this.addVar(frame.frameId, frame.threadId, depth, variable.name, true, createResponse);
+                                    const createResponse = await sendVarCreate(this.gdb, {
+                                        frame: 'current',
+                                        expression: variable.name,
+                                    });
+                                    this.addVar(frame.frameId, frame.threadId, depth, variable.name,
+                                        true, createResponse);
                                     variables.push({
                                         name: variable.name,
                                         value: createResponse.value,
                                         type: variable.type,
-                                        variablesReference: parseInt(createResponse.numchild) > 0
-                                            ? this.variableHandles.create({type: 'object', varobjName: createResponse.name})
-                                            : 0
+                                        variablesReference: parseInt(createResponse.numchild, 10) > 0
+                                            ? this.variableHandles.create({
+                                                type: 'object',
+                                                varobjName: createResponse.name,
+                                            })
+                                            : 0,
                                     });
                                 }
                             }
                         }
                     }
                 }
-                
+
             } else if (ref.type === 'object') {
                 const children = await sendVarListChildren(this.gdb, {name: ref.varobjName, printValues: 'all-values'});
                 for (const child of children.children) {
@@ -428,9 +457,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                         name: child.exp,
                         value: child.value ? child.value : child.type,
                         type: child.type,
-                        variablesReference: parseInt(child.numchild) > 0
+                        variablesReference: parseInt(child.numchild, 10) > 0
                             ? this.variableHandles.create({type: 'object', varobjName: child.name})
-                            : 0
+                            : 0,
                     });
                 }
             }
@@ -440,12 +469,13 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected async evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): Promise<void> {
-        response.body = {result: "Error: could not evaluate expression", variablesReference: 0}; // default response
+    protected async evaluateRequest(response: DebugProtocol.EvaluateResponse,
+                                    args: DebugProtocol.EvaluateArguments): Promise<void> {
+        response.body = {result: 'Error: could not evaluate expression', variablesReference: 0}; // default response
         try {
             switch (args.context) {
                 case 'repl':
-                    response.body = {result: "placeholder text", variablesReference: 0};
+                    response.body = {result: 'placeholder text', variablesReference: 0};
                     await this.gdb.sendCommand(args.expression);
                     this.sendResponse(response);
                     break;
@@ -458,13 +488,20 @@ export class GDBDebugSession extends LoggingDebugSession {
                         }
                         try {
                             const stackDepth = await sendStackInfoDepth(this.gdb, {maxDepth: 100});
-                            const depth = parseInt(stackDepth.depth);
+                            const depth = parseInt(stackDepth.depth, 10);
                             let varobj = this.getVar(frame.frameId, frame.threadId, depth, args.expression);
                             if (!varobj) {
-                                let varCreateResponse = await sendVarCreate(this.gdb, {expression: args.expression, frame: "current"});
-                                varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression, false, varCreateResponse);
+                                const varCreateResponse = await sendVarCreate(this.gdb, {
+                                    expression: args.expression,
+                                    frame: 'current',
+                                });
+                                varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression,
+                                    false, varCreateResponse);
                             }  else {
-                                const vup = await sendVarUpdate(this.gdb, {threadId: frame.threadId, name: varobj.varname});
+                                const vup = await sendVarUpdate(this.gdb, {
+                                    threadId: frame.threadId,
+                                    name: varobj.varname,
+                                });
                                 const update = vup.changelist[0];
                                 if (update) {
                                     if (update.in_scope === 'true') {
@@ -473,18 +510,28 @@ export class GDBDebugSession extends LoggingDebugSession {
                                         this.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
                                         await sendVarDelete(this.gdb, {varname: varobj.varname});
                                         varobj = undefined;
-                                        let varCreateResponse = await sendVarCreate(this.gdb, {expression: args.expression, frame: "current"});
-                                        varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression, false, varCreateResponse);
-                                    } 
+                                        const varCreateResponse = await sendVarCreate(this.gdb, {
+                                            expression: args.expression,
+                                            frame: 'current',
+                                        });
+                                        varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression,
+                                            false, varCreateResponse);
+                                    }
                                 }
                             }
                             if (varobj) {
-                                response.body = {result: varobj.value, type: varobj.type, variablesReference: parseInt(varobj.numchild) > 0
-                                    ? this.variableHandles.create({type: 'object', varobjName: varobj.varname})
-                                    : 0};
-                            } 
-                        // if any of the gdb calls fail, just report we can't complete the evaluation
-                        } catch (err) {}
+                                response.body = {
+                                    result: varobj.value,
+                                    type: varobj.type,
+                                    variablesReference: parseInt(varobj.numchild, 10) > 0
+                                        ? this.variableHandles.create({type: 'object', varobjName: varobj.varname})
+                                        : 0,
+                                };
+                            }
+                        } catch (err) {
+                            // if any of the gdb calls fail, just report we can't complete the evaluation
+                            // TODO
+                        }
                     }
                     this.sendResponse(response);
                     break;
@@ -495,17 +542,25 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    private variableMap: Map<string, Array<VarObjType>> = new Map<string, Array<VarObjType>>();
+    protected async disconnectRequest(response: DebugProtocol.DisconnectResponse,
+                                      args: DebugProtocol.DisconnectArguments): Promise<void> {
+        try {
+            await this.gdb.sendGDBExit();
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err);
+        }
+    }
 
-    private getKey(frameId: number, threadId: number, depth: number) : string {
+    private getKey(frameId: number, threadId: number, depth: number): string {
         return `frame${frameId}_thread${threadId}_depth${depth}`;
     }
 
-    private getVars(frameId: number, threadId: number, depth: number) : VarObjType[] | undefined {
+    private getVars(frameId: number, threadId: number, depth: number): VarObjType[] | undefined {
         return this.variableMap.get(this.getKey(frameId, threadId, depth));
     }
 
-    private getVar(frameId: number, threadId: number, depth: number, expression: string) : VarObjType | undefined {
+    private getVar(frameId: number, threadId: number, depth: number, expression: string): VarObjType | undefined {
         const vars = this.getVars(frameId, threadId, depth);
         if (vars) {
             for (const varobj of vars) {
@@ -517,22 +572,30 @@ export class GDBDebugSession extends LoggingDebugSession {
         return;
     }
 
-    private addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
+    private addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
+                   varCreateResponse: MIVarCreateResponse): VarObjType {
         let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
         if (!vars) {
             vars = new Array<VarObjType>();
         }
-        let varobj : VarObjType = {varname: varCreateResponse.name, expression: expression, numchild: varCreateResponse.numchild, value: varCreateResponse.value, type: varCreateResponse.type, isVar: isVar};
+        const varobj: VarObjType = {
+            varname: varCreateResponse.name,
+            expression,
+            numchild: varCreateResponse.numchild,
+            value: varCreateResponse.value,
+            type: varCreateResponse.type,
+            isVar,
+        };
         vars.push(varobj);
         this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
         return varobj;
     }
 
     private removeVar(frameId: number, threadId: number, depth: number, varname: string): void {
-        let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
+        const vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
         let deleteme;
         if (vars) {
-            for (let varobj of vars) {
+            for (const varobj of vars) {
                 if (varobj.varname === varname) {
                     deleteme = varobj;
                     break;
@@ -542,15 +605,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 vars.splice(vars.indexOf(deleteme), 1);
             }
             this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
-        }
-    }
-    
-    protected async disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): Promise<void> {
-        try {
-            await this.gdb.sendGDBExit();
-            this.sendResponse(response);
-        } catch (err) {
-            this.sendErrorResponse(response, 1, err);
         }
     }
 
@@ -568,13 +622,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new TerminatedEvent());
                 break;
             case 'breakpoint-hit':
-                this.sendStoppedEvent('breakpoint', parseInt(result["thread-id"]));
+                this.sendStoppedEvent('breakpoint', parseInt(result['thread-id'], 10));
                 break;
             case 'end-stepping-range':
-                this.sendStoppedEvent('step', parseInt(result["thread-id"]));
+                this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
                 break;
             default:
-                logger.warn("GDB unhandled stop: " + JSON.stringify(result));
+                logger.warn('GDB unhandled stop: ' + JSON.stringify(result));
         }
     }
 
@@ -587,7 +641,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.handleGDBStopped(result);
                 break;
             default:
-                logger.warn("GDB unhandled async: " + JSON.stringify(result));
+                logger.warn('GDB unhandled async: ' + JSON.stringify(result));
         }
     }
 }

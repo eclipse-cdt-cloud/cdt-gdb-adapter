@@ -7,9 +7,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from "./GDBBackend";
-import { Readable } from "stream";
-import { logger } from "vscode-debugadapter/lib/logger";
+import { Readable } from 'stream';
+import { logger } from 'vscode-debugadapter/lib/logger';
+import { GDBBackend } from './GDBBackend';
 
 export class MIParser {
     private line = '';
@@ -20,8 +20,8 @@ export class MIParser {
     constructor(private gdb: GDBBackend) {
     }
 
-    parse(stream: Readable): Promise<void> {
-        return new Promise(resolve => {
+    public parse(stream: Readable): Promise<void> {
+        return new Promise((resolve) => {
             this.waitReady = resolve;
             const lineRegex = /(.*)(\r?\n)/;
             let buff = '';
@@ -39,7 +39,7 @@ export class MIParser {
         });
     }
 
-    queueCommand(token: number, command: (result: any) => void) {
+    public queueCommand(token: number, command: (result: any) => void) {
         this.commandQueue[token] = command;
     }
 
@@ -147,7 +147,7 @@ export class MIParser {
 
     private handleArray() {
         let c = this.next();
-        const result:any[] = [];
+        const result: any[] = [];
         if (c === '[') {
             c = this.next();
             while (c !== ']') {
@@ -158,7 +158,7 @@ export class MIParser {
                 c = this.next();
             }
         }
-        
+
         if (c === ']') {
             return result;
         } else {
@@ -188,7 +188,7 @@ export class MIParser {
 
     private handleAsyncOutput() {
         const result: any = {
-            _class: this.handleString()
+            _class: this.handleString(),
         };
 
         let c = this.next();
@@ -232,14 +232,14 @@ export class MIParser {
 
         switch (c) {
             case '^':
-                logger.verbose("GDB result: " + this.restOfLine());
+                logger.verbose('GDB result: ' + this.restOfLine());
                 const command = this.commandQueue[token];
                 if (command) {
-                    const result = this.handleAsyncOutput();
-                    command(result);
+                    const asyncResult = this.handleAsyncOutput();
+                    command(asyncResult);
                     delete this.commandQueue[token];
                 } else {
-                    logger.error("GDB response with no command: " + token);
+                    logger.error('GDB response with no command: ' + token);
                 }
                 break;
             case '~':
@@ -251,10 +251,10 @@ export class MIParser {
                 break;
             case '=':
                 // TODO: notify
-                logger.verbose("GDB notify: " + this.restOfLine());
+                logger.verbose('GDB notify: ' + this.restOfLine());
                 break;
             case '*':
-                logger.verbose("GDB async: " + this.restOfLine());
+                logger.verbose('GDB async: ' + this.restOfLine());
                 const result = this.handleAsyncOutput();
                 this.gdb.emit('async', result);
                 break;

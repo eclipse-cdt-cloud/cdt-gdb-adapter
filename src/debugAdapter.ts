@@ -7,9 +7,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBDebugSession } from "./GDBDebugSession";
 import * as process from 'process';
-import { logger } from "vscode-debugadapter/lib/logger";
+import { logger } from 'vscode-debugadapter/lib/logger';
+import { GDBDebugSession } from './GDBDebugSession';
 
 process.on('uncaughtException', (err: any) => {
     logger.error(JSON.stringify(err));
