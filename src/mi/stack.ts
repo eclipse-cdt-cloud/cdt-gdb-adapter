@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { MIFrameInfo, MIVariableInfo, MIResponse } from "./base";
-import { GDBBackend } from "../GDBBackend";
+import { GDBBackend } from '../GDBBackend';
+import { MIFrameInfo, MIResponse, MIVariableInfo } from './base';
 
 export interface MIStackInfoDepthResponse extends MIResponse {
     depth: string;

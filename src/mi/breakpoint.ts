@@ -15,7 +15,7 @@ export interface MIBreakInsertResponse extends MIResponse {
 }
 
 export interface MIBreakDeleteRequest {
-  
+
 }
 
 export interface MIBreakDeleteResponse extends MIResponse {
@@ -29,9 +29,9 @@ export interface MIBreakListResponse extends MIResponse {
           width: string,
           alignment: string,
           col_name: string,
-          colhdr: string
+          colhdr: string,
       }>;
-      body: Array<MIBreakpointInfo>
+      body: MIBreakpointInfo[]
   };
 }
 
@@ -46,16 +46,16 @@ export function sendBreakInsert(gdb: GDBBackend, request: {
   threadId?: string;
   location: string;
 }): Promise<MIBreakInsertResponse> {
-  //Todo: lots of options
+  // Todo: lots of options
   return gdb.sendCommand(`-break-insert ${request.location}`);
 }
 
 export function sendBreakDelete(gdb: GDBBackend, request: {
-  breakpoints: Array<string>;
+  breakpoints: string[];
 }): Promise<MIBreakDeleteResponse> {
   return gdb.sendCommand(`-break-delete ${request.breakpoints.join(' ')}`);
 }
 
-export function sendBreakList(gdb: GDBBackend) : Promise<MIBreakListResponse> {
+export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
   return gdb.sendCommand('-break-list');
 }

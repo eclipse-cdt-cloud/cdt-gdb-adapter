@@ -12,26 +12,26 @@ import { MIResponse } from './base';
 
 export function sendExecArguments(gdb: GDBBackend, params: {
   arguments: string;
-}) : Promise<MIResponse> {
+}): Promise<MIResponse> {
   return gdb.sendCommand(`-exec-arguments ${params.arguments}`);
 }
 
-  export function  sendExecRun(gdb: GDBBackend) {
-      return gdb.sendCommand('-exec-run');
-  }
+export function  sendExecRun(gdb: GDBBackend) {
+    return gdb.sendCommand('-exec-run');
+}
 
-  export function sendExecContinue(gdb: GDBBackend) {
-      return gdb.sendCommand('-exec-continue');
-  }
+export function sendExecContinue(gdb: GDBBackend) {
+    return gdb.sendCommand('-exec-continue');
+}
 
-  export function sendExecNext(gdb: GDBBackend) {
-      return gdb.sendCommand('-exec-next');
-  }
+export function sendExecNext(gdb: GDBBackend) {
+    return gdb.sendCommand('-exec-next');
+}
 
-  export function sendExecStep(gdb: GDBBackend) {
-      return gdb.sendCommand('-exec-step');
-  }
+export function sendExecStep(gdb: GDBBackend) {
+    return gdb.sendCommand('-exec-step');
+}
 
-  export function sendExecFinish(gdb: GDBBackend) {
-      return gdb.sendCommand('-exec-finish');
-  }
+export function sendExecFinish(gdb: GDBBackend) {
+    return gdb.sendCommand('-exec-finish');
+}

@@ -7,20 +7,19 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from "../GDBBackend";
-import { MIResponse } from "./base";
+import { GDBBackend } from '../GDBBackend';
+import { MIResponse } from './base';
 
 export interface MIVarCreateResponse extends MIResponse {
   name: string;
   numchild: string;
   value: string;
   type: string;
-  "thread-id"?: string;
+  'thread-id'?: string;
   has_more?: string;
   dynamic?: string;
   displayhint?: string;
 }
-
 
 export interface MIVarListChildrenResponse {
   numchild: string;
@@ -30,7 +29,7 @@ export interface MIVarListChildrenResponse {
       numchild: string;
       type: string;
       value?: string;
-      "thread-id"?: string;
+      'thread-id'?: string;
       frozen?: string;
       displayhint?: string;
       dynamic?: string;
@@ -47,7 +46,7 @@ export interface MIVarUpdateResponse {
     }>;
 }
 
-export function sendVarCreate(gdb : GDBBackend, params: {
+export function sendVarCreate(gdb: GDBBackend, params: {
   name?: string;
   frameAddr?: string;
   frame?: 'current' | 'floating';
@@ -72,7 +71,7 @@ export function sendVarCreate(gdb : GDBBackend, params: {
   return gdb.sendCommand(command);
 }
 
-export function sendVarListChildren(gdb : GDBBackend, params: {
+export function sendVarListChildren(gdb: GDBBackend, params: {
   printValues?: 'no-values' | 'all-values' | 'simple-values';
   name: string;
   from?: number;
@@ -107,8 +106,8 @@ export function sendVarUpdate(gdb: GDBBackend, params: {
 }
 
 export function sendVarDelete(gdb: GDBBackend, params: {
-    varname: string
-}) : Promise<void> {
-    let command = `-var-delete ${params.varname}`;
+    varname: string,
+}): Promise<void> {
+    const command = `-var-delete ${params.varname}`;
     return gdb.sendCommand(command);
 }
