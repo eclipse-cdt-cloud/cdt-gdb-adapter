@@ -8,7 +8,7 @@ module.exports = {
         extensions: [ '.ts', '.js' ]
     },
     entry: {
-        gdbDebugAdapter: './src/debugAdapter.ts'
+        debugAdapter: './src/debugAdapter.ts'
     },
     output: {
         path: path.resolve(__dirname, 'out'),

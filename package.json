@@ -4,8 +4,9 @@
   "description": "gdb adapter implementing the debug adapter protocol",
   "main": "index.js",
   "scripts": {
-    "build": "webpack --mode production --display-modules",
-    "watch": "webpack --watch",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "build-production": "webpack --mode production --display-modules",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
