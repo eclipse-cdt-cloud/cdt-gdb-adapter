@@ -9,16 +9,17 @@
  *********************************************************************/
 import * as path from 'path';
 import { logger } from 'vscode-debugadapter/lib/logger';
-import { Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Scope,
-    Source, StackFrame, StoppedEvent, TerminatedEvent, Thread } from 'vscode-debugadapter/lib/main';
+import { Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Scope, Source, StackFrame,
+    StoppedEvent, TerminatedEvent, Thread } from 'vscode-debugadapter/lib/main';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { GDBBackend } from './GDBBackend';
-import { sendBreakDelete, sendBreakInsert, sendBreakList} from './mi/breakpoint';
+import { sendBreakDelete, sendBreakInsert, sendBreakList } from './mi/breakpoint';
 import * as exec from './mi/exec';
 import { sendStackInfoDepth, sendStackListFramesRequest, sendStackListVariables } from './mi/stack';
 import { sendTargetAttachRequest } from './mi/target';
 import { sendThreadInfoRequest } from './mi/thread';
-import { MIVarCreateResponse, sendVarCreate, sendVarDelete, sendVarListChildren, sendVarUpdate } from './mi/var';
+import { sendVarCreate, sendVarDelete, sendVarListChildren, sendVarUpdate } from './mi/var';
+import * as varMgr from './varManager';
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -52,23 +53,12 @@ export interface ObjectVariableReference {
 
 export type VariableReference = FrameVariableReference | ObjectVariableReference;
 
-interface VarObjType {
-    varname: string;
-    expression: string;
-    numchild: string;
-    value: string;
-    type: string;
-    isVar: boolean;
-}
-
 export class GDBDebugSession extends LoggingDebugSession {
     private gdb: GDBBackend = new GDBBackend();
     private isAttach = false;
     private isRunning = false;
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
-
-    private variableMap: Map<string, VarObjType[]> = new Map<string, VarObjType[]>();
 
     constructor() {
         super('gdb-debug.log');
@@ -348,7 +338,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 const depth = parseInt(stackDepth.depth, 10);
                 const toDelete = new Array<string>();
 
-                const vars = this.getVars(frame.frameId, frame.threadId, depth);
+                const vars = varMgr.getVars(frame.frameId, frame.threadId, depth);
                 if (vars) {
                     for (const varobj of vars) {
                         if (varobj.isVar) {
@@ -384,7 +374,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         }
                     }
                     for (const varname of toDelete) {
-                        this.removeVar(frame.frameId, frame.threadId, depth, varname);
+                        varMgr.removeVar(frame.frameId, frame.threadId, depth, varname);
                         await sendVarDelete(this.gdb, {varname});
                     }
                 }
@@ -395,20 +385,20 @@ export class GDBDebugSession extends LoggingDebugSession {
                         printValues: 'simple-values',
                     });
                     for (const variable of result.variables) {
-                        const varobj = this.getVar(frame.frameId, frame.threadId, depth, variable.name);
+                        const varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, variable.name);
                         if (!varobj) {
-                            const varobj2 = await sendVarCreate(this.gdb, {
+                            const varCreateResponse = await sendVarCreate(this.gdb, {
                                 frame: 'current', expression: variable.name,
                             });
                             variables.push({
                                 name: variable.name,
-                                value: varobj2.value,
+                                value: varCreateResponse.value,
                                 type: variable.type,
-                                variablesReference: parseInt(varobj2.numchild, 10) > 0
-                                    ? this.variableHandles.create({type: 'object', varobjName: varobj2.name})
+                                variablesReference: parseInt(varCreateResponse.numchild, 10) > 0
+                                    ? this.variableHandles.create({type: 'object', varobjName: varCreateResponse.name})
                                     : 0,
                             });
-                            this.addVar(frame.frameId, frame.threadId, depth, variable.name, true, varobj2);
+                            varMgr.addVar(frame.frameId, frame.threadId, depth, variable.name, true, varCreateResponse);
                         } else {
                             const vup = await sendVarUpdate(this.gdb, {threadId: frame.threadId, name: varobj.varname});
                             const update = vup.changelist[0];
@@ -425,14 +415,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                                             : 0,
                                     });
                                 } else {
-                                    this.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
+                                    varMgr.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
                                     await sendVarDelete(this.gdb, {varname: varobj.varname});
-                                    const createResponse = await sendVarCreate(this.gdb, {
-                                        frame: 'current',
-                                        expression: variable.name,
-                                    });
-                                    this.addVar(frame.frameId, frame.threadId, depth, variable.name,
-                                        true, createResponse);
+                                    const createResponse = await sendVarCreate(this.gdb, {frame: 'current',
+                                        expression: variable.name});
+                                    varMgr.addVar(frame.frameId, frame.threadId, depth, variable.name, true,
+                                         createResponse);
                                     variables.push({
                                         name: variable.name,
                                         value: createResponse.value,
@@ -489,14 +477,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                         try {
                             const stackDepth = await sendStackInfoDepth(this.gdb, {maxDepth: 100});
                             const depth = parseInt(stackDepth.depth, 10);
-                            let varobj = this.getVar(frame.frameId, frame.threadId, depth, args.expression);
+                            let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, args.expression);
                             if (!varobj) {
-                                const varCreateResponse = await sendVarCreate(this.gdb, {
-                                    expression: args.expression,
-                                    frame: 'current',
-                                });
-                                varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression,
-                                    false, varCreateResponse);
+                                const varCreateResponse = await sendVarCreate(this.gdb,
+                                    {expression: args.expression, frame: 'current'});
+                                varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression, false,
+                                    varCreateResponse);
                             }  else {
                                 const vup = await sendVarUpdate(this.gdb, {
                                     threadId: frame.threadId,
@@ -507,14 +493,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                                     if (update.in_scope === 'true') {
                                         varobj.value = update.value;
                                     } else {
-                                        this.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
+                                        varMgr.removeVar(frame.frameId, frame.threadId, depth, varobj.varname);
                                         await sendVarDelete(this.gdb, {varname: varobj.varname});
                                         varobj = undefined;
-                                        const varCreateResponse = await sendVarCreate(this.gdb, {
-                                            expression: args.expression,
-                                            frame: 'current',
-                                        });
-                                        varobj = this.addVar(frame.frameId, frame.threadId, depth, args.expression,
+                                        const varCreateResponse = await sendVarCreate(this.gdb,
+                                            {expression: args.expression, frame: 'current'});
+                                        varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression,
                                             false, varCreateResponse);
                                     }
                                 }
@@ -549,62 +533,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err);
-        }
-    }
-
-    private getKey(frameId: number, threadId: number, depth: number): string {
-        return `frame${frameId}_thread${threadId}_depth${depth}`;
-    }
-
-    private getVars(frameId: number, threadId: number, depth: number): VarObjType[] | undefined {
-        return this.variableMap.get(this.getKey(frameId, threadId, depth));
-    }
-
-    private getVar(frameId: number, threadId: number, depth: number, expression: string): VarObjType | undefined {
-        const vars = this.getVars(frameId, threadId, depth);
-        if (vars) {
-            for (const varobj of vars) {
-                if (varobj.expression === expression) {
-                    return varobj;
-                }
-            }
-        }
-        return;
-    }
-
-    private addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
-                   varCreateResponse: MIVarCreateResponse): VarObjType {
-        let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
-        if (!vars) {
-            vars = new Array<VarObjType>();
-        }
-        const varobj: VarObjType = {
-            varname: varCreateResponse.name,
-            expression,
-            numchild: varCreateResponse.numchild,
-            value: varCreateResponse.value,
-            type: varCreateResponse.type,
-            isVar,
-        };
-        vars.push(varobj);
-        this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
-        return varobj;
-    }
-
-    private removeVar(frameId: number, threadId: number, depth: number, varname: string): void {
-        const vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
-        let deleteme;
-        if (vars) {
-            for (const varobj of vars) {
-                if (varobj.varname === varname) {
-                    deleteme = varobj;
-                    break;
-                }
-            }
-            if (deleteme)  {
-                vars.splice(vars.indexOf(deleteme), 1);
-            }
-            this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
         }
     }
 
