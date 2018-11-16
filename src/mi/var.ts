@@ -11,29 +11,29 @@ import { GDBBackend } from '../GDBBackend';
 import { MIResponse } from './base';
 
 export interface MIVarCreateResponse extends MIResponse {
-  name: string;
-  numchild: string;
-  value: string;
-  type: string;
-  'thread-id'?: string;
-  has_more?: string;
-  dynamic?: string;
-  displayhint?: string;
+    name: string;
+    numchild: string;
+    value: string;
+    type: string;
+    'thread-id'?: string;
+    has_more?: string;
+    dynamic?: string;
+    displayhint?: string;
 }
 
 export interface MIVarListChildrenResponse {
-  numchild: string;
-  children: Array<{
-      name: string;
-      exp: string;
-      numchild: string;
-      type: string;
-      value?: string;
-      'thread-id'?: string;
-      frozen?: string;
-      displayhint?: string;
-      dynamic?: string;
-  }>;
+    numchild: string;
+    children: Array<{
+        name: string;
+        exp: string;
+        numchild: string;
+        type: string;
+        value?: string;
+        'thread-id'?: string;
+        frozen?: string;
+        displayhint?: string;
+        dynamic?: string;
+    }>;
 }
 
 export interface MIVarUpdateResponse {
@@ -51,35 +51,35 @@ export interface MIVarEvalResponse {
 }
 
 export function sendVarCreate(gdb: GDBBackend, params: {
-  name?: string;
-  frameAddr?: string;
-  frame?: 'current' | 'floating';
-  expression: string;
+    name?: string;
+    frameAddr?: string;
+    frame?: 'current' | 'floating';
+    expression: string;
 }): Promise<MIVarCreateResponse> {
-  let command = '-var-create';
-  command += ` ${params.name ? params.name : '-'}`;
-  if (params.frameAddr) {
-      command += ` ${params.frameAddr}`;
-  } else if (params.frame) {
-      switch (params.frame) {
-          case 'current':
-              command += ' *';
-              break;
-          case 'floating':
-              command += ' @';
-              break;
-      }
-  }
-  command += ` ${params.expression}`;
+    let command = '-var-create';
+    command += ` ${params.name ? params.name : '-'}`;
+    if (params.frameAddr) {
+        command += ` ${params.frameAddr}`;
+    } else if (params.frame) {
+        switch (params.frame) {
+            case 'current':
+                command += ' *';
+                break;
+            case 'floating':
+                command += ' @';
+                break;
+        }
+    }
+    command += ` ${params.expression}`;
 
-  return gdb.sendCommand(command);
+    return gdb.sendCommand(command);
 }
 
 export function sendVarListChildren(gdb: GDBBackend, params: {
-  printValues?: 'no-values' | 'all-values' | 'simple-values';
-  name: string;
-  from?: number;
-  to?: number;
+    printValues?: 'no-values' | 'all-values' | 'simple-values';
+    name: string;
+    from?: number;
+    to?: number;
 }): Promise<MIVarListChildrenResponse> {
     let command = '-var-list-children';
     if (params.printValues) {

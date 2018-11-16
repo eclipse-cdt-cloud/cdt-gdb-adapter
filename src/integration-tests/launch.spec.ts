@@ -56,7 +56,7 @@ describe('launch', function() {
             source: { path: 'empty.c' },
             breakpoints: [{
                 line: 3,
-            }]
+            }],
         });
         await dc.configurationDoneRequest({});
         await dc.assertStoppedLocation('breakpoint', {});
