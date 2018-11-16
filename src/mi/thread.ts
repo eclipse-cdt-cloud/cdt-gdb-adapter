@@ -25,14 +25,14 @@ export interface MIThreadInfoResponse extends MIResponse {
     currentThreadId: string;
 }
 
-export function sendThreadInfoRequest(gdb: GDBBackend,  params: {
-        threadId?: string;
-    }): Promise<MIThreadInfoResponse> {
-        let command = '-thread-info';
-        if (params.threadId) {
-            command += ` ${params.threadId}`;
-        }
-        return gdb.sendCommand(command);
+export function sendThreadInfoRequest(gdb: GDBBackend, params: {
+    threadId?: string;
+}): Promise<MIThreadInfoResponse> {
+    let command = '-thread-info';
+    if (params.threadId) {
+        command += ` ${params.threadId}`;
+    }
+    return gdb.sendCommand(command);
 }
 
 export interface MIThreadSelectResponse extends MIResponse {
@@ -43,5 +43,5 @@ export interface MIThreadSelectResponse extends MIResponse {
 export function sendThreadSelectRequest(gdb: GDBBackend, params: {
     threadId: number;
 }): Promise<MIThreadSelectResponse> {
-        return gdb.sendCommand(`-thread-select ${params.threadId}`);
+    return gdb.sendCommand(`-thread-select ${params.threadId}`);
 }

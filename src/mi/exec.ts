@@ -7,16 +7,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import {GDBBackend} from '../GDBBackend';
+import { GDBBackend } from '../GDBBackend';
 import { MIResponse } from './base';
 
 export function sendExecArguments(gdb: GDBBackend, params: {
-  arguments: string;
+    arguments: string;
 }): Promise<MIResponse> {
-  return gdb.sendCommand(`-exec-arguments ${params.arguments}`);
+    return gdb.sendCommand(`-exec-arguments ${params.arguments}`);
 }
 
-export function  sendExecRun(gdb: GDBBackend) {
+export function sendExecRun(gdb: GDBBackend) {
     return gdb.sendCommand('-exec-run');
 }
 
