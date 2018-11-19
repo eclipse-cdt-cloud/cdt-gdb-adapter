@@ -8,7 +8,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "build-production": "webpack --mode production --display-modules",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:integration",
+    "test:integration": "mocha out/integration-tests/*.spec.js"
   },
   "repository": {
     "type": "git",
@@ -24,11 +25,16 @@
     "vscode-debugadapter": "^1.32.1"
   },
   "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.5",
     "@types/node": "^10.12.2",
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0",
     "ts-loader": "^5.3.0",
     "tslint": "^5.11.0",
     "tslint-language-service": "^0.9.9",
     "typescript": "^3.1.5",
+    "vscode-debugadapter-testsupport": "^1.32.0",
     "webpack": "^4.23.1",
     "webpack-cli": "^3.1.2"
   }
