@@ -49,7 +49,6 @@ describe('launch', function() {
 
     it('can launch and hit a breakpoint', async function() {
         await dc.launchRequest({
-            verbose: true,
             program: emptyProgram,
         } as any);
 
@@ -66,7 +65,6 @@ describe('launch', function() {
     it('reports an error when specifying a non-existent binary', async function() {
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest({
-                verbose: true,
                 program: '/does/not/exist',
             } as any)
                 .then(reject)
