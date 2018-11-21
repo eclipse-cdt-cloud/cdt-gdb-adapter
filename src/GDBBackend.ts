@@ -75,15 +75,15 @@ export class GDBBackend extends events.EventEmitter {
                             resolve(result);
                             break;
                         case 'error':
-                            reject(result);
+                            reject(new Error(result.msg));
                             break;
                         default:
-                            reject('Unknown response ' + JSON.stringify(result));
+                            reject(new Error('Unknown response ' + JSON.stringify(result)));
                     }
                 });
                 this.out.write(`${token}${command}\n`);
             } else {
-                reject('gdb is not running.');
+                reject(new Error('gdb is not running.'));
             }
         });
     }

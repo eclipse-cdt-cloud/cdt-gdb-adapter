@@ -91,7 +91,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -115,7 +115,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -176,7 +176,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -191,7 +191,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.isRunning = true;
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 100, err);
+            this.sendErrorResponse(response, 100, err.message);
         }
     }
 
@@ -215,7 +215,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -252,7 +252,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -262,7 +262,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await exec.sendExecNext(this.gdb);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -272,7 +272,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await exec.sendExecStep(this.gdb);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -282,7 +282,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await exec.sendExecFinish(this.gdb);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -292,7 +292,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await exec.sendExecContinue(this.gdb);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -452,8 +452,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
             }
             this.sendResponse(response);
-    } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -522,7 +522,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
             }
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
@@ -532,7 +532,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await this.gdb.sendGDBExit();
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
     }
 
