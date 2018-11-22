@@ -46,6 +46,10 @@ export interface MIVarUpdateResponse {
     }>;
 }
 
+export interface MIVarEvalResponse {
+    value: string;
+}
+
 export function sendVarCreate(gdb: GDBBackend, params: {
   name?: string;
   frameAddr?: string;
@@ -109,5 +113,20 @@ export function sendVarDelete(gdb: GDBBackend, params: {
     varname: string,
 }): Promise<void> {
     const command = `-var-delete ${params.varname}`;
+    return gdb.sendCommand(command);
+}
+
+export function sendVarAssign(gdb: GDBBackend, params: {
+    varname: string,
+    expression: string,
+}): Promise<void> {
+    const command = `-var-assign ${params.varname} ${params.expression}`;
+    return gdb.sendCommand(command);
+}
+
+export function sendVarEvaluateExpression(gdb: GDBBackend, params: {
+    varname: string,
+}): Promise<MIVarEvalResponse> {
+    const command = `-var-evaluate-expression ${params.varname}`;
     return gdb.sendCommand(command);
 }
