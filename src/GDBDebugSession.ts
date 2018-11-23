@@ -501,7 +501,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 response.body = {value: args.value};
             }
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err.message);
         }
         this.sendResponse(response);
     }
