@@ -17,11 +17,12 @@ import { getExecPath } from '..';
 // tslint:disable:only-arrow-functions
 
 let dc: DebugClient;
-const emptyProgram = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs', 'empty');
+const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
+const emptyProgram = path.join(testProgramsDir, 'empty');
 
 before(function() {
     // Build the test program
-    cp.execSync('make', { cwd: path.dirname(emptyProgram) });
+    cp.execSync('make', { cwd: testProgramsDir });
 
     let args: string = getExecPath();
     if (process.env.INSPECT_DEBUG_ADAPTER) {
