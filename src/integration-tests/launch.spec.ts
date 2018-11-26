@@ -21,7 +21,7 @@ const emptyProgram = path.join(__dirname, '..', '..', 'src', 'integration-tests'
 
 before(function() {
     // Build the test program
-    cp.execSync('make', { cwd: path.dirname(emptyProgram)});
+    cp.execSync('make', { cwd: path.dirname(emptyProgram) });
 
     let args: string = getExecPath();
     if (process.env.INSPECT_DEBUG_ADAPTER) {
