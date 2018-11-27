@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "build-production": "webpack --mode production --display-modules",
     "test": "npm run test:integration",
-    "test:integration": "cross-env JUNIT_REPORT_PATH=test-reports/integration.xml mocha --reporter mocha-jenkins-reporter out/integration-tests/*.spec.js"
+    "test:integration": "mocha --reporter mocha-jenkins-reporter out/integration-tests/*.spec.js"
   },
   "repository": {
     "type": "git",
