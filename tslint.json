@@ -4,6 +4,12 @@
     "tslint:recommended"
   ],
   "rules": {
+    "align": [
+      true,
+      "statements",
+      "members",
+      "elements"
+    ],
     "interface-name": false,
     "no-empty-interface": false,
     "object-literal-sort-keys": false,
