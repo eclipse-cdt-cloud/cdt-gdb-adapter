@@ -24,7 +24,9 @@ const emptyProgram = path.join(testProgramsDir, 'empty');
 before(function() {
     // Build the test program
     cp.execSync('make', { cwd: testProgramsDir });
+});
 
+beforeEach(async function() {
     let args: string = getExecPath();
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         args = '--inspect-brk ' + args;
@@ -33,12 +35,12 @@ before(function() {
     dc = new DebugClient('node', args, 'cppdbg', {
         shell: true,
     });
-    dc.start();
-    dc.initializeRequest();
+    await dc.start();
+    await dc.initializeRequest();
 });
 
-after(function() {
-    dc.stop();
+afterEach(async function() {
+    await dc.stop();
 });
 
 describe('launch', function() {
