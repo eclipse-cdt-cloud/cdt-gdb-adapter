@@ -1,4 +1,4 @@
-BINS = empty
+BINS = empty vars
 
 .PHONY: all
 all: $(BINS)
@@ -9,8 +9,11 @@ LINK = $(CC) -o $@ $^
 empty: empty.o
 	$(LINK)
 
+vars: vars.o
+	$(LINK)
+
 %.o: %.c
-	$(CC) -c $< -g3 -Og
+	$(CC) -c $< -g3 -O0
 
 .PHONY: clean
 clean:
