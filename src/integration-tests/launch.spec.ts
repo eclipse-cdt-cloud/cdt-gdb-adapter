@@ -20,6 +20,7 @@ import { getExecPath } from '..';
 let dc: DebugClient;
 const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
 const emptyProgram = path.join(testProgramsDir, 'empty');
+const emptySrc = path.join(testProgramsDir, 'empty.c');
 
 before(function() {
     // Build the test program
@@ -50,19 +51,7 @@ describe('launch', function() {
     }
 
     it('can launch and hit a breakpoint', async function() {
-        await dc.launchRequest({
-            verbose: true,
-            program: emptyProgram,
-        } as any);
-
-        await dc.setBreakpointsRequest({
-            source: { path: 'empty.c' },
-            breakpoints: [{
-                line: 3,
-            }],
-        });
-        await dc.configurationDoneRequest({});
-        await dc.assertStoppedLocation('breakpoint', {});
+        await dc.hitBreakpoint({verbose: true, program: emptyProgram}, {line: 3, path: emptySrc});
     });
 
     it('reports an error when specifying a non-existent binary', async function() {
