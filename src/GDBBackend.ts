@@ -48,7 +48,7 @@ export class GDBBackend extends events.EventEmitter {
 
     public launch(args: LaunchRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
-        const proc = spawn(gdb, ['--interpreter=mi2', args.program]);
+        const proc = spawn(gdb, ['--interpreter=mi2']);
         this.out = proc.stdin;
         return this.parser.parse(proc.stdout);
     }
@@ -98,6 +98,10 @@ export class GDBBackend extends events.EventEmitter {
 
     public sendEnablePrettyPrint() {
         return this.sendCommand('-enable-pretty-printing');
+    }
+
+    public sendFileExecAndSymbols(program: string) {
+        return this.sendCommand(`-file-exec-and-symbols ${program}`);
     }
 
     public sendGDBExit() {

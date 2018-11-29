@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
+import { expect } from 'chai';
 import * as cp from 'child_process';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
@@ -49,5 +50,18 @@ describe('launch', function() {
 
     it('can launch and hit a breakpoint', async function() {
         await dc.hitBreakpoint({verbose: true, program: emptyProgram}, {line: 3, path: emptySrc});
+    });
+
+    it('reports an error when specifying a non-existent binary', async function() {
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest({
+                verbose: true,
+                program: '/does/not/exist',
+            } as any)
+                .then(reject)
+                .catch(resolve);
+        });
+
+        expect(errorMessage.message).eq('/does/not/exist: No such file or directory.');
     });
 });
