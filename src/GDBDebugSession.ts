@@ -313,6 +313,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 new Scope('Local', this.variableHandles.create(frame), false),
             ],
         };
+
         this.sendResponse(response);
     }
 
