@@ -29,6 +29,7 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     arguments?: string;
     target: string;
     verbose?: boolean;
+    logFile?: string;
 }
 
 export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArguments {
@@ -36,6 +37,7 @@ export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArgum
     program: string;
     processId: string;
     verbose?: boolean;
+    logFile?: string;
 }
 
 export interface FrameReference {
@@ -64,7 +66,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     private variableHandles = new Handles<VariableReference>();
 
     constructor() {
-        super('gdb-debug.log');
+        super();
     }
 
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
@@ -78,7 +80,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async attachRequest(response: DebugProtocol.AttachResponse, args: AttachRequestArguments): Promise<void> {
         try {
-            logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, false);
+            logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
 
             this.isAttach = true;
 
@@ -102,7 +104,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): Promise<void> {
         try {
-            logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, false);
+            logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
             this.gdb.on('consoleStreamOutput', (output, category) => {
                 this.sendEvent(new OutputEvent(output, category));
             });
