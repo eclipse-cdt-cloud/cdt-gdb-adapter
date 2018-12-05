@@ -16,7 +16,7 @@ import {
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { GDBBackend } from './GDBBackend';
 import { sendBreakDelete, sendBreakInsert, sendBreakList } from './mi/breakpoint';
-import * as exec from './mi/exec';
+import { sendExecArguments, sendExecContinue, sendExecRun, sendExecNext, sendExecStep, sendExecFinish } from './mi/exec';
 import { sendStackInfoDepth, sendStackListFramesRequest, sendStackListVariables } from './mi/stack';
 import { sendTargetAttachRequest } from './mi/target';
 import { sendThreadInfoRequest } from './mi/thread';
@@ -27,7 +27,6 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     gdb?: string;
     program: string;
     arguments?: string;
-    target: string;
     verbose?: boolean;
     logFile?: string;
 }
@@ -59,14 +58,19 @@ export interface ObjectVariableReference {
 export type VariableReference = FrameVariableReference | ObjectVariableReference;
 
 export class GDBDebugSession extends LoggingDebugSession {
-    private gdb: GDBBackend = new GDBBackend();
-    private isAttach = false;
-    private isRunning = false;
+    protected gdb: GDBBackend = this.createBackend();
+    protected isAttach = false;
+    protected isRunning = false;
+
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
 
     constructor() {
         super();
+    }
+
+    protected createBackend(): GDBBackend {
+        return new GDBBackend();
     }
 
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
@@ -82,15 +86,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         try {
             logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
 
-            this.isAttach = true;
-
             this.gdb.on('consoleStreamOutput', (output, category) => {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
             this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
-            await this.gdb.attach(args);
+            await this.gdb.spawn(args);
+            await this.gdb.sendFileExecAndSymbols(args.program);
 
             await sendTargetAttachRequest(this.gdb, { pid: args.processId });
             this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
@@ -105,19 +108,20 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): Promise<void> {
         try {
             logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
+
             this.gdb.on('consoleStreamOutput', (output, category) => {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
             this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
-            await this.gdb.launch(args);
+            await this.gdb.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
 
             this.gdb.sendEnablePrettyPrint();
 
             if (args.arguments) {
-                await exec.sendExecArguments(this.gdb, { arguments: args.arguments });
+                await sendExecArguments(this.gdb, { arguments: args.arguments });
             }
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
@@ -191,9 +195,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                                              args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
         try {
             if (this.isAttach) {
-                await exec.sendExecContinue(this.gdb);
+                await sendExecContinue(this.gdb);
             } else {
-                await exec.sendExecRun(this.gdb);
+                await sendExecRun(this.gdb);
             }
             this.isRunning = true;
             this.sendResponse(response);
@@ -266,7 +270,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async nextRequest(response: DebugProtocol.NextResponse,
                                 args: DebugProtocol.NextArguments): Promise<void> {
         try {
-            await exec.sendExecNext(this.gdb);
+            await sendExecNext(this.gdb);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -276,7 +280,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async stepInRequest(response: DebugProtocol.StepInResponse,
                                   args: DebugProtocol.StepInArguments): Promise<void> {
         try {
-            await exec.sendExecStep(this.gdb);
+            await sendExecStep(this.gdb);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -286,7 +290,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async stepOutRequest(response: DebugProtocol.StepOutResponse,
                                    args: DebugProtocol.StepOutArguments): Promise<void> {
         try {
-            await exec.sendExecFinish(this.gdb);
+            await sendExecFinish(this.gdb);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -296,7 +300,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async continueRequest(response: DebugProtocol.ContinueResponse,
                                     args: DebugProtocol.ContinueArguments): Promise<void> {
         try {
-            await exec.sendExecContinue(this.gdb);
+            await sendExecContinue(this.gdb);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -606,7 +610,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    private sendStoppedEvent(reason: string, threadId: number, exceptionText?: string) {
+    protected sendStoppedEvent(reason: string, threadId: number, exceptionText?: string) {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
@@ -614,7 +618,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.sendEvent(new StoppedEvent(reason, threadId, exceptionText));
     }
 
-    private handleGDBStopped(result: any) {
+    protected handleGDBStopped(result: any) {
         switch (result.reason) {
             case 'exited-normally':
                 this.sendEvent(new TerminatedEvent());
@@ -630,7 +634,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    private handleGDBAsync(result: any) {
+    protected handleGDBAsync(result: any) {
         switch (result._class) {
             case 'running':
                 // not sure we care, we do get the thread-id that's running tho
