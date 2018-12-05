@@ -18,14 +18,6 @@ export interface MIResponse {
     _class: string;
 }
 
-export interface MIUploadRequest {
-    local: string;
-    remote?: string;
-}
-
-export interface MIUploadResponse extends MIResponse {
-}
-
 export interface MIExecNextRequest {
     reverse?: boolean;
 }
@@ -46,14 +38,7 @@ export class GDBBackend extends events.EventEmitter {
     private out?: Writable;
     private token = 0;
 
-    public launch(args: LaunchRequestArguments) {
-        const gdb = args.gdb ? args.gdb : 'gdb';
-        const proc = spawn(gdb, ['--interpreter=mi2']);
-        this.out = proc.stdin;
-        return this.parser.parse(proc.stdout);
-    }
-
-    public attach(args: AttachRequestArguments) {
+    public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
         const proc = spawn(gdb, ['--interpreter=mi2']);
         this.out = proc.stdin;
@@ -86,14 +71,6 @@ export class GDBBackend extends events.EventEmitter {
                 reject(new Error('gdb is not running.'));
             }
         });
-    }
-
-    public sendUpload(request: MIUploadRequest): Promise<MIUploadResponse> {
-        let command = `upload ${request.local}`;
-        if (request.remote) {
-            command += ` ${request.remote}`;
-        }
-        return this.sendCommand(command);
     }
 
     public sendEnablePrettyPrint() {
