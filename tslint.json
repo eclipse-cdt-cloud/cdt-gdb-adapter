@@ -18,6 +18,12 @@
       "single",
       "avoid-template",
       "avoid-escape"
+    ],
+    "space-before-function-paren": [
+      true,
+      {
+        "anonymous": "never"
+      }
     ]
   }
 }

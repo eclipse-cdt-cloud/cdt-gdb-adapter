@@ -25,7 +25,7 @@ const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tes
 const varsProgram = path.join(testProgramsDir, 'vars');
 const varsSrc = path.join(testProgramsDir, 'vars.c');
 
-beforeEach(async function () {
+beforeEach(async function() {
     // Build the test program
     cp.execSync('make', { cwd: testProgramsDir });
 
@@ -48,16 +48,16 @@ beforeEach(async function () {
     expect(scopes.body.scopes.length).to.equal(1);
 });
 
-afterEach(async function () {
+afterEach(async function() {
     await dc.stop();
 });
 
-describe('Variables Test Suite', function () {
+describe('Variables Test Suite', function() {
     // Move the timeout out of the way if the adapter is going to be debugged.
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         this.timeout(9999999);
     }
-    it('can read variables from a program', async function () {
+    it('can read variables from a program', async function() {
         const vars = await dc.variablesRequest({ variablesReference: scopes.body.scopes[0].variablesReference });
         expect(vars.body.variables.length).to.equal(3);
         expect(vars.body.variables[0].name).to.equal('a');
@@ -66,7 +66,7 @@ describe('Variables Test Suite', function () {
         expect(vars.body.variables[1].value).to.equal('2');
     });
 
-    it('can set variables in a program', async function () {
+    it('can set variables in a program', async function() {
         const vr = scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length).to.equal(3);
