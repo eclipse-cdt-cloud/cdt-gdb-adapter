@@ -6,9 +6,11 @@ We are at least learning from it.
 
 ## Building
 
-Build is pretty simple. It uses webpack to bundle the adapter into a single gdbDebugAdapter.js file in the out directory.
+Build is pretty simple.
 
 ```
 npm install
 npm run build
 ```
+
+The entry point for the adapter is `out/debugAdapter.js`.
