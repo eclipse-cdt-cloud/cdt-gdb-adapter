@@ -69,7 +69,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
-                                args: DebugProtocol.InitializeRequestArguments): void {
+        args: DebugProtocol.InitializeRequestArguments): void {
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;
@@ -126,7 +126,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse,
-                                          args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
+        args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
         try {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
@@ -187,7 +187,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
-                                             args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
+        args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
         try {
             if (this.isAttach) {
                 await mi.sendExecContinue(this.gdb);
@@ -226,7 +226,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse,
-                                      args: DebugProtocol.StackTraceArguments): Promise<void> {
+        args: DebugProtocol.StackTraceArguments): Promise<void> {
         try {
             const depthResult = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
             const depth = parseInt(depthResult.depth, 10);
@@ -263,7 +263,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async nextRequest(response: DebugProtocol.NextResponse,
-                                args: DebugProtocol.NextArguments): Promise<void> {
+        args: DebugProtocol.NextArguments): Promise<void> {
         try {
             await mi.sendExecNext(this.gdb);
             this.sendResponse(response);
@@ -273,7 +273,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async stepInRequest(response: DebugProtocol.StepInResponse,
-                                  args: DebugProtocol.StepInArguments): Promise<void> {
+        args: DebugProtocol.StepInArguments): Promise<void> {
         try {
             await mi.sendExecStep(this.gdb);
             this.sendResponse(response);
@@ -283,7 +283,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async stepOutRequest(response: DebugProtocol.StepOutResponse,
-                                   args: DebugProtocol.StepOutArguments): Promise<void> {
+        args: DebugProtocol.StepOutArguments): Promise<void> {
         try {
             await mi.sendExecFinish(this.gdb);
             this.sendResponse(response);
@@ -293,7 +293,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async continueRequest(response: DebugProtocol.ContinueResponse,
-                                    args: DebugProtocol.ContinueArguments): Promise<void> {
+        args: DebugProtocol.ContinueArguments): Promise<void> {
         try {
             await mi.sendExecContinue(this.gdb);
             this.sendResponse(response);
@@ -303,7 +303,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
-                            args: DebugProtocol.ScopesArguments): void {
+        args: DebugProtocol.ScopesArguments): void {
         const frame: FrameVariableReference = {
             type: 'frame',
             frameHandle: args.frameId,
@@ -319,7 +319,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async variablesRequest(response: DebugProtocol.VariablesResponse,
-                                     args: DebugProtocol.VariablesArguments): Promise<void> {
+        args: DebugProtocol.VariablesArguments): Promise<void> {
         const variables = new Array<DebugProtocol.Variable>();
         response.body = {
             variables,
@@ -476,7 +476,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async setVariableRequest(response: DebugProtocol.SetVariableResponse,
-                                       args: DebugProtocol.SetVariableArguments): Promise<void> {
+        args: DebugProtocol.SetVariableArguments): Promise<void> {
         try {
             const ref = this.variableHandles.get(args.variablesReference);
             if (!ref) {
@@ -523,7 +523,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     // }
 
     protected async evaluateRequest(response: DebugProtocol.EvaluateResponse,
-                                    args: DebugProtocol.EvaluateArguments): Promise<void> {
+        args: DebugProtocol.EvaluateArguments): Promise<void> {
         response.body = { result: 'Error: could not evaluate expression', variablesReference: 0 }; // default response
         try {
             switch (args.context) {
@@ -596,7 +596,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async disconnectRequest(response: DebugProtocol.DisconnectResponse,
-                                      args: DebugProtocol.DisconnectArguments): Promise<void> {
+        args: DebugProtocol.DisconnectArguments): Promise<void> {
         try {
             await this.gdb.sendGDBExit();
             this.sendResponse(response);

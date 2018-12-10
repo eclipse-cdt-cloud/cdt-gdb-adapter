@@ -51,7 +51,7 @@ describe('launch', function() {
     }
 
     it('can launch and hit a breakpoint', async function() {
-        await dc.hitBreakpoint({verbose: true, program: emptyProgram}, {line: 3, path: emptySrc});
+        await dc.hitBreakpoint({ verbose: true, program: emptyProgram }, { line: 3, path: emptySrc });
     });
 
     it('reports an error when specifying a non-existent binary', async function() {
