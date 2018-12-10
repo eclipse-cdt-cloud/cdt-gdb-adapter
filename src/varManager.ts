@@ -36,7 +36,7 @@ export function getVar(frameId: number, threadId: number, depth: number, express
 }
 
 export function addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
-                       isChild: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
+    isChild: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
     let vars = variableMap.get(getKey(frameId, threadId, depth));
     if (!vars) {
         vars = [];
