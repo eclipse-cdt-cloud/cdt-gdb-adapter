@@ -35,6 +35,19 @@ export function getVar(frameId: number, threadId: number, depth: number, express
     return;
 }
 
+export function getVarByName(frameId: number, threadId: number, depth: number, varname: string)
+    : VarObjType | undefined {
+    const vars = getVars(frameId, threadId, depth);
+    if (vars) {
+        for (const varobj of vars) {
+            if (varobj.varname === varname) {
+                return varobj;
+            }
+        }
+    }
+    return;
+}
+
 export function addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
     isChild: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
     let vars = variableMap.get(getKey(frameId, threadId, depth));
@@ -78,13 +91,16 @@ export async function updateVar(gdb: GDBBackend, frameId: number, threadId: numb
     const update = vup.changelist[0];
     if (update) {
         if (update.in_scope === 'true') {
-            varobj.value = update.value;
-            varobj.isVar = true;
+            if (update.name === varobj.varname) {
+                // don't update the parent value to a child's value
+                varobj.value = update.value;
+            }
         } else {
             removeVar(gdb, frameId, threadId, depth, varobj.varname);
             await sendVarDelete(gdb, { varname: varobj.varname });
             const createResponse = await sendVarCreate(gdb, { frame: 'current', expression: varobj.expression });
-            returnVar = addVar(frameId, threadId, depth, varobj.expression, true, false, createResponse);
+            returnVar = addVar(frameId, threadId, depth, varobj.expression, varobj.isVar, varobj.isChild,
+                createResponse);
         }
     }
     return Promise.resolve(returnVar);

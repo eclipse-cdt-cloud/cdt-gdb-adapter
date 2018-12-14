@@ -2,3 +2,4 @@ empty
 vars
 *.o
 .vscode
+/vars_cpp
