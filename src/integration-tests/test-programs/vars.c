@@ -1,3 +1,15 @@
+
+struct bar {
+    int a;
+    int b;
+};
+
+struct foo {
+    int x;
+    int y;
+    struct bar z;
+};
+
 int main()
 {
     int a = 1;

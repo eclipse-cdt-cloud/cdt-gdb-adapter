@@ -38,7 +38,7 @@ beforeEach(async function() {
     });
     await dc.start();
     await dc.initializeRequest();
-    await dc.hitBreakpoint({ verbose: true, program: varsProgram }, { path: varsSrc, line: 5 });
+    await dc.hitBreakpoint({ verbose: true, program: varsProgram }, { path: varsSrc, line: 17 });
     threads = await dc.threadsRequest();
     expect(threads.body.threads.length).to.equal(1);
     const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });
@@ -56,23 +56,27 @@ describe('Variables Test Suite', function() {
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         this.timeout(9999999);
     }
-    it('can read variables from a program', async function() {
+    it('can read simple variables from a program', async function() {
         const vars = await dc.variablesRequest({ variablesReference: scopes.body.scopes[0].variablesReference });
         expect(vars.body.variables.length).to.equal(3);
         expect(vars.body.variables[0].name).to.equal('a');
         expect(vars.body.variables[0].value).to.equal('1');
+        expect(vars.body.variables[0].type).to.equal('int');
         expect(vars.body.variables[1].name).to.equal('b');
         expect(vars.body.variables[1].value).to.equal('2');
+        expect(vars.body.variables[1].type).to.equal('int');
     });
 
-    it('can set variables in a program', async function() {
+    it('can set simple variables in a program', async function() {
         const vr = scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length).to.equal(3);
         expect(vars.body.variables[0].name).to.equal('a');
         expect(vars.body.variables[0].value).to.equal('1');
+        expect(vars.body.variables[0].type).to.equal('int');
         expect(vars.body.variables[1].name).to.equal('b');
         expect(vars.body.variables[1].value).to.equal('2');
+        expect(vars.body.variables[1].type).to.equal('int');
         // set the variables to something different
         await dc.setVariableRequest({ name: 'a', value: '25', variablesReference: vr });
         await dc.setVariableRequest({ name: 'b', value: '10', variablesReference: vr });
@@ -81,13 +85,16 @@ describe('Variables Test Suite', function() {
         expect(vars.body.variables.length).to.equal(3);
         expect(vars.body.variables[0].name).to.equal('a');
         expect(vars.body.variables[0].value).to.equal('25');
+        expect(vars.body.variables[0].type).to.equal('int');
         expect(vars.body.variables[1].name).to.equal('b');
         expect(vars.body.variables[1].value).to.equal('10');
+        expect(vars.body.variables[1].type).to.equal('int');
         // step the program and see that the values were passed to the program and evaluated.
         await dc.nextRequest({ threadId: threads.body.threads[0].id });
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length).to.equal(3);
         expect(vars.body.variables[2].name).to.equal('c');
         expect(vars.body.variables[2].value).to.equal('35');
+        expect(vars.body.variables[2].type).to.equal('int');
     });
 });

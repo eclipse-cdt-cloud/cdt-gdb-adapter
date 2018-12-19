@@ -34,10 +34,7 @@ int main()
     Foo *fooA = new Foo(1, 2, 'a');
     Foo *fooB = new Foo(3, 4, 'b');
     Foo *fooarr[] = {fooA, fooB};
-    // operator= on dereferenced objects is bad practice
-    Foo foo0 = *fooarr[0];
-    Foo foo1 = *fooarr[1];
-    if (foo0.a || foo1.a)
-        cout << "!!!Hello World!!!" << endl;
+    cout << "!!!Hello World!!!" << endl;
+    cout << "!!!Hello World Again!!!" << endl;
     return 0;
 }
