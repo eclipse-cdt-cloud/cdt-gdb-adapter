@@ -12,11 +12,8 @@ import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from 'vscode-debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
+import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
-
-export interface MIResponse {
-    _class: string;
-}
 
 export interface MIExecNextRequest {
     reverse?: boolean;
