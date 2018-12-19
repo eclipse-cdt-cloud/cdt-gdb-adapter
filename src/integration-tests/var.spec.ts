@@ -13,7 +13,6 @@ import * as cp from 'child_process';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
-import { getExecPath } from '..';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
@@ -29,7 +28,7 @@ beforeEach(async function() {
     // Build the test program
     cp.execSync('make', { cwd: testProgramsDir });
 
-    let args: string = getExecPath();
+    let args: string = path.join(__dirname, '..', 'debugAdapter.js');
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         args = '--inspect-brk ' + args;
     }

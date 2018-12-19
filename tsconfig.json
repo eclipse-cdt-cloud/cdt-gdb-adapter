@@ -1,27 +1,27 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "target": "es2015",
-        "lib": [
-            "es2015"
-        ],
-        "outDir": "out",
-        "sourceMap": true,
-	"declaration": true,
-        "strict": true,
-        "noImplicitAny": true,
-        "noImplicitReturns": true,
-        "noUnusedLocals": true,
-        "allowSyntheticDefaultImports": true,
-        "experimentalDecorators": true,
-        "plugins": [
-            {
-                "name": "tslint-language-service"
-            }
-        ]
-    },
-    "include": [
-        "src/**/*.ts"
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2015",
+    "lib": [
+      "es2015"
+    ],
+    "outDir": "dist",
+    "sourceMap": true,
+    "declaration": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "plugins": [
+      {
+        "name": "tslint-language-service"
+      }
     ]
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
 }
