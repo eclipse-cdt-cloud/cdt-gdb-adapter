@@ -331,189 +331,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 return;
             }
             if (ref.type === 'frame') {
-                const frame = this.frameHandles.get(ref.frameHandle);
-                if (!frame) {
-                    this.sendResponse(response);
-                    return;
-                }
-
-                let callStack = false;
-                let numVars = 0;
-
-                const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
-                const depth = parseInt(stackDepth.depth, 10);
-                const toDelete = new Array<string>();
-
-                const vars = varMgr.getVars(frame.frameId, frame.threadId, depth);
-                if (vars) {
-                    for (const varobj of vars) {
-                        if (varobj.isVar && !varobj.isChild) {
-                            const vup = await mi.sendVarUpdate(this.gdb, {
-                                threadId: frame.threadId,
-                                name: varobj.varname,
-                            });
-                            const update = vup.changelist[0];
-                            let pushVar = true;
-                            if (update) {
-                                if (update.in_scope === 'true') {
-                                    numVars++;
-                                    if (update.name === varobj.varname) {
-                                        // don't update the parent value to a child's value
-                                        varobj.value = update.value;
-                                    }
-                                } else {
-                                    callStack = true;
-                                    pushVar = false;
-                                    toDelete.push(update.name);
-                                }
-                            } else if (varobj.value) {
-                                numVars++;
-                            }
-                            if (pushVar) {
-                                variables.push({
-                                    name: varobj.expression,
-                                    value: varobj.value,
-                                    type: varobj.type,
-                                    variablesReference: parseInt(varobj.numchild, 10) > 0
-                                        ? this.variableHandles.create({
-                                            type: 'object',
-                                            frameHandle: ref.frameHandle,
-                                            varobjName: varobj.varname,
-                                        })
-                                        : 0,
-                                });
-                            }
-                        }
-                    }
-                    for (const varname of toDelete) {
-                        await varMgr.removeVar(this.gdb, frame.frameId, frame.threadId, depth, varname);
-                    }
-                }
-                if (callStack === true || numVars === 0) {
-                    const result = await mi.sendStackListVariables(this.gdb, {
-                        thread: frame.threadId,
-                        frame: frame.frameId,
-                        printValues: 'simple-values',
-                    });
-                    for (const variable of result.variables) {
-                        let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, variable.name);
-                        if (!varobj) {
-                            const varCreateResponse = await mi.sendVarCreate(this.gdb, {
-                                frame: 'current', expression: variable.name,
-                            });
-                            varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, variable.name, true, false,
-                                varCreateResponse);
-                        } else {
-                            varobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth, varobj);
-                            varobj.isVar = true; // varobj existed as an expression before. Now it's a variable on the stack too.
-                        }
-                        variables.push({
-                            name: varobj.expression,
-                            value: varobj.value,
-                            type: varobj.type,
-                            variablesReference: parseInt(varobj.numchild, 10) > 0
-                                ? this.variableHandles.create({
-                                    type: 'object',
-                                    frameHandle: ref.frameHandle,
-                                    varobjName: varobj.varname,
-                                })
-                                : 0,
-                        });
-                    }
-                }
+                response.body.variables = await this.handleVariableRequestFrame(ref);
 
             } else if (ref.type === 'object') {
-                const frame = this.frameHandles.get(ref.frameHandle);
-                if (!frame) {
-                    this.sendResponse(response);
-                    return;
-                }
-                const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
-                const depth = parseInt(stackDepth.depth, 10);
-                let children;
-                let parentVarname = ref.varobjName;
-                const varobj = varMgr.getVarByName(frame.frameId, frame.threadId, depth, ref.varobjName);
-                if (varobj) {
-                    children = await mi.sendVarListChildren(this.gdb, {
-                        name: varobj.varname,
-                        printValues: 'all-values',
-                    });
-                    parentVarname = varobj.varname;
-                } else {
-                    children = await mi.sendVarListChildren(this.gdb, {
-                        name: ref.varobjName,
-                        printValues: 'all-values',
-                    });
-                }
-                for (const child of children.children) {
-                    const isClass = this.isChildOfClass(child);
-                    if (isClass) {
-                        const name = `${parentVarname}.${child.exp}`;
-                        const objChildren = await mi.sendVarListChildren(this.gdb, {
-                            name,
-                            printValues: 'all-values',
-                        });
-                        for (const objChild of objChildren.children) {
-                            const childName = `${name}.${objChild.exp}`;
-                            variables.push({
-                                name: objChild.exp,
-                                value: objChild.value ? objChild.value : objChild.type,
-                                type: objChild.type,
-                                variablesReference: parseInt(objChild.numchild, 10) > 0
-                                    ? this.variableHandles.create({
-                                        type: 'object',
-                                        frameHandle: ref.frameHandle,
-                                        varobjName: childName,
-                                    })
-                                    : 0,
-                            });
-
-                        }
-                    } else {
-                        let name = `${ref.varobjName}.${child.exp}`;
-                        let varobjName = name;
-                        const arrayRegex = /.*\[[\d]+\].*/g;
-                        const arrayChildRegex = /[\d]+/g;
-                        const isArrayParent = arrayRegex.test(child.type);
-                        const isArrayChild = (varobj !== undefined
-                            ? arrayRegex.test(varobj.type) && arrayChildRegex.test(child.exp)
-                            : false);
-                        // isArray = arrayRegex.test(varobj.type);
-                        if (isArrayChild) {
-                            name = `[${child.exp}]`;
-                        }
-                        if (isArrayParent || isArrayChild) {
-                            const exprResponse = await mi.sendVarInfoPathExpression(this.gdb,
-                                child.name);
-                            let arrobj = varMgr.getVar(frame.frameId, frame.threadId, depth, exprResponse.path_expr);
-                            if (!arrobj) {
-                                const varCreateResponse = await mi.sendVarCreate(this.gdb, {
-                                    frame: 'current', expression: exprResponse.path_expr,
-                                });
-                                arrobj = varMgr.addVar(frame.frameId, frame.threadId, depth, exprResponse.path_expr,
-                                    true, false, varCreateResponse);
-                            } else {
-                                arrobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth,
-                                    arrobj);
-                            }
-                            arrobj.isChild = true;
-                            varobjName = arrobj.varname;
-                        }
-                        const variableName = isArrayChild ? name : child.exp;
-                        variables.push({
-                            name: variableName,
-                            value: child.value ? child.value : child.type,
-                            type: child.type,
-                            variablesReference: parseInt(child.numchild, 10) > 0
-                                ? this.variableHandles.create({
-                                    type: 'object',
-                                    frameHandle: ref.frameHandle,
-                                    varobjName,
-                                })
-                                : 0,
-                        });
-                    }
-                }
+                response.body.variables = await this.handleVariableRequestObject(ref);
             }
             this.sendResponse(response);
         } catch (err) {
@@ -541,10 +362,10 @@ export class GDBDebugSession extends LoggingDebugSession {
             let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, varname);
             let assign;
             if (varobj) {
-                assign = await mi.sendVarAssign(this.gdb, {varname: varobj.varname, expression: args.value});
+                assign = await mi.sendVarAssign(this.gdb, { varname: varobj.varname, expression: args.value });
             } else {
                 try {
-                    assign = await mi.sendVarAssign(this.gdb, {varname , expression: args.value});
+                    assign = await mi.sendVarAssign(this.gdb, { varname, expression: args.value });
                 } catch (err) {
                     if (parentVarname === '') {
                         throw err; // no recovery possible
@@ -715,6 +536,195 @@ export class GDBDebugSession extends LoggingDebugSession {
             default:
                 logger.warn('GDB unhandled async: ' + JSON.stringify(result));
         }
+    }
+
+    private async handleVariableRequestFrame(ref: FrameVariableReference): Promise<DebugProtocol.Variable[]> {
+        const variables: DebugProtocol.Variable[] = [];
+        const frame = this.frameHandles.get(ref.frameHandle);
+        if (!frame) {
+            return Promise.resolve(variables);
+        }
+
+        let callStack = false;
+        let numVars = 0;
+
+        const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
+        const depth = parseInt(stackDepth.depth, 10);
+        const toDelete = new Array<string>();
+
+        const vars = varMgr.getVars(frame.frameId, frame.threadId, depth);
+        if (vars) {
+            for (const varobj of vars) {
+                if (varobj.isVar && !varobj.isChild) {
+                    const vup = await mi.sendVarUpdate(this.gdb, {
+                        threadId: frame.threadId,
+                        name: varobj.varname,
+                    });
+                    const update = vup.changelist[0];
+                    let pushVar = true;
+                    if (update) {
+                        if (update.in_scope === 'true') {
+                            numVars++;
+                            if (update.name === varobj.varname) {
+                                // don't update the parent value to a child's value
+                                varobj.value = update.value;
+                            }
+                        } else {
+                            callStack = true;
+                            pushVar = false;
+                            toDelete.push(update.name);
+                        }
+                    } else if (varobj.value) {
+                        numVars++;
+                    }
+                    if (pushVar) {
+                        variables.push({
+                            name: varobj.expression,
+                            value: varobj.value,
+                            type: varobj.type,
+                            variablesReference: parseInt(varobj.numchild, 10) > 0
+                                ? this.variableHandles.create({
+                                    type: 'object',
+                                    frameHandle: ref.frameHandle,
+                                    varobjName: varobj.varname,
+                                })
+                                : 0,
+                        });
+                    }
+                }
+            }
+            for (const varname of toDelete) {
+                await varMgr.removeVar(this.gdb, frame.frameId, frame.threadId, depth, varname);
+            }
+        }
+        if (callStack === true || numVars === 0) {
+            const result = await mi.sendStackListVariables(this.gdb, {
+                thread: frame.threadId,
+                frame: frame.frameId,
+                printValues: 'simple-values',
+            });
+            for (const variable of result.variables) {
+                let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, variable.name);
+                if (!varobj) {
+                    const varCreateResponse = await mi.sendVarCreate(this.gdb, {
+                        frame: 'current', expression: variable.name,
+                    });
+                    varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, variable.name, true, false,
+                        varCreateResponse);
+                } else {
+                    varobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth, varobj);
+                    varobj.isVar = true; // varobj existed as an expression before. Now it's a variable too.
+                }
+                variables.push({
+                    name: varobj.expression,
+                    value: varobj.value,
+                    type: varobj.type,
+                    variablesReference: parseInt(varobj.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                            type: 'object',
+                            frameHandle: ref.frameHandle,
+                            varobjName: varobj.varname,
+                        })
+                        : 0,
+                });
+            }
+        }
+        return Promise.resolve(variables);
+    }
+
+    private async handleVariableRequestObject(ref: ObjectVariableReference): Promise<DebugProtocol.Variable[]> {
+        const variables: DebugProtocol.Variable[] = [];
+        const frame = this.frameHandles.get(ref.frameHandle);
+        if (!frame) {
+            return Promise.resolve(variables);
+
+        }
+        const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
+        const depth = parseInt(stackDepth.depth, 10);
+        let children;
+        let parentVarname = ref.varobjName;
+        const varobj = varMgr.getVarByName(frame.frameId, frame.threadId, depth, ref.varobjName);
+        if (varobj) {
+            children = await mi.sendVarListChildren(this.gdb, {
+                name: varobj.varname,
+                printValues: 'all-values',
+            });
+            parentVarname = varobj.varname;
+        } else {
+            children = await mi.sendVarListChildren(this.gdb, {
+                name: ref.varobjName,
+                printValues: 'all-values',
+            });
+        }
+        for (const child of children.children) {
+            const isClass = this.isChildOfClass(child);
+            if (isClass) {
+                const name = `${parentVarname}.${child.exp}`;
+                const objChildren = await mi.sendVarListChildren(this.gdb, {
+                    name,
+                    printValues: 'all-values',
+                });
+                for (const objChild of objChildren.children) {
+                    const childName = `${name}.${objChild.exp}`;
+                    variables.push({
+                        name: objChild.exp,
+                        value: objChild.value ? objChild.value : objChild.type,
+                        type: objChild.type,
+                        variablesReference: parseInt(objChild.numchild, 10) > 0
+                            ? this.variableHandles.create({
+                                type: 'object',
+                                frameHandle: ref.frameHandle,
+                                varobjName: childName,
+                            })
+                            : 0,
+                    });
+
+                }
+            } else {
+                let name = `${ref.varobjName}.${child.exp}`;
+                let varobjName = name;
+                const arrayRegex = /.*\[[\d]+\].*/g;
+                const arrayChildRegex = /[\d]+/g;
+                const isArrayParent = arrayRegex.test(child.type);
+                const isArrayChild = (varobj !== undefined
+                    ? arrayRegex.test(varobj.type) && arrayChildRegex.test(child.exp)
+                    : false);
+                if (isArrayChild) {
+                    name = `[${child.exp}]`;
+                }
+                if (isArrayParent || isArrayChild) {
+                    const exprResponse = await mi.sendVarInfoPathExpression(this.gdb,
+                        child.name);
+                    let arrobj = varMgr.getVar(frame.frameId, frame.threadId, depth, exprResponse.path_expr);
+                    if (!arrobj) {
+                        const varCreateResponse = await mi.sendVarCreate(this.gdb, {
+                            frame: 'current', expression: exprResponse.path_expr,
+                        });
+                        arrobj = varMgr.addVar(frame.frameId, frame.threadId, depth, exprResponse.path_expr,
+                            true, false, varCreateResponse);
+                    } else {
+                        arrobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth,
+                            arrobj);
+                    }
+                    arrobj.isChild = true;
+                    varobjName = arrobj.varname;
+                }
+                const variableName = isArrayChild ? name : child.exp;
+                variables.push({
+                    name: variableName,
+                    value: child.value ? child.value : child.type,
+                    type: child.type,
+                    variablesReference: parseInt(child.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                            type: 'object',
+                            frameHandle: ref.frameHandle,
+                            varobjName,
+                        })
+                        : 0,
+                });
+            }
+        }
+        return Promise.resolve(variables);
     }
 
     private isChildOfClass(child: mi.MIVarChild): boolean {
