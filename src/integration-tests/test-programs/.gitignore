@@ -3,3 +3,4 @@ mem
 vars
 *.o
 .vscode
+/vars_cpp

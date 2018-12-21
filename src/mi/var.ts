@@ -23,17 +23,19 @@ export interface MIVarCreateResponse extends MIResponse {
 
 export interface MIVarListChildrenResponse {
     numchild: string;
-    children: Array<{
-        name: string;
-        exp: string;
-        numchild: string;
-        type: string;
-        value?: string;
-        'thread-id'?: string;
-        frozen?: string;
-        displayhint?: string;
-        dynamic?: string;
-    }>;
+    children: MIVarChild[];
+}
+
+export interface MIVarChild {
+    name: string;
+    exp: string;
+    numchild: string;
+    type: string;
+    value?: string;
+    'thread-id'?: string;
+    frozen?: string;
+    displayhint?: string;
+    dynamic?: string;
 }
 
 export interface MIVarUpdateResponse {
@@ -48,6 +50,14 @@ export interface MIVarUpdateResponse {
 
 export interface MIVarEvalResponse {
     value: string;
+}
+
+export interface MIVarAssignResponse {
+    value: string;
+}
+
+export interface MIVarPathInfoResponse {
+    path_expr: string;
 }
 
 export function sendVarCreate(gdb: GDBBackend, params: {
@@ -119,7 +129,7 @@ export function sendVarDelete(gdb: GDBBackend, params: {
 export function sendVarAssign(gdb: GDBBackend, params: {
     varname: string,
     expression: string,
-}): Promise<void> {
+}): Promise<MIVarAssignResponse> {
     const command = `-var-assign ${params.varname} ${params.expression}`;
     return gdb.sendCommand(command);
 }
@@ -128,5 +138,10 @@ export function sendVarEvaluateExpression(gdb: GDBBackend, params: {
     varname: string,
 }): Promise<MIVarEvalResponse> {
     const command = `-var-evaluate-expression ${params.varname}`;
+    return gdb.sendCommand(command);
+}
+
+export function sendVarInfoPathExpression(gdb: GDBBackend, name: string): Promise<MIVarPathInfoResponse> {
+    const command = `-var-info-path-expression ${name}`;
     return gdb.sendCommand(command);
 }

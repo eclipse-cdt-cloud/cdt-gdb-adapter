@@ -33,7 +33,7 @@ beforeEach(async function() {
         args = '--inspect-brk ' + args;
     }
 
-    dc = new DebugClient('node', args, 'cppdbg', {
+    dc = new DebugClient('node', args, 'gdb', {
         shell: true,
     });
     await dc.start();
