@@ -10,12 +10,13 @@
 import * as path from 'path';
 import { logger } from 'vscode-debugadapter/lib/logger';
 import {
-    Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Scope, Source, StackFrame,
-    StoppedEvent, TerminatedEvent, Thread,
+    Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
+    StackFrame, StoppedEvent, TerminatedEvent, Thread,
 } from 'vscode-debugadapter/lib/main';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
+import { sendDataReadMemoryBytes } from './mi/data';
 import * as varMgr from './varManager';
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
@@ -52,6 +53,16 @@ export interface ObjectVariableReference {
 
 export type VariableReference = FrameVariableReference | ObjectVariableReference;
 
+/**
+ * Response for our custom 'cdt-gdb-adapter/Memory' request.
+ */
+export interface MemoryResponse extends Response {
+    body: {
+        /* Hex-encoded string of bytes.  */
+        data: string;
+    };
+}
+
 export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
@@ -66,6 +77,17 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected createBackend(): GDBBackend {
         return new GDBBackend();
+    }
+
+    /**
+     * Handle requests not defined in the debug adapter protocol.
+     */
+    protected customRequest(command: string, response: DebugProtocol.Response, args: any): void {
+        if (command === 'cdt-gdb-adapter/Memory') {
+            this.memoryRequest(response as MemoryResponse, args);
+        } else {
+            return super.customRequest(command, response, args);
+        }
     }
 
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
@@ -486,6 +508,29 @@ export class GDBDebugSession extends LoggingDebugSession {
                     break;
                 }
             }
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
+        }
+    }
+
+    /**
+     * Implement the cdt-gdb-adapter/Memory request.
+     */
+    protected async memoryRequest(response: MemoryResponse, args: any) {
+        try {
+            if (typeof (args.address) !== 'number') {
+                throw new Error(`Invalid type for 'address', expected number, got ${typeof (args.address)}`);
+            }
+
+            if (typeof (args.length) !== 'number') {
+                throw new Error(`Invalid type for 'length', expected number, got ${typeof (args.length)}`);
+            }
+
+            const result = await sendDataReadMemoryBytes(this.gdb, args.address, args.length);
+            response.body = {
+                data: result.memory[0].contents,
+            };
+            this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
         }

@@ -2,14 +2,13 @@
   "name": "cdt-gdb-adapter",
   "version": "0.1.0",
   "description": "gdb adapter implementing the debug adapter protocol",
-  "main": "out/index.js",
-  "types": "out/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "build-production": "webpack --mode production --display-modules",
-    "test": "npm run test:integration",
-    "test:integration": "mocha --reporter mocha-jenkins-reporter out/integration-tests/*.spec.js"
+    "test": "yarn test:integration",
+    "test:integration": "mocha --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js"
   },
   "repository": {
     "type": "git",

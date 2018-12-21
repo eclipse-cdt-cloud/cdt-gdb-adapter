@@ -1,4 +1,4 @@
-BINS = empty vars vars_cpp
+BINS = empty vars vars_cpp mem
 
 .PHONY: all
 all: $(BINS)
@@ -9,6 +9,9 @@ LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
 
 empty: empty.o
+	$(LINK)
+
+mem: mem.o
 	$(LINK)
 
 vars: vars.o
