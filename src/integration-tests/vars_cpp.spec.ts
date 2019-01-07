@@ -12,7 +12,7 @@ import { expect } from 'chai';
 import * as cp from 'child_process';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
-import * as utils from './test_utils';
+import * as utils from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
