@@ -12,13 +12,14 @@ session.  It uses the `gdb` in your `PATH`.
 
 ## Debugging tips
 
-Defining the `INSPECT_DEBUG_ADAPTER` environment variable will cause the
-testsuite to pass the `--inspect-brk` flag to the node interpreter running the
-debug adapter.  This lets you attach with a debugger and resume execution.
+To debug, use the included launch configurations in the launch.json file for this vscode project.
 
-One easily available debugger is built in the Chromium/Chrome browser.  Navigate
-to [chrome://inspect](chrome://inspect), the debug adapter waiting to be
-attached to should appear under "Remote Target".
+'Mocha All' will run all compiled spec.js files in the {workspace}/dist/integration-tests/ directory.
+'Mocha Current File' will run the currently open spec.js file in the editor window. You can find the corresponding spec.js file for a given spec.ts file in the directory listed above.
+
+Breakpoints can be set in the corresponding spec.ts file and will work as expected, though stepping 
+may take you into compiled or framework .js files. 
+It may be possible with some additional configuration to run the spec.ts files directly.
 
 When debugging a test case, you will likely want to run just this one.  You can
 do so by changing the test declaration:
