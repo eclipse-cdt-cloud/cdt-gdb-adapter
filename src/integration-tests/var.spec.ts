@@ -38,7 +38,7 @@ beforeEach(async function() {
     });
     await dc.start();
     await dc.initializeRequest();
-    await dc.hitBreakpoint({ verbose: true, program: varsProgram }, { path: varsSrc, line: 17 });
+    await dc.hitBreakpoint({ verbose: true, program: varsProgram }, { path: varsSrc, line: 19 });
     scope = await utils.getScopes(dc);
     expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
 });
@@ -57,31 +57,21 @@ describe('Variables Test Suite', function() {
         const vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[0].name, 'The variable name is wrong').to.equal('a');
-        expect(vars.body.variables[0].value, 'The variable value is wrong').to.equal('1');
-        expect(vars.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(vars.body.variables[1].name, 'The variable name is wrong').to.equal('b');
-        expect(vars.body.variables[1].value, 'The variable value is wrong').to.equal('2');
-        expect(vars.body.variables[1].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[0], 'a', 'int', '1');
+        utils.verifyVariable(vars.body.variables[1], 'b', 'int', '2');
         // set the variables to something different
         await dc.setVariableRequest({ name: 'a', value: '25', variablesReference: vr });
         await dc.setVariableRequest({ name: 'b', value: '10', variablesReference: vr });
         // assert that the variables have been updated to the new values
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[0].name, 'The variable name is wrong').to.equal('a');
-        expect(vars.body.variables[0].value, 'The variable value is wrong').to.equal('25');
-        expect(vars.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(vars.body.variables[1].name, 'The variable name is wrong').to.equal('b');
-        expect(vars.body.variables[1].value, 'The variable value is wrong').to.equal('10');
-        expect(vars.body.variables[1].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[0], 'a', 'int', '25');
+        utils.verifyVariable(vars.body.variables[1], 'b', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
         await dc.nextRequest({ threadId: scope.threadId });
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[2].name, 'The variable name is wrong').to.equal('c');
-        expect(vars.body.variables[2].value, 'The variable value is wrong').to.equal('35');
-        expect(vars.body.variables[2].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[2], 'c', 'int', '35');
     });
 
     it('can read and set struct variables in a program', async function() {
@@ -94,24 +84,16 @@ describe('Variables Test Suite', function() {
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[3].name, 'The variable name is wrong').to.equal('r');
-        expect(vars.body.variables[3].value, 'The variable value is wrong').to.equal('{...}');
-        expect(vars.body.variables[3].type, 'The variable type is wrong').to.equal('struct foo');
+        utils.verifyVariable(vars.body.variables[3], 'r', 'struct foo', '{...}', true);
         const childVR = vars.body.variables[3].variablesReference;
         let children = await dc.variablesRequest({ variablesReference: childVR });
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected',
         ).to.equal(3);
-        expect(children.body.variables[0].name, 'The variable name is wrong').to.equal('x');
-        expect(children.body.variables[0].value, 'The variable value is wrong').to.equal('1');
-        expect(children.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[1].name, 'The variable name is wrong').to.equal('y');
-        expect(children.body.variables[1].value, 'The variable value is wrong').to.equal('2');
-        expect(children.body.variables[1].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[2].name, 'The variable name is wrong').to.equal('z');
-        expect(children.body.variables[2].value, 'The variable value is wrong').to.equal('{...}');
-        expect(children.body.variables[2].type, 'The variable type is wrong').to.equal('struct bar');
+        utils.verifyVariable(children.body.variables[0], 'x', 'int', '1');
+        utils.verifyVariable(children.body.variables[1], 'y', 'int', '2');
+        utils.verifyVariable(children.body.variables[2], 'z', 'struct bar', '{...}', true);
         // set the variables to something different
         await dc.setVariableRequest({ name: 'x', value: '25', variablesReference: childVR });
         await dc.setVariableRequest({ name: 'y', value: '10', variablesReference: childVR });
@@ -121,12 +103,8 @@ describe('Variables Test Suite', function() {
             children.body.variables.length,
             'There is a different number of child variables than expected',
         ).to.equal(3);
-        expect(children.body.variables[0].name, 'The variable name is wrong').to.equal('x');
-        expect(children.body.variables[0].value, 'The variable value is wrong').to.equal('25');
-        expect(children.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[1].name, 'The variable name is wrong').to.equal('y');
-        expect(children.body.variables[1].value, 'The variable value is wrong').to.equal('10');
-        expect(children.body.variables[1].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(children.body.variables[0], 'x', 'int', '25');
+        utils.verifyVariable(children.body.variables[1], 'y', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
         await dc.nextRequest({ threadId: scope.threadId });
         scope = await utils.getScopes(dc);
@@ -134,9 +112,7 @@ describe('Variables Test Suite', function() {
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[4].name, 'The variable name is wrong').to.equal('d');
-        expect(vars.body.variables[4].value, 'The variable value is wrong').to.equal('35');
-        expect(vars.body.variables[4].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[4], 'd', 'int', '35');
     });
 
     it('can read and set nested struct variables in a program', async function() {
@@ -149,18 +125,14 @@ describe('Variables Test Suite', function() {
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[3].name, 'The variable name is wrong').to.equal('r');
-        expect(vars.body.variables[3].value, 'The variable value is wrong').to.equal('{...}');
-        expect(vars.body.variables[3].type, 'The variable type is wrong').to.equal('struct foo');
+        utils.verifyVariable(vars.body.variables[3], 'r', 'struct foo', '{...}', true);
         const childVR = vars.body.variables[3].variablesReference;
         const children = await dc.variablesRequest({ variablesReference: childVR });
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected',
         ).to.equal(3);
-        expect(children.body.variables[2].name, 'The variable name is wrong').to.equal('z');
-        expect(children.body.variables[2].value, 'The variable value is wrong').to.equal('{...}');
-        expect(children.body.variables[2].type, 'The variable type is wrong').to.equal('struct bar');
+        utils.verifyVariable(children.body.variables[2], 'z', 'struct bar', '{...}', true);
         // assert we can see the elements of z
         const subChildVR = children.body.variables[2].variablesReference;
         let subChildren = await dc.variablesRequest({ variablesReference: subChildVR });
@@ -168,11 +140,8 @@ describe('Variables Test Suite', function() {
             subChildren.body.variables.length,
             'There is a different number of grandchild variables than expected',
         ).to.equal(2);
-        expect(subChildren.body.variables[0].name, 'The variable name is wrong').to.equal('a');
-        expect(subChildren.body.variables[0].value, 'The variable value is wrong').to.equal('3');
-        expect(subChildren.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(subChildren.body.variables[1].name, 'The variable name is wrong').to.equal('b');
-        expect(subChildren.body.variables[1].value, 'The variable value is wrong').to.equal('4');
+        utils.verifyVariable(subChildren.body.variables[0], 'a', 'int', '3');
+        utils.verifyVariable(subChildren.body.variables[1], 'b', 'int', '4');
         // set the variables to something different
         await dc.setVariableRequest({ name: 'a', value: '25', variablesReference: subChildVR });
         await dc.setVariableRequest({ name: 'b', value: '10', variablesReference: subChildVR });
@@ -182,12 +151,8 @@ describe('Variables Test Suite', function() {
             subChildren.body.variables.length,
             'There is a different number of grandchild variables than expected',
         ).to.equal(2);
-        expect(subChildren.body.variables[0].name, 'The variable name is wrong').to.equal('a');
-        expect(subChildren.body.variables[0].value, 'The variable value is wrong').to.equal('25');
-        expect(subChildren.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(subChildren.body.variables[1].name, 'The variable name is wrong').to.equal('b');
-        expect(subChildren.body.variables[1].value, 'The variable value is wrong').to.equal('10');
-        expect(subChildren.body.variables[1].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(subChildren.body.variables[0], 'a', 'int', '25');
+        utils.verifyVariable(subChildren.body.variables[1], 'b', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
         await dc.nextRequest({ threadId: scope.threadId });
         await dc.nextRequest({ threadId: scope.threadId });
@@ -196,14 +161,12 @@ describe('Variables Test Suite', function() {
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[5].name, 'The variable name is wrong').to.equal('e');
-        expect(vars.body.variables[5].value, 'The variable value is wrong').to.equal('35');
-        expect(vars.body.variables[5].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[5], 'e', 'int', '35');
     });
 
     it('can read and set array elements in a program', async function() {
         // skip ahead to array initialization
-        const br = await dc.setBreakpointsRequest({ source: { path: varsSrc }, breakpoints: [{line: 22}] });
+        const br = await dc.setBreakpointsRequest({ source: { path: varsSrc }, breakpoints: [{ line: 24 }] });
         expect(br.success).to.equal(true);
         await dc.continueRequest({ threadId: scope.threadId });
         scope = await utils.getScopes(dc);
@@ -212,24 +175,16 @@ describe('Variables Test Suite', function() {
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[6].name, 'The variable name is wrong').to.equal('f');
-        expect(vars.body.variables[6].value, 'The variable value is wrong').to.equal('[3]');
-        expect(vars.body.variables[6].type, 'The variable type is wrong').to.equal('int [3]');
+        utils.verifyVariable(vars.body.variables[6], 'f', 'int [3]', '[3]', true);
         const childVR = vars.body.variables[6].variablesReference;
         let children = await dc.variablesRequest({ variablesReference: childVR });
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected',
         ).to.equal(3);
-        expect(children.body.variables[0].name, 'The variable name is wrong').to.equal('[0]');
-        expect(children.body.variables[0].value, 'The variable value is wrong').to.equal('1');
-        expect(children.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[1].name, 'The variable name is wrong').to.equal('[1]');
-        expect(children.body.variables[1].value, 'The variable value is wrong').to.equal('2');
-        expect(children.body.variables[1].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[2].name, 'The variable name is wrong').to.equal('[2]');
-        expect(children.body.variables[2].value, 'The variable value is wrong').to.equal('3');
-        expect(children.body.variables[2].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(children.body.variables[0], '[0]', 'int', '1');
+        utils.verifyVariable(children.body.variables[1], '[1]', 'int', '2');
+        utils.verifyVariable(children.body.variables[2], '[2]', 'int', '3');
         // set the variables to something different
         await dc.setVariableRequest({ name: '[0]', value: '11', variablesReference: childVR });
         await dc.setVariableRequest({ name: '[1]', value: '22', variablesReference: childVR });
@@ -240,15 +195,9 @@ describe('Variables Test Suite', function() {
             children.body.variables.length,
             'There is a different number of child variables than expected',
         ).to.equal(3);
-        expect(children.body.variables[0].name, 'The variable name is wrong').to.equal('[0]');
-        expect(children.body.variables[0].value, 'The variable value is wrong').to.equal('11');
-        expect(children.body.variables[0].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[1].name, 'The variable name is wrong').to.equal('[1]');
-        expect(children.body.variables[1].value, 'The variable value is wrong').to.equal('22');
-        expect(children.body.variables[1].type, 'The variable type is wrong').to.equal('int');
-        expect(children.body.variables[2].name, 'The variable name is wrong').to.equal('[2]');
-        expect(children.body.variables[2].value, 'The variable value is wrong').to.equal('33');
-        expect(children.body.variables[2].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(children.body.variables[0], '[0]', 'int', '11');
+        utils.verifyVariable(children.body.variables[1], '[1]', 'int', '22');
+        utils.verifyVariable(children.body.variables[2], '[2]', 'int', '33');
         // step the program and see that the values were passed to the program and evaluated.
         await dc.nextRequest({ threadId: scope.threadId });
         scope = await utils.getScopes(dc);
@@ -256,8 +205,6 @@ describe('Variables Test Suite', function() {
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        expect(vars.body.variables[7].name, 'The variable name is wrong').to.equal('g');
-        expect(vars.body.variables[7].value, 'The variable value is wrong').to.equal('66');
-        expect(vars.body.variables[7].type, 'The variable type is wrong').to.equal('int');
+        utils.verifyVariable(vars.body.variables[7], 'g', 'int', '66');
     });
 });
