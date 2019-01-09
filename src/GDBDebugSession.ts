@@ -584,27 +584,36 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     private async handleVariableRequestFrame(ref: FrameVariableReference): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
         if (!frame) {
             return Promise.resolve(variables);
         }
 
+        // vars used to determine if we should call sendStackListVariables()
         let callStack = false;
         let numVars = 0;
 
+        // stack depth necessary for differentiating between similarly named variables at different stack depths
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
         const depth = parseInt(stackDepth.depth, 10);
+
+        // array of varnames to delete. Cannot delete while iterating through the vars array below.
         const toDelete = new Array<string>();
 
+        // get the list of vars we need to update for this frameId/threadId/depth tuple
         const vars = varMgr.getVars(frame.frameId, frame.threadId, depth);
         if (vars) {
             for (const varobj of vars) {
+                // ignore expressions and child entries
                 if (varobj.isVar && !varobj.isChild) {
+                    // request update from GDB
                     const vup = await mi.sendVarUpdate(this.gdb, {
                         threadId: frame.threadId,
                         name: varobj.varname,
                     });
+                    // if changelist is length 0, update is undefined
                     const update = vup.changelist[0];
                     let pushVar = true;
                     if (update) {
@@ -615,13 +624,16 @@ export class GDBDebugSession extends LoggingDebugSession {
                                 varobj.value = update.value;
                             }
                         } else {
+                            // var is out of scope, delete it and call sendStackListVariables() later
                             callStack = true;
                             pushVar = false;
                             toDelete.push(update.name);
                         }
                     } else if (varobj.value) {
+                        // value hasn't updated but it's still in scope
                         numVars++;
                     }
+                    // only push entries to the array that aren't being deleted
                     if (pushVar) {
                         variables.push({
                             name: varobj.expression,
@@ -638,10 +650,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                 }
             }
+            // clean up out of scope entries
             for (const varname of toDelete) {
                 await varMgr.removeVar(this.gdb, frame.frameId, frame.threadId, depth, varname);
             }
         }
+        // if we had out of scope entries or no entries in the frameId/threadId/depth tuple, query GDB for new ones
         if (callStack === true || numVars === 0) {
             const result = await mi.sendStackListVariables(this.gdb, {
                 thread: frame.threadId,
@@ -651,14 +665,16 @@ export class GDBDebugSession extends LoggingDebugSession {
             for (const variable of result.variables) {
                 let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, variable.name);
                 if (!varobj) {
+                    // create var in GDB and store it in the varMgr
                     const varCreateResponse = await mi.sendVarCreate(this.gdb, {
                         frame: 'current', expression: variable.name,
                     });
                     varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, variable.name, true, false,
                         varCreateResponse);
                 } else {
+                    // var existed as an expression before. Now it's a variable too.
                     varobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth, varobj);
-                    varobj.isVar = true; // varobj existed as an expression before. Now it's a variable too.
+                    varobj.isVar = true;
                 }
                 variables.push({
                     name: varobj.expression,
@@ -678,16 +694,22 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     private async handleVariableRequestObject(ref: ObjectVariableReference): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
         if (!frame) {
             return Promise.resolve(variables);
 
         }
+
+        // fetch stack depth to obtain frameId/threadId/depth tuple
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
         const depth = parseInt(stackDepth.depth, 10);
+        // we need to keep track of children and the parent varname in GDB
         let children;
         let parentVarname = ref.varobjName;
+
+        // if a varobj exists, use the varname stored there
         const varobj = varMgr.getVarByName(frame.frameId, frame.threadId, depth, ref.varobjName);
         if (varobj) {
             children = await mi.sendVarListChildren(this.gdb, {
@@ -696,12 +718,16 @@ export class GDBDebugSession extends LoggingDebugSession {
             });
             parentVarname = varobj.varname;
         } else {
+            // otherwise use the parent name passed in the variable reference
             children = await mi.sendVarListChildren(this.gdb, {
                 name: ref.varobjName,
                 printValues: 'all-values',
             });
         }
+
+        // iterate through the children
         for (const child of children.children) {
+            // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
                 const name = `${parentVarname}.${child.exp}`;
@@ -726,6 +752,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
                 }
             } else {
+                // check if we're dealing with an array
                 let name = `${ref.varobjName}.${child.exp}`;
                 let varobjName = name;
                 const arrayRegex = /.*\[[\d]+\].*/g;
@@ -735,11 +762,15 @@ export class GDBDebugSession extends LoggingDebugSession {
                     ? arrayRegex.test(varobj.type) && arrayChildRegex.test(child.exp)
                     : false);
                 if (isArrayChild) {
+                    // update the display name for array elements to have square brackets
                     name = `[${child.exp}]`;
                 }
                 if (isArrayParent || isArrayChild) {
+                    // can't use a relative varname (eg. var1.a.b.c) to create/update a new var so fetch and track these
+                    // vars by evaluating their path expression from GDB
                     const exprResponse = await mi.sendVarInfoPathExpression(this.gdb,
                         child.name);
+                    // create or update the var in GDB
                     let arrobj = varMgr.getVar(frame.frameId, frame.threadId, depth, exprResponse.path_expr);
                     if (!arrobj) {
                         const varCreateResponse = await mi.sendVarCreate(this.gdb, {
