@@ -7,6 +7,34 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
+
+import { expect } from 'chai';
+import { DebugClient } from 'vscode-debugadapter-testsupport';
+import { DebugProtocol } from 'vscode-debugprotocol';
+
+export interface Scope {
+    threadId: number;
+    frameId: number;
+    scopes: DebugProtocol.ScopesResponse;
+}
+
+export async function getScopes(
+    dc: DebugClient,
+    threadIndex = 0,
+    stackIndex = 0,
+): Promise<Scope> {
+    // threads
+    const threads = await dc.threadsRequest();
+    expect(threads.body.threads.length, 'There are fewer threads than expected.').to.be.at.least(threadIndex + 1);
+    const threadId = threads.body.threads[threadIndex].id;
+    // stack trace
+    const stack = await dc.stackTraceRequest({ threadId });
+    expect(stack.body.stackFrames.length, 'There are fewer stack frames than expected.').to.be.at.least(stackIndex + 1);
+    const frameId = stack.body.stackFrames[stackIndex].id;
+    const scopes = await dc.scopesRequest({ frameId });
+    return Promise.resolve({ threadId, frameId, scopes });
+}
+
 /**
  * Wrap `promise` in a new Promise that resolves if `promise` is rejected, and is rejected if `promise` is resolved.
  *
@@ -16,4 +44,53 @@ export function expectRejection<T>(promise: Promise<T>): Promise<Error> {
     return new Promise<Error>((resolve, reject) => {
         promise.then(reject).catch(resolve);
     });
+}
+
+/**
+ * Test a given variable returned from a variablesRequest against an expected name, type, and/or value.
+ * 
+ */
+export function verifyVariable(
+    variable: DebugProtocol.Variable,
+    expectedName: string,
+    expectedType?: string,
+    expectedValue?: string,
+    hasChildren = false,
+) {
+    expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(expectedName);
+    if (expectedType) {
+        expect(variable.type, `The type of ${expectedName} is wrong`).to.equal(expectedType);
+    }
+    if (expectedValue) {
+        expect(variable.value, `The value of ${expectedName} is wrong`).to.equal(expectedValue);
+    }
+    if (hasChildren) {
+        expect(variable.variablesReference, `${expectedName} has no children`).to.not.equal(0);
+    } else {
+        expect(variable.variablesReference, `${expectedName} has children`).to.equal(0);
+    }
+}
+
+export function compareVariable(
+    varA: DebugProtocol.Variable,
+    varB: DebugProtocol.Variable,
+    namesMatch: boolean,
+    typesMatch: boolean,
+    valuesMatch: boolean,
+) {
+    if (namesMatch) {
+        expect(varA.name, `The name of ${varA.name} and ${varB.name} does not match`).to.equal(varB.name);
+    } else {
+        expect(varA.name, `The name of ${varA.name} and ${varB.name} matches`).to.not.equal(varB.name);
+    }
+    if (typesMatch) {
+        expect(varA.type, `The type of ${varA.name} and ${varB.name} does not match`).to.equal(varB.type);
+    } else {
+        expect(varA.type, `The type of ${varA.name} and ${varB.name} match`).to.equal(varB.type);
+    }
+    if (valuesMatch) {
+        expect(varA.value, `The value of ${varA.name} and ${varB.name} do not match`).to.equal(varB.value);
+    } else {
+        expect(varA.value, `The value of ${varA.name} and ${varB.name} matches`).to.not.equal(varB.value);
+    }
 }

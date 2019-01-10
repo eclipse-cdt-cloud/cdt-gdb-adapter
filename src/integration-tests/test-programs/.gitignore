@@ -4,3 +4,4 @@ vars
 *.o
 .vscode
 /vars_cpp
+/log
