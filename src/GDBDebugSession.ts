@@ -8,11 +8,10 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import * as path from 'path';
-import { logger } from 'vscode-debugadapter/lib/logger';
 import {
-    Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
+    Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
     StackFrame, StoppedEvent, TerminatedEvent, Thread,
-} from 'vscode-debugadapter/lib/main';
+} from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
@@ -75,6 +74,10 @@ export class GDBDebugSession extends LoggingDebugSession {
         super();
     }
 
+    protected get logger(): Logger.Logger {
+        return logger;
+    }
+
     protected createBackend(): GDBBackend {
         return new GDBBackend();
     }
@@ -95,6 +98,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;
+        response.body.supportTerminateDebuggee = true;
         // response.body.supportsSetExpression = true;
         this.sendResponse(response);
     }
@@ -134,7 +138,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             await this.gdb.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
-
             this.gdb.sendEnablePrettyPrint();
 
             if (args.arguments) {
@@ -536,9 +539,18 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
+    protected pauseRequest(response: DebugProtocol.PauseResponse,
+        args: DebugProtocol.PauseArguments) {
+        this.gdb.interrupt();
+        this.sendResponse(response);
+    }
+
     protected async disconnectRequest(response: DebugProtocol.DisconnectResponse,
         args: DebugProtocol.DisconnectArguments): Promise<void> {
         try {
+            this.gdb.interrupt();
+            await this.gdb.sendSet('confirm', 'off');
+            await this.gdb.sendExecAbort();
             await this.gdb.sendGDBExit();
             this.sendResponse(response);
         } catch (err) {

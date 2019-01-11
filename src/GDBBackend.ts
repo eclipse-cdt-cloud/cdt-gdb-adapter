@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from 'vscode-debugadapter/lib/logger';
@@ -32,14 +32,21 @@ export declare interface GDBBackend {
 
 export class GDBBackend extends events.EventEmitter {
     private parser = new MIParser(this);
+    private proc?: ChildProcess;
     private out?: Writable;
     private token = 0;
 
     public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
-        const proc = spawn(gdb, ['--interpreter=mi2']);
-        this.out = proc.stdin;
-        return this.parser.parse(proc.stdout);
+        this.proc = spawn(gdb, ['--interpreter=mi2']);
+        this.out = this.proc.stdin;
+        return this.parser.parse(this.proc.stdout);
+    }
+
+    public interrupt() {
+        if (this.proc) {
+            this.proc.kill('SIGINT');
+        }
     }
 
     public sendCommand<T>(command: string): Promise<T> {
@@ -76,6 +83,18 @@ export class GDBBackend extends events.EventEmitter {
 
     public sendFileExecAndSymbols(program: string) {
         return this.sendCommand(`-file-exec-and-symbols ${program}`);
+    }
+
+    public sendExecInterrupt() {
+        return this.sendCommand('-exec-interrupt');
+    }
+
+    public sendSet(name: string, value: string) {
+        return this.sendCommand(`set ${name} ${value}`);
+    }
+
+    public sendExecAbort() {
+        return this.sendCommand('kill');
     }
 
     public sendGDBExit() {
