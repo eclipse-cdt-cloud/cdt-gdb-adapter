@@ -13,7 +13,7 @@ import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { MemoryResponse } from '../GDBDebugSession';
-import { expectRejection, standardBeforeEach, testProgramsDir } from './utils';
+import { expectRejection, standardBeforeEach, testProgramsDir, standardBefore } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
@@ -22,6 +22,8 @@ let dc: DebugClient;
 let scope: DebugProtocol.Scope;
 const memProgram = path.join(testProgramsDir, 'mem');
 const memSrc = path.join(testProgramsDir, 'mem.c');
+
+before(standardBefore);
 
 beforeEach(async function() {
     dc = await standardBeforeEach();
