@@ -9,6 +9,8 @@
  *********************************************************************/
 
 import { expect } from 'chai';
+import * as cp from 'child_process';
+import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol';
 
@@ -93,4 +95,29 @@ export function compareVariable(
     } else {
         expect(varA.value, `The value of ${varA.name} and ${varB.name} matches`).to.not.equal(varB.value);
     }
+}
+
+export const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
+
+export async function standardBefore(): Promise<void> {
+    // Build the test program
+    cp.execSync('make', { cwd: testProgramsDir });
+}
+
+function getAdapterAndArgs(): string {
+    let args: string = path.join(__dirname, '..', 'debugAdapter.js');
+    if (process.env.INSPECT_DEBUG_ADAPTER) {
+        args = '--inspect-brk ' + args;
+    }
+    return args;
+}
+
+export async function standardBeforeEach(): Promise<DebugClient> {
+    const dc: DebugClient = new DebugClient('node', getAdapterAndArgs(), 'cppdbg', {
+        shell: true,
+    });
+    await dc.start();
+    await dc.initializeRequest();
+
+    return dc;
 }

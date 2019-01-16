@@ -9,34 +9,21 @@
  *********************************************************************/
 
 import { expect } from 'chai';
-import * as cp from 'child_process';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
+import { standardBefore, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
 let dc: DebugClient;
-const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
 const emptyProgram = path.join(testProgramsDir, 'empty');
 const emptySrc = path.join(testProgramsDir, 'empty.c');
 
-before(function() {
-    // Build the test program
-    cp.execSync('make', { cwd: testProgramsDir });
-});
+before(standardBefore);
 
 beforeEach(async function() {
-    let args: string = path.join(__dirname, '..', 'debugAdapter.js');
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        args = '--inspect-brk ' + args;
-    }
-
-    dc = new DebugClient('node', args, 'gdb', {
-        shell: true,
-    });
-    await dc.start();
-    await dc.initializeRequest();
+    dc = await standardBeforeEach();
 });
 
 afterEach(async function() {

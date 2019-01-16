@@ -9,39 +9,23 @@
  *********************************************************************/
 
 import { expect } from 'chai';
-import * as cp from 'child_process';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { MemoryResponse } from '../GDBDebugSession';
-import { expectRejection } from './utils';
+import { expectRejection, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
 let dc: DebugClient;
 let scope: DebugProtocol.Scope;
-const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
 const memProgram = path.join(testProgramsDir, 'mem');
 const memSrc = path.join(testProgramsDir, 'mem.c');
 
-function getAdapterAndArgs(): string {
-    let args: string = path.join(__dirname, '..', 'debugAdapter.js');
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        args = '--inspect-brk ' + args;
-    }
-    return args;
-}
-
 beforeEach(async function() {
-    // Build the test program
-    cp.execSync('make', { cwd: testProgramsDir });
+    dc = await standardBeforeEach();
 
-    dc = new DebugClient('node', getAdapterAndArgs(), 'cppdbg', {
-        shell: true,
-    });
-    await dc.start();
-    await dc.initializeRequest();
     await dc.hitBreakpoint({
         program: memProgram,
     }, { path: memSrc, line: 12 });
