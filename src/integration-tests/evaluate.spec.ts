@@ -51,10 +51,10 @@ describe('evaluate request', function() {
     it('should evaluate a simple literal expression', async function() {
         const res = await dc.evaluateRequest({
             context: 'repl',
-            expression: '2',
+            expression: '2 + 2',
             frameId: scope.frameId,
         });
 
-        expect(res.body.result).eq('2');
+        expect(res.body.result).eq('4');
     });
 });
