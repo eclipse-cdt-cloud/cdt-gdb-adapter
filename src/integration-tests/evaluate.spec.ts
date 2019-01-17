@@ -11,7 +11,7 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport/lib/debugClient';
-import { getScopes, Scope, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { expectRejection, getScopes, Scope, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
@@ -56,5 +56,14 @@ describe('evaluate request', function() {
         });
 
         expect(res.body.result).eq('4');
+    });
+
+    it('should reject evaluation of expression without a frame', async function() {
+        const err = await expectRejection(dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 + 2',
+        }));
+
+        expect(err.message).eq('Evaluation of expression without frameId is not supported.');
     });
 });
