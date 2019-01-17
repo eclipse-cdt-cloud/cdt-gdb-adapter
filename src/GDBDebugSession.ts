@@ -452,52 +452,48 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
-            try {
-                const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
-                const depth = parseInt(stackDepth.depth, 10);
-                let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, args.expression);
-                if (!varobj) {
-                    const varCreateResponse = await mi.sendVarCreate(this.gdb,
-                        { expression: args.expression, frame: 'current' });
-                    varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression, false,
-                        false, varCreateResponse);
-                } else {
-                    const vup = await mi.sendVarUpdate(this.gdb, {
-                        threadId: frame.threadId,
-                        name: varobj.varname,
-                    });
-                    const update = vup.changelist[0];
-                    if (update) {
-                        if (update.in_scope === 'true') {
-                            if (update.name === varobj.varname) {
-                                varobj.value = update.value;
-                            }
-                        } else {
-                            varMgr.removeVar(this.gdb, frame.frameId, frame.threadId, depth,
-                                varobj.varname);
-                            await mi.sendVarDelete(this.gdb, { varname: varobj.varname });
-                            const varCreateResponse = await mi.sendVarCreate(this.gdb,
-                                { expression: args.expression, frame: 'current' });
-                            varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression,
-                                false, false, varCreateResponse);
+            const stackDepth = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
+            const depth = parseInt(stackDepth.depth, 10);
+            let varobj = varMgr.getVar(frame.frameId, frame.threadId, depth, args.expression);
+            if (!varobj) {
+                const varCreateResponse = await mi.sendVarCreate(this.gdb,
+                    { expression: args.expression, frame: 'current' });
+                varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression, false,
+                    false, varCreateResponse);
+            } else {
+                const vup = await mi.sendVarUpdate(this.gdb, {
+                    threadId: frame.threadId,
+                    name: varobj.varname,
+                });
+                const update = vup.changelist[0];
+                if (update) {
+                    if (update.in_scope === 'true') {
+                        if (update.name === varobj.varname) {
+                            varobj.value = update.value;
                         }
+                    } else {
+                        varMgr.removeVar(this.gdb, frame.frameId, frame.threadId, depth,
+                            varobj.varname);
+                        await mi.sendVarDelete(this.gdb, { varname: varobj.varname });
+                        const varCreateResponse = await mi.sendVarCreate(this.gdb,
+                            { expression: args.expression, frame: 'current' });
+                        varobj = varMgr.addVar(frame.frameId, frame.threadId, depth, args.expression,
+                            false, false, varCreateResponse);
                     }
                 }
-                if (varobj) {
-                    response.body = {
-                        result: varobj.value,
-                        type: varobj.type,
-                        variablesReference: parseInt(varobj.numchild, 10) > 0
-                            ? this.variableHandles.create({
-                                type: 'object',
-                                frameHandle: args.frameId,
-                                varobjName: varobj.varname,
-                            })
-                            : 0,
-                    };
-                }
-            } catch (err) {
-                // if any of the gdb calls fail, just report we can't complete the evaluation
+            }
+            if (varobj) {
+                response.body = {
+                    result: varobj.value,
+                    type: varobj.type,
+                    variablesReference: parseInt(varobj.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                            type: 'object',
+                            frameHandle: args.frameId,
+                            varobjName: varobj.varname,
+                        })
+                        : 0,
+                };
             }
 
             this.sendResponse(response);

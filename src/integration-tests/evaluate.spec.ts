@@ -66,4 +66,14 @@ describe('evaluate request', function() {
 
         expect(err.message).eq('Evaluation of expression without frameId is not supported.');
     });
+
+    it('should reject evaluation of invalid expression', async function() {
+        const err = await expectRejection(dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 +',
+            frameId: scope.frameId,
+        }));
+
+        expect(err.message).eq('-var-create: unable to create variable object');
+    });
 });
