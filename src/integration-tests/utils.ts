@@ -10,6 +10,7 @@
 
 import { expect } from 'chai';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { CdtDebugClient } from './debugClient';
@@ -130,4 +131,43 @@ function getGdbPathCli(): string | undefined {
         return undefined;
     }
     return process.argv[keyIndex + 1];
+}
+
+export interface LineTags { [key: string]: number; }
+
+/**
+ * Find locations of tags in `sourceFile`.
+ *
+ * Instead of referring to source line numbers of test programs directly,
+ * tests should place tags (usually some comments) in the source files.  This
+ * function finds the line number correspnding to each tag in `tags`.
+ *
+ * This function throws if a tag is found more than once or is not found.
+ *
+ * @param tags An object where keys are the tags to find, and values are 0.
+ *             This function will modify the object in place to full the values
+ *             with line number.
+ */
+export function resolveLineTagLocations(sourceFile: string, tags: LineTags): void {
+    const lines = fs.readFileSync(sourceFile, { encoding: 'utf-8' }).split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+        for (const tag of Object.keys(tags)) {
+            if (lines[i].includes(tag)) {
+                if (tags[tag] !== 0) {
+                    throw new Error(`Tag ${tag} has been found twice.`);
+                }
+
+                tags[tag] = i + 1;
+            }
+        }
+    }
+
+    for (const tag of Object.keys(tags)) {
+        const line = tags[tag];
+
+        if (line === 0) {
+            throw new Error(`Tag ${tag} was not found.`);
+        }
+    }
 }

@@ -16,7 +16,7 @@ int main()
 {
     int a = 1;
     int b = 2;
-    int c = a + b;
+    int c = a + b; // STOP HERE
     struct foo r = {1, 2, {3, 4}};
     int d = r.x + r.y;
     int e = r.z.a + r.z.b;

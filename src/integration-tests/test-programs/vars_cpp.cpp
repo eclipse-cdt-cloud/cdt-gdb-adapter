@@ -34,7 +34,7 @@ int main()
     Foo *fooA = new Foo(1, 2, 'a');
     Foo *fooB = new Foo(3, 4, 'b');
     Foo *fooarr[] = {fooA, fooB};
-    cout << "!!!Hello World!!!" << endl;
+    cout << "!!!Hello World!!!" << endl; // STOP HERE
     cout << "!!!Hello World Again!!!" << endl;
     return 0;
 }

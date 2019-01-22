@@ -13,7 +13,8 @@ import * as path from 'path';
 import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
-    gdbPath, getScopes, openGdbConsole, Scope, standardBefore, standardBeforeEach, testProgramsDir, verifyVariable,
+    gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope, standardBefore, standardBeforeEach,
+    testProgramsDir, verifyVariable,
 } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
@@ -25,7 +26,15 @@ const varsProgram = path.join(testProgramsDir, 'vars');
 const varsSrc = path.join(testProgramsDir, 'vars.c');
 const numVars = 8; // number of variables in the main() scope of vars.c
 
-before(standardBefore);
+const lineTags = {
+    'STOP HERE': 0,
+};
+
+before(function() {
+    standardBefore();
+
+    resolveLineTagLocations(varsSrc, lineTags);
+});
 
 beforeEach(async function() {
     dc = await standardBeforeEach();
@@ -36,9 +45,9 @@ beforeEach(async function() {
         program: varsProgram,
         openGdbConsole,
     } as LaunchRequestArguments, {
-        path: varsSrc,
-        line: 19,
-    });
+            path: varsSrc,
+            line: lineTags['STOP HERE'],
+        });
     scope = await getScopes(dc);
     expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
 });
