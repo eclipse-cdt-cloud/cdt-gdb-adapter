@@ -10,15 +10,15 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
-import { MemoryResponse } from '../GDBDebugSession';
-import { expectRejection, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
+import { CdtDebugClient } from './debugClient';
+import { expectRejection, gdbPath, openGdbConsole, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
-let dc: DebugClient;
+let dc: CdtDebugClient;
 let frame: DebugProtocol.StackFrame;
 const memProgram = path.join(testProgramsDir, 'mem');
 const memSrc = path.join(testProgramsDir, 'mem.c');
@@ -29,8 +29,13 @@ beforeEach(async function() {
     dc = await standardBeforeEach();
 
     await dc.hitBreakpoint({
+        gdb: gdbPath,
         program: memProgram,
-    }, { path: memSrc, line: 12 });
+        openGdbConsole,
+    } as LaunchRequestArguments, {
+        path: memSrc,
+        line: 12,
+    });
     const threads = await dc.threadsRequest();
     expect(threads.body.threads.length).to.equal(1);
     const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });

@@ -11,8 +11,8 @@
 import { expect } from 'chai';
 import * as cp from 'child_process';
 import * as path from 'path';
-import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol';
+import { CdtDebugClient } from './debugClient';
 
 export interface Scope {
     threadId: number;
@@ -21,7 +21,7 @@ export interface Scope {
 }
 
 export async function getScopes(
-    dc: DebugClient,
+    dc: CdtDebugClient,
     threadIndex = 0,
     stackIndex = 0,
 ): Promise<Scope> {
@@ -111,12 +111,23 @@ function getAdapterAndArgs(): string {
     return args;
 }
 
-export async function standardBeforeEach(): Promise<DebugClient> {
-    const dc: DebugClient = new DebugClient('node', getAdapterAndArgs(), 'cppdbg', {
+export async function standardBeforeEach(): Promise<CdtDebugClient> {
+    const dc: CdtDebugClient = new CdtDebugClient('node', getAdapterAndArgs(), 'cppdbg', {
         shell: true,
     });
     await dc.start();
     await dc.initializeRequest();
 
     return dc;
+}
+
+export const openGdbConsole: boolean = process.argv.indexOf('--run-in-terminal') !== -1;
+export const gdbPath: string | undefined = getGdbPathCli();
+
+function getGdbPathCli(): string | undefined {
+    const keyIndex = process.argv.indexOf('--gdb-path');
+    if (keyIndex === -1) {
+        return undefined;
+    }
+    return process.argv[keyIndex + 1];
 }
