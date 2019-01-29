@@ -7,8 +7,9 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "yarn test:integration",
-    "test:integration": "mocha --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js"
+    "test": "yarn test:integration && yarn test:pty",
+    "test:integration": "mocha --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
+    "test:pty": "mocha --reporter mocha-jenkins-reporter dist/native/*.spec.js"
   },
   "repository": {
     "type": "git",

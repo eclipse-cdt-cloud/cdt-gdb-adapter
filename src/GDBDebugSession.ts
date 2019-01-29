@@ -7,6 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
+import * as os from 'os';
 import * as path from 'path';
 import { logger } from 'vscode-debugadapter/lib/logger';
 import {
@@ -25,6 +26,7 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     arguments?: string;
     verbose?: boolean;
     logFile?: string;
+    openGdbConsole?: boolean;
 }
 
 export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArguments {
@@ -33,6 +35,7 @@ export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArgum
     processId: string;
     verbose?: boolean;
     logFile?: string;
+    openGdbConsole?: boolean;
 }
 
 export interface FrameReference {
@@ -74,6 +77,9 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected isAttach = false;
     protected isRunning = false;
 
+    protected supportsRunInTerminalRequest = false;
+    protected supportsGdbConsole = false;
+
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
 
@@ -98,6 +104,8 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments): void {
+        this.supportsRunInTerminalRequest = args.supportsRunInTerminalRequest === true;
+        this.supportsGdbConsole = os.platform() !== 'win32' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;
@@ -115,7 +123,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
-            await this.gdb.spawn(args);
+            await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
 
             await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
@@ -138,7 +146,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.gdb.on('async', (result) => this.handleGDBAsync(result));
 
-            await this.gdb.spawn(args);
+            await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
 
             this.gdb.sendEnablePrettyPrint();
@@ -151,6 +159,42 @@ export class GDBDebugSession extends LoggingDebugSession {
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
         }
+    }
+
+    protected async spawn(args: LaunchRequestArguments | AttachRequestArguments) {
+        if (args.openGdbConsole) {
+            if (!this.supportsGdbConsole) {
+                logger.warn('cdt-gdb-adapter: openGdbConsole is not supported on this platform');
+            } else if (!await this.gdb.supportsNewUi(args.gdb)) {
+                logger.warn(`cdt-gdb-adapter: new-ui command not detected (${args.gdb || 'gdb'})`);
+            } else {
+                logger.verbose('cdt-gdb-adapter: spawning gdb console in client terminal');
+                return this.spawnInClientTerminal(args);
+            }
+        }
+        return this.gdb.spawn(args);
+    }
+
+    protected async spawnInClientTerminal(
+        args: DebugProtocol.LaunchRequestArguments | DebugProtocol.AttachRequestArguments) {
+        return this.gdb.spawnInClientTerminal(
+            args as LaunchRequestArguments | AttachRequestArguments,
+            async (command) => {
+                const response = await new Promise<DebugProtocol.Response>((resolve) =>
+                    this.sendRequest('runInTerminal', {
+                        kind: 'integrated',
+                        cwd: process.cwd(),
+                        env: process.env,
+                        args: command,
+                    } as DebugProtocol.RunInTerminalRequestArguments, 5000, resolve),
+                );
+                if (!response.success) {
+                    const message = `could not start the terminal on the client: ${response.message}`;
+                    logger.error(message);
+                    throw new Error(message);
+                }
+            },
+        );
     }
 
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse,
