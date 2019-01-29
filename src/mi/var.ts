@@ -60,6 +60,10 @@ export interface MIVarPathInfoResponse {
     path_expr: string;
 }
 
+function quote(expression: string) {
+    return `"${expression}"` ;
+}
+
 export function sendVarCreate(gdb: GDBBackend, params: {
     name?: string;
     frameAddr?: string;
@@ -80,7 +84,7 @@ export function sendVarCreate(gdb: GDBBackend, params: {
                 break;
         }
     }
-    command += ` ${params.expression}`;
+    command += ` ${quote(params.expression)}`;
 
     return gdb.sendCommand(command);
 }

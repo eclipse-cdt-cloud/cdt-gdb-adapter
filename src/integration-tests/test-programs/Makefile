@@ -1,4 +1,4 @@
-BINS = empty vars vars_cpp mem
+BINS = empty evaluate vars vars_cpp mem
 
 .PHONY: all
 all: $(BINS)
@@ -9,6 +9,9 @@ LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
 
 empty: empty.o
+	$(LINK)
+
+evaluate: evaluate.o
 	$(LINK)
 
 mem: mem.o
