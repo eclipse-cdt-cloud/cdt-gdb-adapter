@@ -53,6 +53,11 @@ export interface ObjectVariableReference {
 
 export type VariableReference = FrameVariableReference | ObjectVariableReference;
 
+export interface MemoryRequestArguments {
+    address: string;
+    length: number;
+}
+
 /**
  * Response for our custom 'cdt-gdb-adapter/Memory' request.
  */
@@ -507,15 +512,17 @@ export class GDBDebugSession extends LoggingDebugSession {
      */
     protected async memoryRequest(response: MemoryResponse, args: any) {
         try {
-            if (typeof (args.address) !== 'number') {
-                throw new Error(`Invalid type for 'address', expected number, got ${typeof (args.address)}`);
+            if (typeof (args.address) !== 'string') {
+                throw new Error(`Invalid type for 'address', expected string, got ${typeof (args.address)}`);
             }
 
             if (typeof (args.length) !== 'number') {
                 throw new Error(`Invalid type for 'length', expected number, got ${typeof (args.length)}`);
             }
 
-            const result = await sendDataReadMemoryBytes(this.gdb, args.address, args.length);
+            const typedArgs = args as MemoryRequestArguments;
+
+            const result = await sendDataReadMemoryBytes(this.gdb, typedArgs.address, typedArgs.length);
             response.body = {
                 data: result.memory[0].contents,
             };

@@ -58,8 +58,30 @@ describe('Memory Test Suite', function() {
             }
         }
 
-        const mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: addr,
+        // Read using
+        let mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: addr.toString(10),
+            length: 10,
+        })) as MemoryResponse;
+
+        expect(mem.body.data).eq('f1efd4fd7248450c2d13');
+
+        mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: `0x${addr.toString(16)}`,
+            length: 10,
+        })) as MemoryResponse;
+
+        expect(mem.body.data).eq('f1efd4fd7248450c2d13');
+
+        mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: '&array[3 + 2]',
+            length: 10,
+        })) as MemoryResponse;
+
+        expect(mem.body.data).eq('48450c2d1374d6f612dc');
+
+        mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: 'parray',
             length: 10,
         })) as MemoryResponse;
 
@@ -69,7 +91,7 @@ describe('Memory Test Suite', function() {
     it('handles unable to read memory', async function() {
         // This test will only work for targets for which address 0 is not readable, which is good enough for now.
         const err = await expectRejection(dc.send('cdt-gdb-adapter/Memory', {
-            address: 0,
+            address: '0',
             length: 10,
         }));
         expect(err.message).contains('Unable to read memory');
