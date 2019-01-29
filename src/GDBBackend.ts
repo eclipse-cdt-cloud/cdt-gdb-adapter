@@ -7,13 +7,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { spawn } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from 'vscode-debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
+import { Pty } from './native/pty';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -40,6 +41,28 @@ export class GDBBackend extends events.EventEmitter {
         const proc = spawn(gdb, ['--interpreter=mi2']);
         this.out = proc.stdin;
         return this.parser.parse(proc.stdout);
+    }
+
+    public async spawnInClientTerminal(args: LaunchRequestArguments | AttachRequestArguments,
+        cb: (args: string[]) => Promise<void>) {
+        const gdb = args.gdb ? args.gdb : 'gdb';
+        const pty = new Pty();
+        await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
+        this.out = pty.master;
+        return this.parser.parse(pty.master);
+    }
+
+    public async supportsNewUi(gdbPath?: string): Promise<boolean> {
+        const gdb = gdbPath || 'gdb';
+        return new Promise<boolean>((resolve, reject) => {
+            execFile(gdb, ['-nx', '-batch', '-ex', 'new-ui'], (error, stdout, stderr) => {
+                // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
+                // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'
+                // - gdb < 7.12 doesn't support the new-ui command, and outputs
+                //   'Undefined command: "new-ui".  Try "help".'
+                resolve(/^usage: new-ui/im.test(stderr));
+            });
+        });
     }
 
     public sendCommand<T>(command: string): Promise<T> {
