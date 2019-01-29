@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "yarn test:integration && yarn test:pty",
+    "test": "yarn test:integration && yarn test:pty && yarn test:integration --run-in-terminal",
     "test:integration": "mocha --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
     "test:pty": "mocha --reporter mocha-jenkins-reporter dist/native/*.spec.js"
   },

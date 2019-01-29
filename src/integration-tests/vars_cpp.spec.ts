@@ -10,16 +10,17 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { DebugClient } from 'vscode-debugadapter-testsupport';
+import { LaunchRequestArguments } from '..';
+import { CdtDebugClient } from './debugClient';
 import {
-    compareVariable, getScopes, Scope, standardBefore, standardBeforeEach, testProgramsDir,
+    compareVariable, gdbPath, getScopes, openGdbConsole, Scope, standardBefore, standardBeforeEach, testProgramsDir,
     verifyVariable,
 } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
-let dc: DebugClient;
+let dc: CdtDebugClient;
 let scope: Scope;
 
 const varsCppProgram = path.join(testProgramsDir, 'vars_cpp');
@@ -30,7 +31,15 @@ before(standardBefore);
 beforeEach(async function() {
     dc = await standardBeforeEach();
 
-    await dc.hitBreakpoint({ verbose: true, program: varsCppProgram }, { path: varsCppSrc, line: 37 });
+    await dc.hitBreakpoint({
+        verbose: true,
+        gdb: gdbPath,
+        program: varsCppProgram,
+        openGdbConsole,
+    } as LaunchRequestArguments, {
+        path: varsCppSrc,
+        line: 37,
+    });
     scope = await getScopes(dc);
     expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
 });

@@ -10,13 +10,15 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { DebugClient } from 'vscode-debugadapter-testsupport';
+import { LaunchRequestArguments } from '../GDBDebugSession';
+import { CdtDebugClient } from './debugClient';
 import { standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { gdbPath, openGdbConsole } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
-let dc: DebugClient;
+let dc: CdtDebugClient;
 const emptyProgram = path.join(testProgramsDir, 'empty');
 const emptySrc = path.join(testProgramsDir, 'empty.c');
 
@@ -37,15 +39,25 @@ describe('launch', function() {
     }
 
     it('can launch and hit a breakpoint', async function() {
-        await dc.hitBreakpoint({ verbose: true, program: emptyProgram }, { line: 3, path: emptySrc });
+        await dc.hitBreakpoint({
+            verbose: true,
+            gdb: gdbPath,
+            program: emptyProgram,
+            openGdbConsole,
+        } as LaunchRequestArguments, {
+            path: emptySrc,
+            line: 3,
+        });
     });
 
     it('reports an error when specifying a non-existent binary', async function() {
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest({
                 verbose: true,
+                gdb: gdbPath,
                 program: '/does/not/exist',
-            } as any)
+                openGdbConsole,
+            } as LaunchRequestArguments)
                 .then(reject)
                 .catch(resolve);
         });
