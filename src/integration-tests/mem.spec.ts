@@ -19,7 +19,7 @@ import { expectRejection, standardBeforeEach, testProgramsDir, standardBefore } 
 // tslint:disable:only-arrow-functions
 
 let dc: DebugClient;
-let scope: DebugProtocol.Scope;
+let frame: DebugProtocol.StackFrame;
 const memProgram = path.join(testProgramsDir, 'mem');
 const memSrc = path.join(testProgramsDir, 'mem.c');
 
@@ -35,57 +35,55 @@ beforeEach(async function() {
     expect(threads.body.threads.length).to.equal(1);
     const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });
     expect(stack.body.stackFrames.length).to.equal(1);
-    const scopes = await dc.scopesRequest({ frameId: stack.body.stackFrames[0].id });
-    expect(scopes.body.scopes.length).to.equal(1);
-    scope = scopes.body.scopes[0];
+    frame = stack.body.stackFrames[0];
 });
 
 afterEach(async function() {
     await dc.stop();
 });
 
+/**
+ * Verify that `resp` contains the bytes `expectedBytes` and the
+ * `expectedAddress` start address.
+ *
+ * `expectedAddress` should be an hexadecimal string, with the leading 0x.
+ */
+function verifyMemoryReadResult(resp: MemoryResponse, expectedBytes: string, expectedAddress: number) {
+    expect(resp.body.data).eq(expectedBytes);
+    expect(resp.body.address).match(/^0x[0-9a-fA-F]+$/);
+
+    const actualAddress = parseInt(resp.body.address, 16);
+    expect(actualAddress).eq(expectedAddress);
+
+}
+
 describe('Memory Test Suite', function() {
+    // Test reading memory using cdt-gdb-adapter's extension request.
     it('can read memory', async function() {
-        // Get the address of the array through a local variables request.
-        const vars = await dc.variablesRequest({
-            variablesReference: scope.variablesReference,
-        });
+        // Get the address of the array.
+        const addrOfArrayResp = await dc.evaluateRequest({ expression: '&array', frameId: frame.id });
+        const addrOfArray = parseInt(addrOfArrayResp.body.result, 16);
 
-        let addr: number = 0;
-        for (const v of vars.body.variables) {
-            if (v.name === 'parray') {
-                addr = parseInt(v.value, 16);
-            }
-        }
-
-        // Read using
         let mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: addr.toString(10),
+            address: '0x' + addrOfArray.toString(16),
             length: 10,
         })) as MemoryResponse;
 
-        expect(mem.body.data).eq('f1efd4fd7248450c2d13');
-
-        mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: `0x${addr.toString(16)}`,
-            length: 10,
-        })) as MemoryResponse;
-
-        expect(mem.body.data).eq('f1efd4fd7248450c2d13');
+        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
 
         mem = (await dc.send('cdt-gdb-adapter/Memory', {
             address: '&array[3 + 2]',
             length: 10,
         })) as MemoryResponse;
 
-        expect(mem.body.data).eq('48450c2d1374d6f612dc');
+        verifyMemoryReadResult(mem, '48450c2d1374d6f612dc', addrOfArray + 5);
 
         mem = (await dc.send('cdt-gdb-adapter/Memory', {
             address: 'parray',
             length: 10,
         })) as MemoryResponse;
 
-        expect(mem.body.data).eq('f1efd4fd7248450c2d13');
+        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 
     it('handles unable to read memory', async function() {

@@ -12,9 +12,9 @@ import { GDBBackend } from '../GDBBackend';
 
 interface MIDataReadMemoryBytesResponse {
     memory: Array<{
-        begin: number;
-        end: number;
-        offset: number;
+        begin: string;
+        end: string;
+        offset: string;
         contents: string;
     }>;
 }
