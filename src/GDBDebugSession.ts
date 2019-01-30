@@ -65,6 +65,7 @@ export interface MemoryResponse extends Response {
     body: {
         /* Hex-encoded string of bytes.  */
         data: string;
+        address: string;
     };
 }
 
@@ -525,6 +526,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             const result = await sendDataReadMemoryBytes(this.gdb, typedArgs.address, typedArgs.length);
             response.body = {
                 data: result.memory[0].contents,
+                address: result.memory[0].begin,
             };
             this.sendResponse(response);
         } catch (err) {
