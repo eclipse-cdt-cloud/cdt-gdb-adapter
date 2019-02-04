@@ -13,7 +13,7 @@ import * as path from 'path';
 import { DebugClient } from 'vscode-debugadapter-testsupport';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { MemoryResponse } from '../GDBDebugSession';
-import { expectRejection, standardBeforeEach, testProgramsDir, standardBefore } from './utils';
+import { expectRejection, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
