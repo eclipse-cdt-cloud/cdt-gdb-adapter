@@ -50,7 +50,6 @@ export function expectRejection<T>(promise: Promise<T>): Promise<Error> {
 
 /**
  * Test a given variable returned from a variablesRequest against an expected name, type, and/or value.
- * 
  */
 export function verifyVariable(
     variable: DebugProtocol.Variable,
