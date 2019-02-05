@@ -38,5 +38,12 @@
     "vscode-debugadapter-testsupport": "^1.32.0",
     "webpack": "^4.23.1",
     "webpack-cli": "^3.1.2"
-  }
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "src/**/*.cc",
+    "src/**/*.h"
+  ]
 }
