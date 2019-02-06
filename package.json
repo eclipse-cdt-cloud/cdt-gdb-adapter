@@ -31,6 +31,7 @@
     "chai": "^4.2.0",
     "mocha": "^5.2.0",
     "mocha-jenkins-reporter": "^0.4.1",
+    "node-gyp": "^3.8.0",
     "ts-loader": "^5.3.0",
     "tslint": "^5.11.0",
     "tslint-language-service": "^0.9.9",
@@ -40,6 +41,7 @@
     "webpack-cli": "^3.1.2"
   },
   "files": [
+    "binding.gyp",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.d.ts",
