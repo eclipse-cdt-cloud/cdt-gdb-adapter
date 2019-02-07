@@ -7,42 +7,46 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-#include <node.h>
+#include "napi.h"
 
 #ifndef WINDOWS
 #include "scoped_fd.h"
-#include <termios.h>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <termios.h>
 #endif
 
-static void _throw_exc(v8::Isolate *isolate, const char *message) {
-  isolate->ThrowException(
-      v8::Exception::Error(v8::String::NewFromUtf8(isolate, message)));
+static void _throw_exc(const Napi::Env env, const char *message) {
+  throw Napi::Error::New(env, message);
 }
 
 #ifndef WINDOWS
-static void _throw_exc_format(v8::Isolate *isolate, int error,
+/**
+ * Takes an error code and throws a pretty JS error such as:
+ * "function_name: errormsg".
+ */
+static void _throw_exc_format(const Napi::Env env, int error,
                               const char *function_name) {
   const int ERRMSG_MAX_SIZE = 128;
   char errmsg_buffer[ERRMSG_MAX_SIZE];
   char message[ERRMSG_MAX_SIZE];
   char *errmsg = strerror_r(error, errmsg_buffer, ERRMSG_MAX_SIZE);
   snprintf(message, ERRMSG_MAX_SIZE, "%s: %s", function_name, errmsg);
-  _throw_exc(isolate, message);
+  _throw_exc(env, message);
 }
 #endif
 
-// see: man ptmx
-static void create_pty(const v8::FunctionCallbackInfo<v8::Value> &args) {
-  v8::Isolate *isolate = args.GetIsolate();
+static Napi::Value create_pty(const Napi::CallbackInfo &info) {
+  Napi::Env env = info.Env();
 #ifdef WINDOWS
-  return _throw_exc(isolate, ".create_pty() is not supported on Windows");
+  // Windows does not supports TTYs.
+  _throw_exc(env, ".create_pty() is not supported on Windows");
 #else
+  // master_fd will be closed on scope exit if an error is thrown.
   scoped_fd master_fd(open("/dev/ptmx", O_RDWR));
   if (master_fd == -1) {
-    return _throw_exc(isolate, "open(\"/dev/ptmx\", O_RDWR) failed");
+    _throw_exc(env, "open(\"/dev/ptmx\", O_RDWR) failed");
   }
   const int SLAVE_NAME_MAX_SIZE = 128;
   char slave_name[SLAVE_NAME_MAX_SIZE];
@@ -51,35 +55,41 @@ static void create_pty(const v8::FunctionCallbackInfo<v8::Value> &args) {
 
   error = tcgetattr(master_fd.get(), &configuration);
   if (error)
-    return _throw_exc_format(isolate, error, "tcgetattr");
+    _throw_exc_format(env, error, "tcgetattr");
 
+  // By default, the master tty will be in echo mode, which means that we will
+  // get what we write back when we read from it. The stream is also line
+  // buffered by default. Making it raw prevents all this.
+  // see: man cfmakeraw
   cfmakeraw(&configuration);
 
   error = tcsetattr(master_fd.get(), 0, &configuration);
   if (error)
-    return _throw_exc_format(isolate, error, "tcsetattr");
+    _throw_exc_format(env, error, "tcsetattr");
 
+  // see: man ptmx
   error = ptsname_r(master_fd.get(), slave_name, SLAVE_NAME_MAX_SIZE);
   if (error)
-    return _throw_exc_format(isolate, error, "ptsname_r");
+    _throw_exc_format(env, error, "ptsname_r");
   error = grantpt(master_fd.get());
   if (error)
-    return _throw_exc_format(isolate, error, "grantpt");
+    _throw_exc_format(env, error, "grantpt");
   error = unlockpt(master_fd.get());
   if (error)
-    return _throw_exc_format(isolate, error, "unlockpt");
+    _throw_exc_format(env, error, "unlockpt");
 
-  v8::Local<v8::Object> terminal = v8::Object::New(isolate);
-  terminal->Set(v8::String::NewFromUtf8(isolate, "master_fd"),
-                v8::Number::New(isolate, master_fd.release()));
-  terminal->Set(v8::String::NewFromUtf8(isolate, "slave_name"),
-                v8::String::NewFromUtf8(isolate, slave_name));
-  args.GetReturnValue().Set(terminal);
+  // We release master_fd for the scoped_fd wrapper to not actually close it,
+  // as we want to send it to the running JS scripts.
+  Napi::Object terminal = Napi::Object::New(env);
+  terminal.Set("master_fd", master_fd.release());
+  terminal.Set("slave_name", slave_name);
+  return terminal;
 #endif
 }
 
-static void initialize(v8::Local<v8::Object> exports) {
-  NODE_SET_METHOD(exports, "create_pty", create_pty);
+static Napi::Object initialize(Napi::Env env, Napi::Object exports) {
+  exports.Set("create_pty", Napi::Function::New(env, create_pty));
+  return exports;
 }
 
-NODE_MODULE(NODE_GYP_MODULE_NAME, initialize);
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, initialize);
