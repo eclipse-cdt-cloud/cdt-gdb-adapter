@@ -22,7 +22,8 @@
   },
   "homepage": "https://github.com/eclipse-cdt/cdt-gdb-adapter#readme",
   "dependencies": {
-    "vscode-debugadapter": "^1.32.1"
+    "vscode-debugadapter": "^1.32.1",
+    "node-addon-api": "^1.6.2"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -31,7 +32,6 @@
     "chai": "^4.2.0",
     "mocha": "^5.2.0",
     "mocha-jenkins-reporter": "^0.4.1",
-    "node-addon-api": "^1.6.2",
     "node-gyp": "^3.8.0",
     "ts-loader": "^5.3.0",
     "tslint": "^5.11.0",
