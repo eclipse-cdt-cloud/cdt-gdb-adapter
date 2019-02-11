@@ -4,7 +4,7 @@
             'target_name': 'pty',
             'sources': ['src/native/pty.cc'],
             'conditions': [
-                ['OS=="win"', { 'defines': ['WINDOWS'] }],
+                ['OS=="win"', { 'defines': ['WINDOWS', 'NAPI_CPP_EXCEPTIONS'] }],
             ],
 
             # https://github.com/nodejs/node/blob/master/doc/api/n-api.md#n-api-version-matrix
@@ -24,8 +24,12 @@
             'CLANG_CXX_LIBRARY': 'libc++',
             'MACOSX_DEPLOYMENT_TARGET': '10.7',
         },
-        'msvs_settings': {
-            'VCCLCompilerTool': { 'ExceptionHandling': 1 },
+        'configurations': {
+            'Release': {
+                'msvs_settings': {
+                    'VCCLCompilerTool': { 'ExceptionHandling': 1 },
+                },
+            },
         },
     },
 }
