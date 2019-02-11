@@ -1,6 +1,6 @@
 {
   "name": "cdt-gdb-adapter",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "gdb adapter implementing the debug adapter protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,8 +22,8 @@
   },
   "homepage": "https://github.com/eclipse-cdt/cdt-gdb-adapter#readme",
   "dependencies": {
-    "vscode-debugadapter": "^1.32.1",
-    "node-addon-api": "^1.6.2"
+    "node-addon-api": "^1.6.2",
+    "vscode-debugadapter": "^1.32.1"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
