@@ -64,12 +64,14 @@ export interface MemoryRequestArguments {
 /**
  * Response for our custom 'cdt-gdb-adapter/Memory' request.
  */
+export interface MemoryContents {
+    /* Hex-encoded string of bytes.  */
+    data: string;
+    address: string;
+}
+
 export interface MemoryResponse extends Response {
-    body: {
-        /* Hex-encoded string of bytes.  */
-        data: string;
-        address: string;
-    };
+    body: MemoryContents;
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
