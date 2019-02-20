@@ -9,11 +9,10 @@
  *********************************************************************/
 import * as os from 'os';
 import * as path from 'path';
-import { logger } from 'vscode-debugadapter/lib/logger';
 import {
-    Handles, InitializedEvent, Logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
+    Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
     StackFrame, StoppedEvent, TerminatedEvent, Thread,
-} from 'vscode-debugadapter/lib/main';
+} from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
@@ -82,11 +81,15 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected supportsRunInTerminalRequest = false;
     protected supportsGdbConsole = false;
 
+    /* A reference to the logger to be used by subclasses */
+    protected logger: Logger.Logger;
+
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
 
     constructor() {
         super();
+        this.logger = logger;
     }
 
     protected createBackend(): GDBBackend {
