@@ -13,7 +13,7 @@ import {
     Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
     StackFrame, StoppedEvent, TerminatedEvent, Thread,
 } from 'vscode-debugadapter';
-import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
+import { DebugProtocol } from 'vscode-debugprotocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
 import { sendDataReadMemoryBytes } from './mi/data';
