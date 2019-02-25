@@ -101,6 +101,10 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand(`-file-exec-and-symbols ${program}`);
     }
 
+    public sendGDBSet(params: string) {
+        return this.sendCommand(`-gdb-set ${params}`);
+    }
+
     public sendGDBExit() {
         return this.sendCommand('-gdb-exit');
     }
