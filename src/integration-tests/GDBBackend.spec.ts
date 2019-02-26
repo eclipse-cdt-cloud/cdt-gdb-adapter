@@ -34,12 +34,14 @@ describe('GDB Backend Test Suite', function() {
 
     it('can read a value from -gdb-show', async function() {
         const response = await gdb.sendGDBShow('width');
-        expect(response.value).to.equal('80');
+        expect(response.value).to.be.a('string');
+        expect(Number(response.value)).to.be.not.equal(NaN);
+        expect(Number(response.value)).to.be.greaterThan(0);
     });
 
     it('can set a value using -gdb-set', async function() {
         await gdb.sendGDBSet('width 88');
         const response = await gdb.sendGDBShow('width');
         expect(response.value).to.equal('88');
-    })
+    });
 });
