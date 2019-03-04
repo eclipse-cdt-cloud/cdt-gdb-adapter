@@ -23,6 +23,10 @@ export interface MIExecNextRequest {
 export interface MIExecNextResponse extends MIResponse {
 }
 
+export interface MIGDBShowResponse extends MIResponse {
+    value?: string;
+}
+
 export declare interface GDBBackend {
     on(event: 'consoleStreamOutput', listener: (output: string, category: string) => void): this;
     on(event: 'async', listener: (result: any) => void): this;
@@ -74,9 +78,8 @@ export class GDBBackend extends events.EventEmitter {
                     switch (result._class) {
                         case 'done':
                         case 'running':
-                            resolve(result);
-                            break;
                         case 'connected':
+                        case 'exit':
                             resolve(result);
                             break;
                         case 'error':
@@ -99,6 +102,14 @@ export class GDBBackend extends events.EventEmitter {
 
     public sendFileExecAndSymbols(program: string) {
         return this.sendCommand(`-file-exec-and-symbols ${program}`);
+    }
+
+    public sendGDBSet(params: string) {
+        return this.sendCommand(`-gdb-set ${params}`);
+    }
+
+    public sendGDBShow(params: string): Promise<MIGDBShowResponse> {
+        return this.sendCommand(`-gdb-show ${params}`);
     }
 
     public sendGDBExit() {
