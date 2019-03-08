@@ -58,6 +58,7 @@ export type VariableReference = FrameVariableReference | ObjectVariableReference
 export interface MemoryRequestArguments {
     address: string;
     length: number;
+    offset?: number;
 }
 
 /**
@@ -570,9 +571,14 @@ export class GDBDebugSession extends LoggingDebugSession {
                 throw new Error(`Invalid type for 'length', expected number, got ${typeof (args.length)}`);
             }
 
+            if (typeof (args.offset) !== 'number' && typeof (args.offset) !== 'undefined') {
+                throw new Error(`Invalid type for 'offset', expected number or undefined, got ${typeof (args.offset)}`);
+            }
+
             const typedArgs = args as MemoryRequestArguments;
 
-            const result = await sendDataReadMemoryBytes(this.gdb, typedArgs.address, typedArgs.length);
+            const result = await sendDataReadMemoryBytes(
+                this.gdb, typedArgs.address, typedArgs.length, typedArgs.offset);
             response.body = {
                 data: result.memory[0].contents,
                 address: result.memory[0].begin,
