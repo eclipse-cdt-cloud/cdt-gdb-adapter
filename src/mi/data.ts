@@ -19,8 +19,7 @@ interface MIDataReadMemoryBytesResponse {
     }>;
 }
 
-export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number)
+export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number, offset: number = 0)
     : Promise<MIDataReadMemoryBytesResponse> {
-    const command = `-data-read-memory-bytes "${address}" ${size}`;
-    return gdb.sendCommand(command);
+    return gdb.sendCommand(`-data-read-memory-bytes -o ${offset} "${address}" ${size}`);
 }

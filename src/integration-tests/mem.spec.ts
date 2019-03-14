@@ -59,7 +59,6 @@ function verifyMemoryReadResult(resp: MemoryResponse, expectedBytes: string, exp
 
     const actualAddress = parseInt(resp.body.address, 16);
     expect(actualAddress).eq(expectedAddress);
-
 }
 
 describe('Memory Test Suite', function() {
@@ -98,5 +97,30 @@ describe('Memory Test Suite', function() {
             length: 10,
         }));
         expect(err.message).contains('Unable to read memory');
+    });
+
+    it('can read memory with offset', async function() {
+        const addrOfArrayResp = await dc.evaluateRequest({ expression: '&array', frameId: frame.id });
+        const addrOfArray = parseInt(addrOfArrayResp.body.result, 16);
+
+        // Test positive offset
+        let offset = 5;
+        let mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: '&array',
+            length: 5,
+            offset,
+        })) as MemoryResponse;
+
+        verifyMemoryReadResult(mem, '48450c2d13', addrOfArray + offset);
+
+        // Test negative offset
+        offset = -5;
+        mem = (await dc.send('cdt-gdb-adapter/Memory', {
+            address: `array + ${-offset}`,
+            length: 10,
+            offset,
+        })) as MemoryResponse;
+
+        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 });
