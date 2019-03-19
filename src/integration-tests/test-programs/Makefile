@@ -1,4 +1,4 @@
-BINS = empty evaluate vars vars_cpp mem
+BINS = empty evaluate vars vars_cpp mem segv
 
 .PHONY: all
 all: $(BINS)
@@ -22,6 +22,9 @@ vars: vars.o
 
 vars_cpp: vars_cpp.o
 	$(LINK_CXX)
+
+segv: segv.o
+	$(LINK)
 
 %.o: %.c
 	$(CC) -c $< -g3 -O0
