@@ -2,6 +2,7 @@ empty
 evaluate
 mem
 vars
+segv
 *.o
 .vscode
 /vars_cpp

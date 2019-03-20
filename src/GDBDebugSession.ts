@@ -618,6 +618,10 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'end-stepping-range':
                 this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
                 break;
+            case 'signal-received':
+                const name = result['signal-name'] || 'signal';
+                this.sendStoppedEvent(name, parseInt(result['thread-id'], 10));
+                break;
             default:
                 logger.warn('GDB unhandled stop: ' + JSON.stringify(result));
         }
