@@ -7,14 +7,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { execFile, spawn } from 'child_process';
+import { execFile } from 'child_process';
 import * as events from 'events';
+import * as process from 'process';
 import { Writable } from 'stream';
 import { logger } from 'vscode-debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { Pty } from './native/pty';
+import { raise } from './native/signal';
+import { exec } from './native/spawn';
+import * as fs from 'fs';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -39,19 +43,32 @@ export class GDBBackend extends events.EventEmitter {
     private parser = new MIParser(this);
     private out?: Writable;
     private token = 0;
+    private pid?: number;
 
     public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
-        const proc = spawn(gdb, ['--interpreter=mi2']);
-        this.out = proc.stdin;
-        return this.parser.parse(proc.stdout);
+        const envp = new Array<string>();
+        for (const key in process.env) {
+            if (key) {
+                logger.error(`${key}=${process.env[key]}`);
+                envp.push(`${key}=${process.env[key]}`);
+            }
+        }
+        logger.error('Trying to launch GDB');
+        const proc = exec([gdb, '--interpreter', 'mi2', '--nx'], envp);
+        if (proc.pid !== -1) {
+            this.pid = proc.pid;
+            this.out = fs.createWriteStream('', { fd: proc.stdin });
+            return this.parser.parse(fs.createReadStream('', { fd: proc.stdout }));
+        }
+        throw new Error(`Failed to launch GDB: ${proc.errmsg}`);
     }
 
     public async spawnInClientTerminal(args: LaunchRequestArguments | AttachRequestArguments,
-        cb: (args: string[]) => Promise<void>) {
+        cb: (args: string[]) => Promise<number>) {
         const gdb = args.gdb ? args.gdb : 'gdb';
         const pty = new Pty();
-        await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
+        this.pid = await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
         this.out = pty.master;
         return this.parser.parse(pty.master);
     }
@@ -94,6 +111,21 @@ export class GDBBackend extends events.EventEmitter {
                 reject(new Error('gdb is not running.'));
             }
         });
+    }
+
+    public sendSignal(sig: number): boolean {
+        if (!this.pid) {
+            logger.error('Cannot send signal, GDB not running');
+            return false;
+        }
+        // logger.error(`Sending signal ${sig} to PID ${this.pid}`);
+        // process.kill(-this.pid, sig);
+        // logger.error('All done, returning');
+        logger.error(`Sending signal ${sig} to PID ${this.pid}`);
+        raise(this.pid, sig, (msg) => {
+            logger.error(msg);
+        });
+        return true;
     }
 
     public sendEnablePrettyPrint() {

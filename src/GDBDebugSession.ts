@@ -18,6 +18,7 @@ import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
 import { sendDataReadMemoryBytes } from './mi/data';
 import * as varMgr from './varManager';
+import { SIGINT } from 'constants';
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -78,6 +79,9 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
     protected isRunning = false;
+    protected isRemote = false;
+    protected isCore = false;
+    protected isStopped = false;
 
     protected supportsRunInTerminalRequest = false;
     protected supportsGdbConsole = false;
@@ -197,8 +201,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                 if (!response.success) {
                     const message = `could not start the terminal on the client: ${response.message}`;
                     logger.error(message);
-                    throw new Error(message);
+                    return Promise.reject(new Error(message));
                 }
+                const r = response as DebugProtocol.RunInTerminalResponse;
+                if (r.body && r.body.processId) {
+                    return Promise.resolve(r.body.processId);
+                }
+                return Promise.reject(new Error('Was not able to obtain PID of GDB'));
             },
         );
     }
@@ -344,6 +353,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.NextArguments): Promise<void> {
         try {
             await mi.sendExecNext(this.gdb);
+            this.isStopped = false;
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -354,6 +364,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.StepInArguments): Promise<void> {
         try {
             await mi.sendExecStep(this.gdb);
+            this.isStopped = false;
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -364,6 +375,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.StepOutArguments): Promise<void> {
         try {
             await mi.sendExecFinish(this.gdb);
+            this.isStopped = false;
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -374,10 +386,37 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.ContinueArguments): Promise<void> {
         try {
             await mi.sendExecContinue(this.gdb);
+            this.isStopped = false;
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
         }
+    }
+
+    protected async pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments) {
+        this.logger.error(`Got a thread request for thread ${args.threadId}`);
+        if (this.isStopped) {
+            return this.sendResponse(response);
+        }
+        mi.sendThreadSelectRequest(this.gdb, { threadId: args.threadId });
+        this.logger.error('Thread is selected! Sending signal');
+        if (this.isCore) {
+            // cant pause, ignore
+            return this.sendResponse(response);
+        }
+        // } else if (this.isRemote) {
+        // send SIGINT (except on windows)
+        if (this.gdb.sendSignal(SIGINT)) {
+            return this.sendResponse(response);
+        }
+        // } else {
+        //     // send CTRL+C
+        //     // TODO
+        //     return this.sendResponse(response);
+        // }
+        const msg = 'Failed to send pause request. Is GDB running?';
+        this.logger.error(msg);
+        this.sendErrorResponse(response, 1, msg);
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
@@ -613,9 +652,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new TerminatedEvent());
                 break;
             case 'breakpoint-hit':
+                this.isStopped = true;
                 this.sendStoppedEvent('breakpoint', parseInt(result['thread-id'], 10));
                 break;
             case 'end-stepping-range':
+                this.isStopped = true;
                 this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
                 break;
             case 'signal-received':
