@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import { GDBBackend } from '../GDBBackend';
+import { MIResponse } from './base';
 
 interface MIDataReadMemoryBytesResponse {
     memory: Array<{
@@ -19,7 +20,16 @@ interface MIDataReadMemoryBytesResponse {
     }>;
 }
 
+export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
+    value?: string;
+}
+
 export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number, offset: number = 0)
     : Promise<MIDataReadMemoryBytesResponse> {
     return gdb.sendCommand(`-data-read-memory-bytes -o ${offset} "${address}" ${size}`);
+}
+
+export function sendDataEvaluateExpression(gdb: GDBBackend, expr: string)
+    : Promise<MIGDBDataEvaluateExpressionResponse> {
+    return gdb.sendCommand(`-data-evaluate-expression "${expr}"`);
 }

@@ -9,6 +9,7 @@
  *********************************************************************/
 export * from './base';
 export * from './breakpoint';
+export * from './data';
 export * from './exec';
 export * from './stack';
 export * from './target';

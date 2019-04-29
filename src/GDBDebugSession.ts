@@ -877,7 +877,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     private async getAddr(varobj: varMgr.VarObjType) {
-        const addr = await this.gdb.sendDataEvaluateExpression(`&(${varobj.expression})`);
+        const addr = await mi.sendDataEvaluateExpression(this.gdb, `&(${varobj.expression})`);
         return addr.value ? addr.value : varobj.value;
     }
 
