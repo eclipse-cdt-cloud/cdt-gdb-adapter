@@ -27,6 +27,10 @@ export interface MIGDBShowResponse extends MIResponse {
     value?: string;
 }
 
+export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
+    value?: string;
+}
+
 export declare interface GDBBackend {
     on(event: 'consoleStreamOutput', listener: (output: string, category: string) => void): this;
     on(event: 'async', listener: (result: any) => void): this;
@@ -102,6 +106,10 @@ export class GDBBackend extends events.EventEmitter {
 
     public sendFileExecAndSymbols(program: string) {
         return this.sendCommand(`-file-exec-and-symbols ${program}`);
+    }
+
+    public sendDataEvaluateExpression(expr: string): Promise<MIGDBDataEvaluateExpressionResponse> {
+        return this.sendCommand(`-data-evaluate-expression "${expr}"`);
     }
 
     public sendGDBSet(params: string) {
