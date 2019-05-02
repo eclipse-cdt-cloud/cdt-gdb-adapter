@@ -30,6 +30,8 @@ const lineTags = {
     'STOP HERE': 0,
 };
 
+const hexValueRegex = /0x[\d]+/;
+
 before(function() {
     standardBefore();
 
@@ -184,7 +186,9 @@ describe('Variables Test Suite', function() {
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
-        verifyVariable(vars.body.variables[6], 'f', 'int [3]', '[3]', true);
+        verifyVariable(vars.body.variables[6], 'f', 'int [3]', undefined, true);
+        expect(hexValueRegex.test(vars.body.variables[6].value),
+            'The display value of the array is not a hexidecimal address').to.equal(true);
         const childVR = vars.body.variables[6].variablesReference;
         let children = await dc.variablesRequest({ variablesReference: childVR });
         expect(

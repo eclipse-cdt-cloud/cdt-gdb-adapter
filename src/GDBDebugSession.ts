@@ -74,6 +74,9 @@ export interface MemoryResponse extends Response {
     body: MemoryContents;
 }
 
+const arrayRegex = /.*\[[\d]+\].*/;
+const arrayChildRegex = /[\d]+/;
+
 export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
@@ -690,11 +693,16 @@ export class GDBDebugSession extends LoggingDebugSession {
                         // value hasn't updated but it's still in scope
                         numVars++;
                     }
-                    // only push entries to the array that aren't being deleted
+                    // only push entries to the result that aren't being deleted
                     if (pushVar) {
+                        let value = varobj.value;
+                        // if we have an array parent entry, we need to display the address.
+                        if (arrayRegex.test(varobj.type)) {
+                            value = await this.getAddr(varobj);
+                        }
                         variables.push({
                             name: varobj.expression,
-                            value: varobj.value,
+                            value,
                             type: varobj.type,
                             variablesReference: parseInt(varobj.numchild, 10) > 0
                                 ? this.variableHandles.create({
@@ -733,9 +741,14 @@ export class GDBDebugSession extends LoggingDebugSession {
                     varobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth, varobj);
                     varobj.isVar = true;
                 }
+                let value = varobj.value;
+                // if we have an array parent entry, we need to display the address.
+                if (arrayRegex.test(varobj.type)) {
+                    value = await this.getAddr(varobj);
+                }
                 variables.push({
                     name: varobj.expression,
-                    value: varobj.value,
+                    value,
                     type: varobj.type,
                     variablesReference: parseInt(varobj.numchild, 10) > 0
                         ? this.variableHandles.create({
@@ -812,8 +825,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 // check if we're dealing with an array
                 let name = `${ref.varobjName}.${child.exp}`;
                 let varobjName = name;
-                const arrayRegex = /.*\[[\d]+\].*/g;
-                const arrayChildRegex = /[\d]+/g;
+                let value = child.value ? child.value : child.type;
                 const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild = (varobj !== undefined
                     ? arrayRegex.test(varobj.type) && arrayChildRegex.test(child.exp)
@@ -839,13 +851,17 @@ export class GDBDebugSession extends LoggingDebugSession {
                         arrobj = await varMgr.updateVar(this.gdb, frame.frameId, frame.threadId, depth,
                             arrobj);
                     }
+                    // if we have an array parent entry, we need to display the address.
+                    if (isArrayParent) {
+                        value = await this.getAddr(arrobj);
+                    }
                     arrobj.isChild = true;
                     varobjName = arrobj.varname;
                 }
                 const variableName = isArrayChild ? name : child.exp;
                 variables.push({
                     name: variableName,
-                    value: child.value ? child.value : child.type,
+                    value,
                     type: child.type,
                     variablesReference: parseInt(child.numchild, 10) > 0
                         ? this.variableHandles.create({
@@ -858,6 +874,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
         }
         return Promise.resolve(variables);
+    }
+
+    private async getAddr(varobj: varMgr.VarObjType) {
+        const addr = await mi.sendDataEvaluateExpression(this.gdb, `&(${varobj.expression})`);
+        return addr.value ? addr.value : varobj.value;
     }
 
     private isChildOfClass(child: mi.MIVarChild): boolean {
