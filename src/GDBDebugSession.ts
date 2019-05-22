@@ -93,6 +93,8 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     private threads: Thread[] = [];
 
+    private waitPaused?: (value?: void | PromiseLike<void>) => void;
+
     constructor() {
         super();
         this.logger = logger;
@@ -212,6 +214,17 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
+
+        const neededPause = this.isRunning;
+        if (neededPause) {
+            // Need to pause first
+            const waitPromise = new Promise<void>((resolve) => {
+                this.waitPaused = resolve;
+            });
+            this.gdb.pause();
+            await waitPromise;
+        }
+
         try {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
@@ -268,6 +281,10 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
+        }
+
+        if (neededPause) {
+            mi.sendExecContinue(this.gdb);
         }
     }
 
@@ -385,6 +402,9 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async pauseRequest(response: DebugProtocol.PauseResponse,
         args: DebugProtocol.PauseArguments): Promise<void> {
+        if (!this.gdb.pause()) {
+            response.success = false;
+        }
         this.sendResponse(response);
     }
 
@@ -629,6 +649,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'signal-received':
                 const name = result['signal-name'] || 'signal';
                 this.sendStoppedEvent(name, parseInt(result['thread-id'], 10));
+                if (this.waitPaused) {
+                    this.waitPaused();
+                }
                 break;
             default:
                 logger.warn('GDB unhandled stop: ' + JSON.stringify(result));
