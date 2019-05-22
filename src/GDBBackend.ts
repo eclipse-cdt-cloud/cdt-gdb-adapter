@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { execFile, spawn } from 'child_process';
+import { execFile, spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from 'vscode-debugadapter/lib/logger';
@@ -39,12 +39,13 @@ export class GDBBackend extends events.EventEmitter {
     private parser = new MIParser(this);
     private out?: Writable;
     private token = 0;
+    private proc?: ChildProcess;
 
     public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
-        const proc = spawn(gdb, ['--interpreter=mi2']);
-        this.out = proc.stdin;
-        return this.parser.parse(proc.stdout);
+        this.proc = spawn(gdb, ['--interpreter=mi2']);
+        this.out = this.proc.stdin;
+        return this.parser.parse(this.proc.stdout);
     }
 
     public async spawnInClientTerminal(args: LaunchRequestArguments | AttachRequestArguments,
@@ -54,6 +55,15 @@ export class GDBBackend extends events.EventEmitter {
         await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
         this.out = pty.master;
         return this.parser.parse(pty.master);
+    }
+
+    public pause() {
+        if (this.proc) {
+            this.proc.kill('SIGINT');
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
