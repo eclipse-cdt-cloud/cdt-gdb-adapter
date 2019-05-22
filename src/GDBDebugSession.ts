@@ -91,6 +91,8 @@ export class GDBDebugSession extends LoggingDebugSession {
     private frameHandles = new Handles<FrameReference>();
     private variableHandles = new Handles<VariableReference>();
 
+    private threads: Thread[] = [];
+
     constructor() {
         super();
         this.logger = logger;
@@ -130,7 +132,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
-            this.gdb.on('async', (result) => this.handleGDBAsync(result));
+            this.gdb.on('execAsync', (resultClass, resultData) => this.handleGDBAsync(resultClass, resultData));
+            this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
 
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
@@ -153,7 +156,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new OutputEvent(output, category));
             });
 
-            this.gdb.on('async', (result) => this.handleGDBAsync(result));
+            this.gdb.on('execAsync', (resultClass, resultData) => this.handleGDBAsync(resultClass, resultData));
+            this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
 
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
@@ -275,29 +279,25 @@ export class GDBDebugSession extends LoggingDebugSession {
             } else {
                 await mi.sendExecRun(this.gdb);
             }
-            this.isRunning = true;
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 100, err.message);
         }
     }
 
+    protected convertThread(thread: mi.MIThreadInfo) {
+        return new Thread(parseInt(thread.id, 10), thread.name ? thread.name : thread.id);
+    }
+
     protected async threadsRequest(response: DebugProtocol.ThreadsResponse): Promise<void> {
         try {
             if (!this.isRunning) {
-                // This is a thread request that comes out too early
-                // comes out right after configDone and no way to delay it
-                this.sendResponse(response);
-                return;
+                const result = await mi.sendThreadInfoRequest(this.gdb, {});
+                this.threads = result.threads.map((thread) => this.convertThread(thread));
             }
 
-            const result = await mi.sendThreadInfoRequest(this.gdb, {});
-            const threads = result.threads.map((thread) => {
-                return new Thread(parseInt(thread.id, 10), thread.name ? thread.name : thread.id);
-            });
-
             response.body = {
-                threads,
+                threads: this.threads,
             };
 
             this.sendResponse(response);
@@ -381,6 +381,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
         }
+    }
+
+    protected async pauseRequest(response: DebugProtocol.PauseResponse,
+        args: DebugProtocol.PauseArguments): Promise<void> {
+        this.sendResponse(response);
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
@@ -630,16 +635,33 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected handleGDBAsync(result: any) {
-        switch (result._class) {
+    protected handleGDBAsync(resultClass: string, resultData: any) {
+        switch (resultClass) {
             case 'running':
-                // not sure we care, we do get the thread-id that's running tho
+                this.isRunning = true;
                 break;
             case 'stopped':
-                this.handleGDBStopped(result);
+                this.isRunning = false;
+                this.handleGDBStopped(resultData);
                 break;
             default:
-                logger.warn('GDB unhandled async: ' + JSON.stringify(result));
+                logger.warn(`GDB unhandled async: ${resultClass}: ${JSON.stringify(resultData)}`);
+        }
+    }
+
+    protected handleGDBNotify(notifyClass: string, notifyData: any) {
+        switch (notifyClass) {
+            case 'thread-created':
+                this.threads.push(this.convertThread(notifyData));
+                break;
+            case 'thread-group-added':
+            case 'thread-group-started':
+            case 'library-loaded':
+            case 'breakpoint-modified':
+                // Known unhandled notifies
+                break;
+            default:
+                logger.warn(`GDB unhandled notify: ${notifyClass}: ${JSON.stringify(notifyData)}`);
         }
     }
 

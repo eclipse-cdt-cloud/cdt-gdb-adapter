@@ -39,7 +39,7 @@ export class MIParser {
         });
     }
 
-    public queueCommand(token: number, command: (result: any) => void) {
+    public queueCommand(token: number, command: (resultClass: string, resultData: any) => void) {
         this.commandQueue[token] = command;
     }
 
@@ -186,10 +186,8 @@ export class MIParser {
         return null;
     }
 
-    private handleAsyncOutput() {
-        const result: any = {
-            _class: this.handleString(),
-        };
+    private handleAsyncData() {
+        const result: any = { };
 
         let c = this.next();
         while (c === ',') {
@@ -235,8 +233,9 @@ export class MIParser {
                 logger.verbose('GDB result: ' + this.restOfLine());
                 const command = this.commandQueue[token];
                 if (command) {
-                    const asyncResult = this.handleAsyncOutput();
-                    command(asyncResult);
+                    const resultClass = this.handleString();
+                    const resultData = this.handleAsyncData();
+                    command(resultClass, resultData);
                     delete this.commandQueue[token];
                 } else {
                     logger.error('GDB response with no command: ' + token);
@@ -250,13 +249,14 @@ export class MIParser {
                 this.handleLogStream();
                 break;
             case '=':
-                // TODO: notify
-                logger.verbose('GDB notify: ' + this.restOfLine());
+                logger.verbose('GDB notify async: ' + this.restOfLine());
+                const notifyClass = this.handleString();
+                this.gdb.emit('notifyAsync', notifyClass, this.handleAsyncData());
                 break;
             case '*':
-                logger.verbose('GDB async: ' + this.restOfLine());
-                const result = this.handleAsyncOutput();
-                this.gdb.emit('async', result);
+                logger.verbose('GDB exec async: ' + this.restOfLine());
+                const execClass = this.handleString();
+                this.gdb.emit('execAsync', execClass, this.handleAsyncData());
                 break;
             case '(':
                 if (this.waitReady) {

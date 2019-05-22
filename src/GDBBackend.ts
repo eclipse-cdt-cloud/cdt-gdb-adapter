@@ -29,10 +29,10 @@ export interface MIGDBShowResponse extends MIResponse {
 
 export declare interface GDBBackend {
     on(event: 'consoleStreamOutput', listener: (output: string, category: string) => void): this;
-    on(event: 'async', listener: (result: any) => void): this;
+    on(event: 'execAsync' | 'notifyAsync', listener: (asyncClass: string, data: any) => void): this;
 
     emit(event: 'consoleStreamOutput', output: string, category: string): boolean;
-    emit(event: 'async', result: any): boolean;
+    emit(event: 'execAsync' | 'notifyAsync', asyncClass: string, data: any): boolean;
 }
 
 export class GDBBackend extends events.EventEmitter {
@@ -74,19 +74,19 @@ export class GDBBackend extends events.EventEmitter {
         logger.verbose(`GDB command: ${token} ${command}`);
         return new Promise<T>((resolve, reject) => {
             if (this.out) {
-                this.parser.queueCommand(token, (result) => {
-                    switch (result._class) {
+                this.parser.queueCommand(token, (resultClass, resultData) => {
+                    switch (resultClass) {
                         case 'done':
                         case 'running':
                         case 'connected':
                         case 'exit':
-                            resolve(result);
+                            resolve(resultData);
                             break;
                         case 'error':
-                            reject(new Error(result.msg));
+                            reject(new Error(resultData.msg));
                             break;
                         default:
-                            reject(new Error('Unknown response ' + JSON.stringify(result)));
+                            reject(new Error(`Unknown response ${resultClass}: ${JSON.stringify(resultData)}`));
                     }
                 });
                 this.out.write(`${token}${command}\n`);
