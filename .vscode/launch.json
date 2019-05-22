@@ -4,6 +4,19 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Server",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/dist/debugAdapter.js",
+      "args": [
+        "--server=4711"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Mocha All",
       "program": "${workspaceFolder}/node_modules/.bin/mocha",
       "args": [
