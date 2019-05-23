@@ -31,8 +31,18 @@ static void _throw_exc_format(const Napi::Env env, int error,
   const int ERRMSG_MAX_SIZE = 128;
   char errmsg_buffer[ERRMSG_MAX_SIZE];
   char message[ERRMSG_MAX_SIZE];
+#ifdef _GNU_SOURCE
   char *errmsg = strerror_r(error, errmsg_buffer, ERRMSG_MAX_SIZE);
   snprintf(message, ERRMSG_MAX_SIZE, "%s: %s", function_name, errmsg);
+#else
+  int rc = strerror_r(error, errmsg_buffer, ERRMSG_MAX_SIZE);
+  if (rc) {
+    snprintf(message, ERRMSG_MAX_SIZE, "%s", function_name);
+  } else {
+    snprintf(message, ERRMSG_MAX_SIZE, "%s: %s", function_name, errmsg_buffer);
+  }
+#endif
+
   _throw_exc(env, message);
 }
 #endif
