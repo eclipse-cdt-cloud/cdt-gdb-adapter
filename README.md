@@ -8,9 +8,9 @@ We are at least learning from it.
 
 Build is pretty simple.
 
-```
-npm install
-npm run build
+```sh
+yarn install
+yarn build
 ```
 
 The entry point for the adapter is `out/debugAdapter.js`.
