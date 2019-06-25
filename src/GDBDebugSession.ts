@@ -369,7 +369,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async nextRequest(response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments): Promise<void> {
         try {
-            await mi.sendExecNext(this.gdb);
+            await mi.sendExecNext(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -379,7 +379,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async stepInRequest(response: DebugProtocol.StepInResponse,
         args: DebugProtocol.StepInArguments): Promise<void> {
         try {
-            await mi.sendExecStep(this.gdb);
+            await mi.sendExecStep(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -389,7 +389,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async stepOutRequest(response: DebugProtocol.StepOutResponse,
         args: DebugProtocol.StepOutArguments): Promise<void> {
         try {
-            await mi.sendExecFinish(this.gdb);
+            await mi.sendExecFinish(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
@@ -399,7 +399,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async continueRequest(response: DebugProtocol.ContinueResponse,
         args: DebugProtocol.ContinueArguments): Promise<void> {
         try {
-            await mi.sendExecContinue(this.gdb);
+            await mi.sendExecContinue(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
