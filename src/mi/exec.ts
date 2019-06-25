@@ -20,18 +20,34 @@ export function sendExecRun(gdb: GDBBackend) {
     return gdb.sendCommand('-exec-run');
 }
 
-export function sendExecContinue(gdb: GDBBackend) {
-    return gdb.sendCommand('-exec-continue');
+export function sendExecContinue(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-continue';
+    if (threadId) {
+        command += ` --thread ${threadId}`;
+    }
+    return gdb.sendCommand(command);
 }
 
-export function sendExecNext(gdb: GDBBackend) {
-    return gdb.sendCommand('-exec-next');
+export function sendExecNext(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-next';
+    if (threadId) {
+        command += ` --thread ${threadId}`;
+    }
+    return gdb.sendCommand(command);
 }
 
-export function sendExecStep(gdb: GDBBackend) {
-    return gdb.sendCommand('-exec-step');
+export function sendExecStep(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-step';
+    if (threadId) {
+        command += ` --thread ${threadId}`;
+    }
+    return gdb.sendCommand(command);
 }
 
-export function sendExecFinish(gdb: GDBBackend) {
-    return gdb.sendCommand('-exec-finish');
+export function sendExecFinish(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-finish';
+    if (threadId) {
+        command += ` --thread ${threadId}`;
+    }
+    return gdb.sendCommand(command);
 }
