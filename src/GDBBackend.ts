@@ -14,7 +14,6 @@ import { logger } from 'vscode-debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
-import { Pty } from './native/pty';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -43,7 +42,11 @@ export class GDBBackend extends events.EventEmitter {
 
     public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = args.gdb ? args.gdb : 'gdb';
-        this.proc = spawn(gdb, ['--interpreter=mi2']);
+        let options = ['--interpreter=mi2'];
+        if (args.gdbArguments) {
+            options = options.concat(args.gdbArguments);
+        }
+        this.proc = spawn(gdb, options);
         this.out = this.proc.stdin;
         return this.parser.parse(this.proc.stdout);
     }
@@ -51,6 +54,7 @@ export class GDBBackend extends events.EventEmitter {
     public async spawnInClientTerminal(args: LaunchRequestArguments | AttachRequestArguments,
         cb: (args: string[]) => Promise<void>) {
         const gdb = args.gdb ? args.gdb : 'gdb';
+        const Pty = await require('./native/pty');
         const pty = new Pty();
         await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
         this.out = pty.master;

@@ -21,10 +21,12 @@ import * as varMgr from './varManager';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
+    gdbArguments?: string[];
     program: string;
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
+    initCommands?: string[];
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -157,6 +159,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 await this.gdb.sendTargetSelectRemote(args.remote);
             }
 
+            if (args.initCommands) {
+                for (const command of args.initCommands) {
+                    await this.gdb.sendCommand(command);
+                }
+            }
+
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
@@ -179,6 +187,12 @@ export class GDBDebugSession extends LoggingDebugSession {
             await this.gdb.sendFileExecAndSymbols(args.program);
 
             this.gdb.sendEnablePrettyPrint();
+
+            if (args.initCommands) {
+                for (const command of args.initCommands) {
+                    await this.gdb.sendCommand(command);
+                }
+            }
 
             if (args.arguments) {
                 await mi.sendExecArguments(this.gdb, { arguments: args.arguments });
