@@ -221,7 +221,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             const waitPromise = new Promise<void>((resolve) => {
                 this.waitPaused = resolve;
             });
-            this.gdb.pause();
+            await mi.sendExecInterrupt(this.gdb);
             await waitPromise;
         }
 
@@ -402,10 +402,12 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async pauseRequest(response: DebugProtocol.PauseResponse,
         args: DebugProtocol.PauseArguments): Promise<void> {
-        if (!this.gdb.pause()) {
-            response.success = false;
+        try {
+            await mi.sendExecInterrupt(this.gdb, args.threadId);
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
         }
-        this.sendResponse(response);
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,

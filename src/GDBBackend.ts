@@ -57,15 +57,6 @@ export class GDBBackend extends events.EventEmitter {
         return this.parser.parse(pty.master);
     }
 
-    public pause() {
-        if (this.proc) {
-            this.proc.kill('SIGINT');
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
         const gdb = gdbPath || 'gdb';
         return new Promise<boolean>((resolve, reject) => {
