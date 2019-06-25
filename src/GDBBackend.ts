@@ -126,6 +126,10 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand('-gdb-exit');
     }
 
+    public sendTargetSelectRemote(remote: string) {
+        return this.sendCommand(`-target-select remote ${remote}`);
+    }
+
     private nextToken() {
         return this.token++;
     }

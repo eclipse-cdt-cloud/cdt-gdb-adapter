@@ -19,23 +19,27 @@ import * as mi from './mi';
 import { sendDataReadMemoryBytes } from './mi/data';
 import * as varMgr from './varManager';
 
-export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
+export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     program: string;
-    arguments?: string;
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
 }
 
-export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    gdb?: string;
-    program: string;
-    processId: string;
-    verbose?: boolean;
-    logFile?: string;
-    openGdbConsole?: boolean;
+export interface LaunchRequestArguments extends RequestArguments {
+    arguments?: string;
 }
+
+export interface AttachProcessRequestArguments extends RequestArguments {
+    processId: string;
+}
+
+export interface AttachRemoteRequestArguments extends RequestArguments {
+    remote: string;
+}
+
+export type AttachRequestArguments = AttachProcessRequestArguments | AttachRemoteRequestArguments;
 
 export interface FrameReference {
     threadId: number;
@@ -129,6 +133,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async attachRequest(response: DebugProtocol.AttachResponse, args: AttachRequestArguments): Promise<void> {
         try {
             logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
+            this.isAttach = true;
 
             this.gdb.on('consoleStreamOutput', (output, category) => {
                 this.sendEvent(new OutputEvent(output, category));
@@ -138,10 +143,19 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
 
             await this.spawn(args);
-            await this.gdb.sendFileExecAndSymbols(args.program);
 
-            await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
-            this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
+            const isProcessRequest = (request: AttachProcessRequestArguments | AttachRemoteRequestArguments):
+                request is AttachProcessRequestArguments =>
+                (request as AttachProcessRequestArguments).processId !== undefined;
+
+            if (isProcessRequest(args)) {
+                await this.gdb.sendFileExecAndSymbols(args.program);
+                await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
+                this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
+            } else {
+                await this.gdb.sendGDBSet('target-async on');
+                await this.gdb.sendTargetSelectRemote(args.remote);
+            }
 
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
