@@ -78,9 +78,9 @@ static Napi::Value create_pty(const Napi::CallbackInfo &info) {
     _throw_exc_format(env, error, "tcsetattr");
 
   // see: man ptmx
-  error = ptsname_r(master_fd.get(), slave_name, SLAVE_NAME_MAX_SIZE);
+  error = ttyname_r(master_fd.get(), slave_name, SLAVE_NAME_MAX_SIZE);
   if (error)
-    _throw_exc_format(env, error, "ptsname_r");
+    _throw_exc_format(env, error, "ttyname_r");
   error = grantpt(master_fd.get());
   if (error)
     _throw_exc_format(env, error, "grantpt");
