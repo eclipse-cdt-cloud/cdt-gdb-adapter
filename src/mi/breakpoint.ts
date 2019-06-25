@@ -35,7 +35,7 @@ export interface MIBreakListResponse extends MIResponse {
     };
 }
 
-export function sendBreakInsert(gdb: GDBBackend, request: {
+export async function sendBreakInsert(gdb: GDBBackend, request: {
     temporary?: boolean;
     hardware?: boolean;
     pending?: boolean;
@@ -47,7 +47,13 @@ export function sendBreakInsert(gdb: GDBBackend, request: {
     location: string;
 }): Promise<MIBreakInsertResponse> {
     // Todo: lots of options
-    return gdb.sendCommand(`-break-insert ${request.location}`);
+    const result = await gdb.sendCommand<MIBreakInsertResponse>(`-break-insert "${request.location}"`);
+
+    if (request.condition) {
+        await gdb.sendCommand(`-break-condition ${result.bkpt.number} ${request.condition}`);
+    }
+
+    return result;
 }
 
 export function sendBreakDelete(gdb: GDBBackend, request: {

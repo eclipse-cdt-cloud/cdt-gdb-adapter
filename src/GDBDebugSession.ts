@@ -122,6 +122,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;
+        response.body.supportsConditionalBreakpoints = true;
         // response.body.supportsSetExpression = true;
         this.sendResponse(response);
     }
@@ -240,7 +241,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             const result = await mi.sendBreakList(this.gdb);
             result.BreakpointTable.body.forEach((gdbbp) => {
                 if (gdbbp.fullname === file && gdbbp.line) {
-                    // TODO probably need more through checks than just line number
+                    // TODO probably need more thorough checks than just line number
                     const line = parseInt(gdbbp.line, 10);
                     if (!breakpoints.find((vsbp) => vsbp.line === line)) {
                         deletes.push(gdbbp.number);
@@ -249,20 +250,25 @@ export class GDBDebugSession extends LoggingDebugSession {
                     inserts = inserts.filter((vsbp) => {
                         if (vsbp.line !== line) {
                             return true;
-                        } else {
-                            actual.push({
-                                verified: true,
-                                line: gdbbp.line ? parseInt(gdbbp.line, 10) : 0,
-                                id: parseInt(gdbbp.number, 10),
-                            });
-                            return false;
                         }
+                        if (vsbp.condition !== gdbbp.cond) {
+                            return true;
+                        }
+                        actual.push({
+                            verified: true,
+                            line: gdbbp.line ? parseInt(gdbbp.line, 10) : 0,
+                            id: parseInt(gdbbp.number, 10),
+                        });
+                        return false;
                     });
                 }
             });
 
             for (const vsbp of inserts) {
-                const gdbbp = await mi.sendBreakInsert(this.gdb, { location: `${file}:${vsbp.line}` });
+                const gdbbp = await mi.sendBreakInsert(this.gdb, {
+                    location: `${file}:${vsbp.line}`,
+                    condition: vsbp.condition,
+                });
                 actual.push({
                     id: parseInt(gdbbp.bkpt.number, 10),
                     line: gdbbp.bkpt.line ? parseInt(gdbbp.bkpt.line, 10) : 0,
