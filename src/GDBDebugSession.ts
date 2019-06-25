@@ -19,22 +19,21 @@ import * as mi from './mi';
 import { sendDataReadMemoryBytes } from './mi/data';
 import * as varMgr from './varManager';
 
-export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
+export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
+    gdbArguments?: string[];
     program: string;
-    arguments?: string;
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
 }
 
-export interface AttachRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    gdb?: string;
-    program: string;
+export interface LaunchRequestArguments extends RequestArguments {
+    arguments?: string;
+}
+
+export interface AttachRequestArguments extends RequestArguments {
     processId: string;
-    verbose?: boolean;
-    logFile?: string;
-    openGdbConsole?: boolean;
 }
 
 export interface FrameReference {
