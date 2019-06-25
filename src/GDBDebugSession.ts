@@ -637,6 +637,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected handleGDBStopped(result: any) {
         switch (result.reason) {
+            case 'exited':
             case 'exited-normally':
                 this.sendEvent(new TerminatedEvent());
                 break;
@@ -644,6 +645,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendStoppedEvent('breakpoint', parseInt(result['thread-id'], 10));
                 break;
             case 'end-stepping-range':
+            case 'function-finished':
                 this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
                 break;
             case 'signal-received':
