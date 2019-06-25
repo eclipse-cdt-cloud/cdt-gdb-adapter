@@ -26,6 +26,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
+    initCommands?: string[];
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -143,6 +144,12 @@ export class GDBDebugSession extends LoggingDebugSession {
             await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
             this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
 
+            if (args.initCommands) {
+                for (const command of args.initCommands) {
+                    await this.gdb.sendCommand(command);
+                }
+            }
+
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
@@ -164,7 +171,13 @@ export class GDBDebugSession extends LoggingDebugSession {
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
 
-            this.gdb.sendEnablePrettyPrint();
+            await this.gdb.sendEnablePrettyPrint();
+
+            if (args.initCommands) {
+                for (const command of args.initCommands) {
+                    await this.gdb.sendCommand(command);
+                }
+            }
 
             if (args.arguments) {
                 await mi.sendExecArguments(this.gdb, { arguments: args.arguments });
