@@ -5,8 +5,9 @@
             'sources': ['src/native/pty.cc'],
             'conditions': [
                 ['OS=="win"', { 'defines': ['WINDOWS', 'NAPI_CPP_EXCEPTIONS'] }],
+                ['OS=="mac"', { 'defines': ['MAC'] }],
+                ['OS=="linux"', { 'defines': ['LINUX'] }],
             ],
-
             # https://github.com/nodejs/node/blob/master/doc/api/n-api.md#n-api-version-matrix
             'defines': ['NAPI_VERSION=2'],
         },
