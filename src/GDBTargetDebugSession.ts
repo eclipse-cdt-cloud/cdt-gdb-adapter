@@ -164,6 +164,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         try {
             this.isAttach = true;
             await this.spawn(args);
+            await this.gdb.sendMIAsync('on');
             await this.gdb.sendFileExecAndSymbols(args.program);
             await this.gdb.sendEnablePrettyPrint();
 

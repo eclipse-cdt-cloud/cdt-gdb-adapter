@@ -11,7 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 import {
     Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
-    StackFrame, StoppedEvent, TerminatedEvent, Thread,
+    StackFrame, StoppedEvent, TerminatedEvent, Thread, Event,
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { GDBBackend } from './GDBBackend';
@@ -140,6 +140,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
 
             await this.spawn(args);
+            await this.gdb.sendMIAsync('on');
             await this.gdb.sendFileExecAndSymbols(args.program);
             await this.gdb.sendEnablePrettyPrint();
 
@@ -171,6 +172,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
 
             await this.spawn(args);
+            await this.gdb.sendMIAsync('on');
             await this.gdb.sendFileExecAndSymbols(args.program);
             await this.gdb.sendEnablePrettyPrint();
 
@@ -231,12 +233,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
         const neededPause = this.isRunning;
         if (neededPause) {
-            // Need to pause first
-            const waitPromise = new Promise<void>((resolve) => {
-                this.waitPaused = resolve;
-            });
-            this.gdb.pause();
-            await waitPromise;
+            await mi.sendExecInterrupt(this.gdb);
         }
 
         try {
@@ -421,10 +418,12 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async pauseRequest(response: DebugProtocol.PauseResponse,
         args: DebugProtocol.PauseArguments): Promise<void> {
-        if (!this.gdb.pause()) {
-            response.success = false;
+        try {
+            await mi.sendExecInterrupt(this.gdb, args.threadId);
+            this.sendResponse(response);
+        } catch (error) {
+            this.sendErrorResponse(response, 1, error.message);
         }
-        this.sendResponse(response);
     }
 
     protected scopesRequest(response: DebugProtocol.ScopesResponse,
@@ -654,6 +653,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.sendEvent(new StoppedEvent(reason, threadId, exceptionText));
     }
 
+    protected sendExtendedStoppedEvent(options: DebugProtocol.StoppedEvent['body']) {
+        // Reset frame handles and variables for new context
+        this.frameHandles.reset();
+        this.variableHandles.reset();
+        // Send the event
+        this.sendEvent(new ExtendedStoppedEvent(options));
+    }
+
     protected handleGDBStopped(result: any) {
         switch (result.reason) {
             case 'exited':
@@ -668,8 +675,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
                 break;
             case 'signal-received':
-                const name = result['signal-name'] || 'signal';
-                this.sendStoppedEvent(name, parseInt(result['thread-id'], 10));
+                this.sendExtendedStoppedEvent({
+                    reason: 'pause',
+                    threadId: parseInt(result['thread-id'], 10),
+                    text: result['signal-name'] || 'UNKNOWN',
+                    description: result['signal-meaning'],
+                });
                 if (this.waitPaused) {
                     this.waitPaused();
                 }
@@ -950,5 +961,20 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected isChildOfClass(child: mi.MIVarChild): boolean {
         return child.type === undefined && child.value === '' &&
             (child.exp === 'public' || child.exp === 'protected' || child.exp === 'private');
+    }
+}
+
+/**
+ * The default `StoppedEvent` from `vscode-debugadapter` package does not seem
+ * to define all the available fields from the DAP specification, it is notably
+ * missing the `description` field.
+ *
+ * See: https://microsoft.github.io/debug-adapter-protocol/specification#Events_Stopped
+ */
+// tslint:disable-next-line:max-classes-per-file
+export class ExtendedStoppedEvent extends Event implements DebugProtocol.StoppedEvent {
+    public body!: DebugProtocol.StoppedEvent['body'];
+    constructor(options: DebugProtocol.StoppedEvent['body']) {
+        super('stopped', options);
     }
 }

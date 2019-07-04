@@ -35,6 +35,12 @@ export declare interface GDBBackend {
 }
 
 export class GDBBackend extends events.EventEmitter {
+
+    /**
+     * Whether to use the legacy `target-async` or the newer `mi-async` option.
+     */
+    protected legacyAsyncMode = false;
+
     protected parser = new MIParser(this);
     protected out?: Writable;
     protected token = 0;
@@ -65,15 +71,6 @@ export class GDBBackend extends events.EventEmitter {
         await cb(args);
         this.out = pty.master;
         return this.parser.parse(pty.master);
-    }
-
-    public pause() {
-        if (this.proc) {
-            this.proc.kill('SIGINT');
-            return true;
-        } else {
-            return false;
-        }
     }
 
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
@@ -114,6 +111,18 @@ export class GDBBackend extends events.EventEmitter {
                 reject(new Error('gdb is not running.'));
             }
         });
+    }
+
+    public sendMIAsync(state: 'on' | 'off'): Promise<unknown> {
+        return this.legacyAsyncMode
+            ? this.sendGDBSet(`target-async ${state}`) // legacy
+            : this.sendGDBSet(`mi-async ${state}`).catch(
+                (error) => {
+                    logger.error(error);
+                    this.legacyAsyncMode = true;
+                    // Re-execute, this time in "legacy mode":
+                    return this.sendMIAsync(state);
+                });
     }
 
     public sendEnablePrettyPrint() {

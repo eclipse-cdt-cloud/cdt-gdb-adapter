@@ -21,12 +21,38 @@ export interface Scope {
     scopes: DebugProtocol.ScopesResponse;
 }
 
+/**
+ * https://microsoft.github.io/debug-adapter-protocol/specification#Requests_Next
+ *
+ * A `next` request is followed by a `StoppedEvent`, where `reason === 'step'`.
+ *
+ * @param dc
+ * @param options
+ */
+export async function sendNext(
+    dc: CdtDebugClient,
+    options: {
+        threadIndex?: number,
+    } = { },
+): Promise<void> {
+    const { threadIndex = 0 } = options;
+    const [, stop] = await Promise.all([
+        dc.nextRequest({ threadId: threadIndex }),
+        dc.waitForEvent('stopped'),
+    ]);
+    expect(stop.body.reason).to.equal('step');
+}
+
 export async function getScopes(
     dc: CdtDebugClient,
-    threadIndex = 0,
-    stackIndex = 0,
+    options: {
+        threadIndex?: number,
+        stackIndex?: number,
+        scopeCount?: number,
+    } = { },
 ): Promise<Scope> {
     // threads
+    const { threadIndex = 0, stackIndex = 0, scopeCount } = options
     const threads = await dc.threadsRequest();
     expect(threads.body.threads.length, 'There are fewer threads than expected.').to.be.at.least(threadIndex + 1);
     const threadId = threads.body.threads[threadIndex].id;
@@ -35,7 +61,10 @@ export async function getScopes(
     expect(stack.body.stackFrames.length, 'There are fewer stack frames than expected.').to.be.at.least(stackIndex + 1);
     const frameId = stack.body.stackFrames[stackIndex].id;
     const scopes = await dc.scopesRequest({ frameId });
-    return Promise.resolve({ threadId, frameId, scopes });
+    if (scopeCount) {
+        expect(scopes.body.scopes.length, `Scope count doesn't match`).to.equal(scopeCount);
+    }
+    return { threadId, frameId, scopes };
 }
 
 /**

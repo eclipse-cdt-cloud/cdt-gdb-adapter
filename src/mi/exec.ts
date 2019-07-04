@@ -36,6 +36,14 @@ export function sendExecNext(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
+export function sendExecInterrupt(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-interrupt';
+    if (threadId) {
+        command += ` --thread ${threadId}`;
+    }
+    return gdb.sendCommand(command);
+}
+
 export function sendExecStep(gdb: GDBBackend, threadId?: number) {
     let command = '-exec-step';
     if (threadId) {

@@ -4,6 +4,7 @@ evaluate
 mem
 vars
 segv
+loop
 *.o
 .vscode
 /vars_cpp

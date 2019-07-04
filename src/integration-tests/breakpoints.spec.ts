@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import * as path from 'path';
+import { DebugProtocol } from 'vscode-debugprotocol';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -20,6 +21,7 @@ import {
     getScopes,
     verifyVariable,
 } from './utils';
+import { expect } from 'chai';
 
 
 describe('breakpoints', async () => {
@@ -43,6 +45,7 @@ describe('breakpoints', async () => {
     });
 
     it('hits a standard breakpoint', async () => {
+        const stop = dc.waitForEvent('stopped');
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -56,6 +59,8 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        const stopEvent = await stop as DebugProtocol.StoppedEvent;
+        expect(stopEvent.body.reason).to.eq('breakpoint');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
@@ -63,6 +68,7 @@ describe('breakpoints', async () => {
     });
 
     it('hits a conditional breakpoint', async () => {
+        const stop = dc.waitForEvent('stopped');
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -77,6 +83,8 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        const stopEvent = await stop as DebugProtocol.StoppedEvent;
+        expect(stopEvent.body.reason).to.eq('breakpoint');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
