@@ -118,7 +118,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected initializeRequest(response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments): void {
         this.supportsRunInTerminalRequest = args.supportsRunInTerminalRequest === true;
-        this.supportsGdbConsole = os.platform() !== 'win32' && this.supportsRunInTerminalRequest;
+        this.supportsGdbConsole = os.platform() === 'linux' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;

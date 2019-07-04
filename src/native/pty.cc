@@ -21,7 +21,7 @@ static void _throw_exc(const Napi::Env env, const char *message) {
   throw Napi::Error::New(env, message);
 }
 
-#ifndef WINDOWS
+#ifdef LINUX
 /**
  * Takes an error code and throws a pretty JS error such as:
  * "function_name: errormsg".
@@ -49,9 +49,9 @@ static void _throw_exc_format(const Napi::Env env, int error,
 
 static Napi::Value create_pty(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
-#ifdef WINDOWS
+#ifndef LINUX
   // Windows does not supports TTYs.
-  _throw_exc(env, ".create_pty() is not supported on Windows");
+  _throw_exc(env, ".create_pty() is not supported on this platform");
 #else
   // master_fd will be closed on scope exit if an error is thrown.
   scoped_fd master_fd(open("/dev/ptmx", O_RDWR));
