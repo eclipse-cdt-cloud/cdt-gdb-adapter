@@ -7,8 +7,8 @@ session.  It uses the `gdb` in your `PATH`.
 ## Running the tests
 
 1. Build the test programs: run `make` in the `test-programs` directory
-2. Build the package as usual: run `npm run build` in the top-level directory
-3. Run the tests: run `npm run test:integration` in the top-level directory
+2. Build the package as usual: run `yarn build` in the top-level directory
+3. Run the tests: run `yarn test:integration` in the top-level directory
 
 ## Debugging tips
 
