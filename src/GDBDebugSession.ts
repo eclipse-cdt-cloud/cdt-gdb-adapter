@@ -139,6 +139,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
+            await this.gdb.sendEnablePrettyPrint();
 
             await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
             this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
@@ -169,7 +170,6 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
-
             await this.gdb.sendEnablePrettyPrint();
 
             if (args.initCommands) {
