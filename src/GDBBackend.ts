@@ -40,25 +40,29 @@ export class GDBBackend extends events.EventEmitter {
     private token = 0;
     private proc?: ChildProcess;
 
-    public spawn(args: LaunchRequestArguments | AttachRequestArguments) {
-        const gdb = args.gdb ? args.gdb : 'gdb';
-        let options = ['--interpreter=mi2'];
-        if (args.gdbArguments) {
-            options = options.concat(args.gdbArguments);
+    public spawn(requestArgs: LaunchRequestArguments | AttachRequestArguments) {
+        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
+        let args = ['--interpreter=mi2'];
+        if (requestArgs.gdbArguments) {
+            args = args.concat(requestArgs.gdbArguments);
         }
-        this.proc = spawn(gdb, options);
+        this.proc = spawn(gdb, args);
         this.out = this.proc.stdin;
         return this.parser.parse(this.proc.stdout);
     }
 
-    public async spawnInClientTerminal(args: LaunchRequestArguments | AttachRequestArguments,
+    public async spawnInClientTerminal(requestArgs: LaunchRequestArguments | AttachRequestArguments,
         cb: (args: string[]) => Promise<void>) {
-        const gdb = args.gdb ? args.gdb : 'gdb';
+        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
         const pty = new Pty();
-        await cb([gdb, '-ex', `new-ui mi2 ${pty.name}`]);
+        let args = [gdb, '-ex', `new-ui mi2 ${pty.name}`];
+        if (requestArgs.gdbArguments) {
+            args = args.concat(requestArgs.gdbArguments);
+        }
+        await cb(args);
         this.out = pty.master;
         return this.parser.parse(pty.master);
     }
