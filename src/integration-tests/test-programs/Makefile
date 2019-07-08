@@ -1,4 +1,4 @@
-BINS = empty evaluate vars vars_cpp mem segv
+BINS = empty evaluate vars vars_cpp mem segv count
 
 .PHONY: all
 all: $(BINS)
@@ -7,6 +7,9 @@ CC = gcc
 CXX = g++
 LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
+
+loop: count.o
+	$(LINK)
 
 empty: empty.o
 	$(LINK)
