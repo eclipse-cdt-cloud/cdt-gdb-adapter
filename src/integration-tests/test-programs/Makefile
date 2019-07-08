@@ -8,7 +8,7 @@ CXX = g++
 LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
 
-loop: count.o
+count: count.o
 	$(LINK)
 
 empty: empty.o
