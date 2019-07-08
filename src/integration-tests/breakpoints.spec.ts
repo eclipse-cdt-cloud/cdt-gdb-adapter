@@ -45,7 +45,7 @@ describe('breakpoints', async () => {
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
-                path: '/home/rob/cdt-gdb-adapter/src/integration-tests/test-programs/count.c',
+                path: path.join(testProgramsDir, 'count.c'),
             },
             breakpoints: [
                 {
@@ -65,7 +65,7 @@ describe('breakpoints', async () => {
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
-                path: '/home/rob/cdt-gdb-adapter/src/integration-tests/test-programs/count.c',
+                path: path.join(testProgramsDir, 'count.c'),
             },
             breakpoints: [
                 {
