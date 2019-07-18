@@ -104,16 +104,17 @@ export async function standardBefore(): Promise<void> {
     cp.execSync('make', { cwd: testProgramsDir });
 }
 
-function getAdapterAndArgs(): string {
-    let args: string = path.join(__dirname, '../../dist', 'debugAdapter.js');
+function getAdapterAndArgs(adapter?: string): string {
+    const chosenAdapter = adapter !== undefined ? adapter : defaultAdapter;
+    let args: string = path.join(__dirname, '../../dist', chosenAdapter);
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         args = '--inspect-brk ' + args;
     }
     return args;
 }
 
-export async function standardBeforeEach(): Promise<CdtDebugClient> {
-    const dc: CdtDebugClient = new CdtDebugClient('node', getAdapterAndArgs(), 'cppdbg', {
+export async function standardBeforeEach(adapter?: string): Promise<CdtDebugClient> {
+    const dc: CdtDebugClient = new CdtDebugClient('node', getAdapterAndArgs(adapter), 'cppdbg', {
         shell: true,
     });
     await dc.start(debugServerPort);
@@ -124,7 +125,9 @@ export async function standardBeforeEach(): Promise<CdtDebugClient> {
 
 export const openGdbConsole: boolean = process.argv.indexOf('--run-in-terminal') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
+export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
+export const defaultAdapter: string = getDefaultAdapterCli();
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');
@@ -134,12 +137,28 @@ function getGdbPathCli(): string | undefined {
     return process.argv[keyIndex + 1];
 }
 
+function getGdbServerPathCli(): string {
+    const keyIndex = process.argv.indexOf('--gdbserver-path');
+    if (keyIndex === -1) {
+        return 'gdbserver';
+    }
+    return process.argv[keyIndex + 1];
+}
+
 function getDebugServerPortCli(): number | undefined {
     const keyIndex = process.argv.indexOf('--debugserverport');
     if (keyIndex === -1) {
         return undefined;
     }
-    return parseInt(process.argv[keyIndex + 1]);
+    return parseInt(process.argv[keyIndex + 1], 10);
+}
+
+function getDefaultAdapterCli(): string {
+    const keyIndex = process.argv.indexOf('--test-remote');
+    if (keyIndex === -1) {
+        return 'debugAdapter.js';
+    }
+    return 'debugTargetAdapter.js';
 }
 
 export interface LineTags { [key: string]: number; }

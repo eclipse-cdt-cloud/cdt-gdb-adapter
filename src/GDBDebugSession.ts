@@ -23,6 +23,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
     program: string;
+    cwd?: string; // TODO not implemented
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;

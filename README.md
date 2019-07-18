@@ -13,7 +13,8 @@ yarn install
 yarn build
 ```
 
-The entry point for the adapter is `out/debugAdapter.js`.
+The entry point for the adapter is `out/debugAdapter.js` for local debugging
+and `out/debugTargetAdapter.js` for target (remote) debugging.g
 
 ## Testing
 
