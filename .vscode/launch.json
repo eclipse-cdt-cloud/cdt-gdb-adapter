@@ -17,6 +17,19 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Server (Target adapter)",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/dist/debugTargetAdapter.js",
+            "args": [
+                "--server=4711"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Mocha All",
             "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
             "args": [
@@ -68,6 +81,13 @@
             "name": "Mocha Current File & launch Server",
             "configurations": [
                 "Server",
+                "Mocha Current File (Attach to Server)"
+            ]
+        },
+        {
+            "name": "Mocha Current File & launch Target Server",
+            "configurations": [
+                "Server (Target adapter)",
                 "Mocha Current File (Attach to Server)"
             ]
         }

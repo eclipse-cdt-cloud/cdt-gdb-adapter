@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 Ericsson and others
+ * Copyright (c) 2019 Kichwa Coders and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -8,17 +8,15 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '../GDBDebugSession';
+import { TargetLaunchRequestArguments, TargetLaunchArguments } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { standardBefore, standardBeforeEach, testProgramsDir } from './utils';
 import { gdbPath, openGdbConsole } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
-
-describe('launch', function() {
+describe('launch remote', function() {
 
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
@@ -27,7 +25,7 @@ describe('launch', function() {
     before(standardBefore);
 
     beforeEach(async function() {
-        dc = await standardBeforeEach();
+        dc = await standardBeforeEach('debugTargetAdapter.js');
     });
 
     afterEach(async function() {
@@ -39,31 +37,19 @@ describe('launch', function() {
         this.timeout(9999999);
     }
 
-    it('can launch and hit a breakpoint', async function() {
+    it('can launch remote and hit a breakpoint', async function() {
         await dc.hitBreakpoint({
             verbose: true,
             gdb: gdbPath,
             program: emptyProgram,
             openGdbConsole,
-        } as LaunchRequestArguments, {
+            target : {
+                type: 'remote',
+            } as TargetLaunchArguments,
+        } as TargetLaunchRequestArguments, {
                 path: emptySrc,
                 line: 3,
             });
     });
 
-    it('reports an error when specifying a non-existent binary', async function() {
-        const errorMessage = await new Promise<Error>((resolve, reject) => {
-            dc.launchRequest({
-                verbose: true,
-                gdb: gdbPath,
-                program: '/does/not/exist',
-                openGdbConsole,
-            } as LaunchRequestArguments)
-                .then(reject)
-                .catch(resolve);
-        });
-
-        // When launching a remote test gdbserver generates the error
-        expect(errorMessage.message).to.have.string('/does/not/exist: No such file or directory');
-    });
 });
