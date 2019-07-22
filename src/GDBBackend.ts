@@ -35,10 +35,10 @@ export declare interface GDBBackend {
 }
 
 export class GDBBackend extends events.EventEmitter {
-    private parser = new MIParser(this);
-    private out?: Writable;
-    private token = 0;
-    private proc?: ChildProcess;
+    protected parser = new MIParser(this);
+    protected out?: Writable;
+    protected token = 0;
+    protected proc?: ChildProcess;
 
     public spawn(requestArgs: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
@@ -136,7 +136,7 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand('-gdb-exit');
     }
 
-    private nextToken() {
+    protected nextToken() {
         return this.token++;
     }
 }
