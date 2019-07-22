@@ -12,12 +12,12 @@ import { logger } from 'vscode-debugadapter/lib/logger';
 import { GDBBackend } from './GDBBackend';
 
 export class MIParser {
-    private line = '';
-    private pos = 0;
-    private commandQueue: any = {};
-    private waitReady?: (value?: void | PromiseLike<void>) => void;
+    protected line = '';
+    protected pos = 0;
+    protected commandQueue: any = {};
+    protected waitReady?: (value?: void | PromiseLike<void>) => void;
 
-    constructor(private gdb: GDBBackend) {
+    constructor(protected gdb: GDBBackend) {
     }
 
     public parse(stream: Readable): Promise<void> {
@@ -43,7 +43,7 @@ export class MIParser {
         this.commandQueue[token] = command;
     }
 
-    private next() {
+    protected next() {
         if (this.pos < this.line.length) {
             return this.line[this.pos++];
         } else {
@@ -51,15 +51,15 @@ export class MIParser {
         }
     }
 
-    private back() {
+    protected back() {
         this.pos--;
     }
 
-    private restOfLine() {
+    protected restOfLine() {
         return this.line.substr(this.pos);
     }
 
-    private handleToken(firstChar: string) {
+    protected handleToken(firstChar: string) {
         let token = firstChar;
         let c = this.next();
         while (c && c >= '0' && c <= '9') {
@@ -70,7 +70,7 @@ export class MIParser {
         return token;
     }
 
-    private handleCString() {
+    protected handleCString() {
         let c = this.next();
         if (!c || c !== '"') {
             return null;
@@ -108,7 +108,7 @@ export class MIParser {
         return cstring;
     }
 
-    private handleString() {
+    protected handleString() {
         let str = '';
         for (let c = this.next(); c; c = this.next()) {
             if (c === '=' || c === ',') {
@@ -121,7 +121,7 @@ export class MIParser {
         return str;
     }
 
-    private handleObject() {
+    protected handleObject() {
         let c = this.next();
         const result: any = {};
         if (c === '{') {
@@ -145,7 +145,7 @@ export class MIParser {
         }
     }
 
-    private handleArray() {
+    protected handleArray() {
         let c = this.next();
         const result: any[] = [];
         if (c === '[') {
@@ -166,7 +166,7 @@ export class MIParser {
         }
     }
 
-    private handleValue(): any {
+    protected handleValue(): any {
         const c = this.next();
         this.back();
         switch (c) {
@@ -186,7 +186,7 @@ export class MIParser {
         return null;
     }
 
-    private handleAsyncData() {
+    protected handleAsyncData() {
         const result: any = { };
 
         let c = this.next();
@@ -201,21 +201,21 @@ export class MIParser {
         return result;
     }
 
-    private handleConsoleStream() {
+    protected handleConsoleStream() {
         const msg = this.handleCString();
         if (msg) {
             this.gdb.emit('consoleStreamOutput', msg, 'stdout');
         }
     }
 
-    private handleLogStream() {
+    protected handleLogStream() {
         const msg = this.handleCString();
         if (msg) {
             logger.log(msg);
         }
     }
 
-    private handleLine() {
+    protected handleLine() {
         let c = this.next();
         if (!c) {
             return;

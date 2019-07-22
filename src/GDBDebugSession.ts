@@ -88,12 +88,12 @@ export class GDBDebugSession extends LoggingDebugSession {
     /* A reference to the logger to be used by subclasses */
     protected logger: Logger.Logger;
 
-    private frameHandles = new Handles<FrameReference>();
-    private variableHandles = new Handles<VariableReference>();
+    protected frameHandles = new Handles<FrameReference>();
+    protected variableHandles = new Handles<VariableReference>();
 
-    private threads: Thread[] = [];
+    protected threads: Thread[] = [];
 
-    private waitPaused?: (value?: void | PromiseLike<void>) => void;
+    protected waitPaused?: (value?: void | PromiseLike<void>) => void;
 
     constructor() {
         super();
@@ -708,7 +708,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    private async handleVariableRequestFrame(ref: FrameVariableReference): Promise<DebugProtocol.Variable[]> {
+    protected async handleVariableRequestFrame(ref: FrameVariableReference): Promise<DebugProtocol.Variable[]> {
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
@@ -828,7 +828,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         return Promise.resolve(variables);
     }
 
-    private async handleVariableRequestObject(ref: ObjectVariableReference): Promise<DebugProtocol.Variable[]> {
+    protected async handleVariableRequestObject(ref: ObjectVariableReference): Promise<DebugProtocol.Variable[]> {
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
@@ -941,12 +941,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         return Promise.resolve(variables);
     }
 
-    private async getAddr(varobj: varMgr.VarObjType) {
+    protected async getAddr(varobj: varMgr.VarObjType) {
         const addr = await mi.sendDataEvaluateExpression(this.gdb, `&(${varobj.expression})`);
         return addr.value ? addr.value : varobj.value;
     }
 
-    private isChildOfClass(child: mi.MIVarChild): boolean {
+    protected isChildOfClass(child: mi.MIVarChild): boolean {
         return child.type === undefined && child.value === '' &&
             (child.exp === 'public' || child.exp === 'protected' || child.exp === 'private');
     }
