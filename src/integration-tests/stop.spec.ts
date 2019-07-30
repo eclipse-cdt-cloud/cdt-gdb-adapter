@@ -13,19 +13,20 @@ import { LaunchRequestArguments } from '../GDBDebugSession';
 import { expect } from 'chai';
 import * as path from 'path';
 
-let dc: CdtDebugClient;
-
-before(standardBefore);
-
-beforeEach(async () => {
-    dc = await standardBeforeEach();
-});
-
-afterEach(async () => {
-    await dc.stop();
-});
-
 describe('stop', async () => {
+
+    let dc: CdtDebugClient;
+
+    before(standardBefore);
+
+    beforeEach(async () => {
+        dc = await standardBeforeEach();
+    });
+
+    afterEach(async () => {
+        await dc.stop();
+    });
+
     it('handles segv', async () => {
         await dc.launchRequest({
             verbose: true,

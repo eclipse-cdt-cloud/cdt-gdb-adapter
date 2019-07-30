@@ -17,51 +17,51 @@ import { expectRejection, gdbPath, openGdbConsole, standardBefore, standardBefor
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
-
-let dc: CdtDebugClient;
-let frame: DebugProtocol.StackFrame;
-const memProgram = path.join(testProgramsDir, 'mem');
-const memSrc = path.join(testProgramsDir, 'mem.c');
-
-before(standardBefore);
-
-beforeEach(async function() {
-    dc = await standardBeforeEach();
-
-    await dc.hitBreakpoint({
-        gdb: gdbPath,
-        program: memProgram,
-        openGdbConsole,
-    } as LaunchRequestArguments, {
-        path: memSrc,
-        line: 12,
-    });
-    const threads = await dc.threadsRequest();
-    expect(threads.body.threads.length).to.equal(1);
-    const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });
-    expect(stack.body.stackFrames.length).to.equal(1);
-    frame = stack.body.stackFrames[0];
-});
-
-afterEach(async function() {
-    await dc.stop();
-});
-
-/**
- * Verify that `resp` contains the bytes `expectedBytes` and the
- * `expectedAddress` start address.
- *
- * `expectedAddress` should be an hexadecimal string, with the leading 0x.
- */
-function verifyMemoryReadResult(resp: MemoryResponse, expectedBytes: string, expectedAddress: number) {
-    expect(resp.body.data).eq(expectedBytes);
-    expect(resp.body.address).match(/^0x[0-9a-fA-F]+$/);
-
-    const actualAddress = parseInt(resp.body.address, 16);
-    expect(actualAddress).eq(expectedAddress);
-}
-
 describe('Memory Test Suite', function() {
+
+    let dc: CdtDebugClient;
+    let frame: DebugProtocol.StackFrame;
+    const memProgram = path.join(testProgramsDir, 'mem');
+    const memSrc = path.join(testProgramsDir, 'mem.c');
+
+    before(standardBefore);
+
+    beforeEach(async function() {
+        dc = await standardBeforeEach();
+
+        await dc.hitBreakpoint({
+            gdb: gdbPath,
+            program: memProgram,
+            openGdbConsole,
+        } as LaunchRequestArguments, {
+                path: memSrc,
+                line: 12,
+            });
+        const threads = await dc.threadsRequest();
+        expect(threads.body.threads.length).to.equal(1);
+        const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });
+        expect(stack.body.stackFrames.length).to.equal(1);
+        frame = stack.body.stackFrames[0];
+    });
+
+    afterEach(async function() {
+        await dc.stop();
+    });
+
+    /**
+     * Verify that `resp` contains the bytes `expectedBytes` and the
+     * `expectedAddress` start address.
+     *
+     * `expectedAddress` should be an hexadecimal string, with the leading 0x.
+     */
+    function verifyMemoryReadResult(resp: MemoryResponse, expectedBytes: string, expectedAddress: number) {
+        expect(resp.body.data).eq(expectedBytes);
+        expect(resp.body.address).match(/^0x[0-9a-fA-F]+$/);
+
+        const actualAddress = parseInt(resp.body.address, 16);
+        expect(actualAddress).eq(expectedAddress);
+    }
+
     // Test reading memory using cdt-gdb-adapter's extension request.
     it('can read memory', async function() {
         // Get the address of the array.

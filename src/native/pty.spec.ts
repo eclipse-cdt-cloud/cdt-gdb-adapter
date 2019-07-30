@@ -18,20 +18,20 @@ import { Pty } from '../native/pty';
 // tslint:disable:only-arrow-functions no-console no-bitwise
 
 if (os.platform() !== 'win32') {
-
-    let master: Socket;
-    let slave: File;
-
-    afterEach(function() {
-        if (slave) {
-            slave.destroy();
-        }
-        if (master) {
-            master.destroy();
-        }
-    });
-
     describe('pty creation', function() {
+
+        let master: Socket;
+        let slave: File;
+
+        afterEach(function() {
+            if (slave) {
+                slave.destroy();
+            }
+            if (master) {
+                master.destroy();
+            }
+        });
+
 
         it('should be able to open a ptmx/pts pair', async function() {
             const pty = new Pty();
