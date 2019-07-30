@@ -18,7 +18,7 @@
       "type": "node",
       "request": "launch",
       "name": "Mocha All",
-      "program": "${workspaceFolder}/node_modules/.bin/mocha",
+      "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
         "--timeout",
         "999999",
@@ -32,11 +32,13 @@
       "type": "node",
       "request": "launch",
       "name": "Mocha Current File",
-      "program": "${workspaceFolder}/node_modules/.bin/mocha",
+      "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
       "args": [
         "--timeout",
         "999999",
         "--colors",
+        "-r",
+        "ts-node/register",
         "${file}"
       ],
       "console": "integratedTerminal",
