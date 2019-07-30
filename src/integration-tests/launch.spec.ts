@@ -18,21 +18,22 @@ import { gdbPath, openGdbConsole } from './utils';
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
-let dc: CdtDebugClient;
-const emptyProgram = path.join(testProgramsDir, 'empty');
-const emptySrc = path.join(testProgramsDir, 'empty.c');
-
-before(standardBefore);
-
-beforeEach(async function() {
-    dc = await standardBeforeEach();
-});
-
-afterEach(async function() {
-    await dc.stop();
-});
-
 describe('launch', function() {
+
+    let dc: CdtDebugClient;
+    const emptyProgram = path.join(testProgramsDir, 'empty');
+    const emptySrc = path.join(testProgramsDir, 'empty.c');
+
+    before(standardBefore);
+
+    beforeEach(async function() {
+        dc = await standardBeforeEach();
+    });
+
+    afterEach(async function() {
+        await dc.stop();
+    });
+
     // Move the timeout out of the way if the adapter is going to be debugged.
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         this.timeout(9999999);
@@ -45,9 +46,9 @@ describe('launch', function() {
             program: emptyProgram,
             openGdbConsole,
         } as LaunchRequestArguments, {
-            path: emptySrc,
-            line: 3,
-        });
+                path: emptySrc,
+                line: 3,
+            });
     });
 
     it('reports an error when specifying a non-existent binary', async function() {

@@ -20,45 +20,46 @@ import {
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
 
-let dc: CdtDebugClient;
-let scope: Scope;
-const varsProgram = path.join(testProgramsDir, 'vars');
-const varsSrc = path.join(testProgramsDir, 'vars.c');
-const numVars = 8; // number of variables in the main() scope of vars.c
-
-const lineTags = {
-    'STOP HERE': 0,
-};
-
-const hexValueRegex = /0x[\d]+/;
-
-before(function() {
-    standardBefore();
-
-    resolveLineTagLocations(varsSrc, lineTags);
-});
-
-beforeEach(async function() {
-    dc = await standardBeforeEach();
-
-    await dc.hitBreakpoint({
-        verbose: true,
-        gdb: gdbPath,
-        program: varsProgram,
-        openGdbConsole,
-    } as LaunchRequestArguments, {
-            path: varsSrc,
-            line: lineTags['STOP HERE'],
-        });
-    scope = await getScopes(dc);
-    expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
-});
-
-afterEach(async function() {
-    await dc.stop();
-});
-
 describe('Variables Test Suite', function() {
+
+    let dc: CdtDebugClient;
+    let scope: Scope;
+    const varsProgram = path.join(testProgramsDir, 'vars');
+    const varsSrc = path.join(testProgramsDir, 'vars.c');
+    const numVars = 8; // number of variables in the main() scope of vars.c
+
+    const lineTags = {
+        'STOP HERE': 0,
+    };
+
+    const hexValueRegex = /0x[\d]+/;
+
+    before(function() {
+        standardBefore();
+
+        resolveLineTagLocations(varsSrc, lineTags);
+    });
+
+    beforeEach(async function() {
+        dc = await standardBeforeEach();
+
+        await dc.hitBreakpoint({
+            verbose: true,
+            gdb: gdbPath,
+            program: varsProgram,
+            openGdbConsole,
+        } as LaunchRequestArguments, {
+                path: varsSrc,
+                line: lineTags['STOP HERE'],
+            });
+        scope = await getScopes(dc);
+        expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
+    });
+
+    afterEach(async function() {
+        await dc.stop();
+    });
+
     // Move the timeout out of the way if the adapter is going to be debugged.
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         this.timeout(9999999);

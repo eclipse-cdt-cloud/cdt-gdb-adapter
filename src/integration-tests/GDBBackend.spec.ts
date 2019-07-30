@@ -12,21 +12,21 @@ import { expect } from 'chai';
 import { LaunchRequestArguments } from '..';
 import { GDBBackend } from '..';
 
-let gdb: GDBBackend;
-
-beforeEach(function() {
-    gdb = new GDBBackend();
-    const args: LaunchRequestArguments = {
-        program: 'foo',
-    };
-    gdb.spawn(args);
-});
-
-afterEach(function() {
-    gdb.sendGDBExit();
-});
 
 describe('GDB Backend Test Suite', function() {
+    let gdb: GDBBackend;
+
+    beforeEach(function() {
+        gdb = new GDBBackend();
+        const args: LaunchRequestArguments = {
+            program: 'foo',
+        };
+        gdb.spawn(args);
+    });
+
+    afterEach(function() {
+        gdb.sendGDBExit();
+    });
     // Move the timeout out of the way if the adapter is going to be debugged.
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         this.timeout(9999999);

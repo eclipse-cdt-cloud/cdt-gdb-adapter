@@ -21,26 +21,27 @@ import {
     verifyVariable,
 } from './utils';
 
-let dc: CdtDebugClient;
-
-before(standardBefore);
-
-beforeEach(async () => {
-    dc = await standardBeforeEach();
-
-    await dc.launchRequest({
-        verbose: true,
-        gdb: gdbPath,
-        program: path.join(testProgramsDir, 'count'),
-        openGdbConsole,
-    } as LaunchRequestArguments);
-});
-
-afterEach(async () => {
-    await dc.stop();
-});
 
 describe('breakpoints', async () => {
+    let dc: CdtDebugClient;
+
+    before(standardBefore);
+
+    beforeEach(async () => {
+        dc = await standardBeforeEach();
+
+        await dc.launchRequest({
+            verbose: true,
+            gdb: gdbPath,
+            program: path.join(testProgramsDir, 'count'),
+            openGdbConsole,
+        } as LaunchRequestArguments);
+    });
+
+    afterEach(async () => {
+        await dc.stop();
+    });
+
     it('hits a standard breakpoint', async () => {
         await dc.setBreakpointsRequest({
             source: {
