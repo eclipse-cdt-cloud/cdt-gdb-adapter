@@ -105,7 +105,7 @@ export async function standardBefore(): Promise<void> {
 }
 
 function getAdapterAndArgs(): string {
-    let args: string = path.join(__dirname, '..', 'debugAdapter.js');
+    let args: string = path.join(__dirname, '../../dist', 'debugAdapter.js');
     if (process.env.INSPECT_DEBUG_ADAPTER) {
         args = '--inspect-brk ' + args;
     }
