@@ -116,7 +116,7 @@ export async function standardBeforeEach(): Promise<CdtDebugClient> {
     const dc: CdtDebugClient = new CdtDebugClient('node', getAdapterAndArgs(), 'cppdbg', {
         shell: true,
     });
-    await dc.start();
+    await dc.start(debugServerPort);
     await dc.initializeRequest();
 
     return dc;
@@ -124,6 +124,7 @@ export async function standardBeforeEach(): Promise<CdtDebugClient> {
 
 export const openGdbConsole: boolean = process.argv.indexOf('--run-in-terminal') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
+export const debugServerPort: number | undefined = getDebugServerPortCli();
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');
@@ -131,6 +132,14 @@ function getGdbPathCli(): string | undefined {
         return undefined;
     }
     return process.argv[keyIndex + 1];
+}
+
+function getDebugServerPortCli(): number | undefined {
+    const keyIndex = process.argv.indexOf('--debugserverport');
+    if (keyIndex === -1) {
+        return undefined;
+    }
+    return parseInt(process.argv[keyIndex + 1]);
 }
 
 export interface LineTags { [key: string]: number; }
