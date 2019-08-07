@@ -139,6 +139,17 @@ export class GDBBackend extends events.EventEmitter {
     public sendFileExecAndSymbols(program: string) {
         return this.sendCommand(`-file-exec-and-symbols ${this.escapeFileName(program)}`);
     }
+
+    public sendFileSymbolFile(symbols: string) {
+        return this.sendCommand(`-file-symbol-file ${this.escapeFileName(symbols)}`);
+    }
+
+    public sendAddSymbolFile(symbols: string, offset: string) {
+        return this.sendCommand(`add-symbol-file ${this.escapeFileName(symbols)} ${offset}`);
+    }
+
+    public sendLoad(imageFileName: string, imageOffset: string | undefined) {
+        return this.sendCommand(`load ${this.escapeFileName(imageFileName)} ${imageOffset || ''}`);
     }
 
     public sendGDBSet(params: string) {

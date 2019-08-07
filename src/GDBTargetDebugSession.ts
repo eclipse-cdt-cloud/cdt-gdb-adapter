@@ -26,6 +26,8 @@ export interface TargetAttachArguments {
     host?: string;
     // Target port to connect to, ignored if parameters is set
     port?: string;
+    // Target connect commands - if specified used in preference of type, parameters, host, target
+    connectCommands?: string[];
 }
 
 export interface TargetLaunchArguments extends TargetAttachArguments {
@@ -43,12 +45,27 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     serverStartupDelay?: number;
 }
 
+export interface ImageAndSymbolArguments {
+    // If specified, a symbol file to load at the given (optional) offset
+    symbolFileName?: string;
+    symbolOffset?: string;
+    // If specified, an image file to load at the given (optional) offset
+    imageFileName?: string;
+    imageOffset?: string;
+}
+
 export interface TargetAttachRequestArguments extends RequestArguments {
     target?: TargetAttachArguments;
+    imageAndSymbols?: ImageAndSymbolArguments;
+    // Optional commands to issue between loading image and resuming target
+    preRunCommands?: string[];
 }
 
 export interface TargetLaunchRequestArguments extends TargetAttachRequestArguments {
     target?: TargetLaunchArguments;
+    imageAndSymbols?: ImageAndSymbolArguments;
+    // Optional commands to issue between loading image and resuming target
+    preRunCommands?: string[];
 }
 
 export class GDBTargetDebugSession extends GDBDebugSession {
@@ -166,25 +183,43 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.spawn(args);
             await this.gdb.sendFileExecAndSymbols(args.program);
             await this.gdb.sendEnablePrettyPrint();
-
-            const targetType = target.type !== undefined ? target.type : 'remote';
-            let defaultTarget: string[];
-            if (target.port !== undefined) {
-                defaultTarget = [target.host !== undefined
-                    ? `${target.host}:${target.port}` : `localhost:${target.port}`];
-            } else {
-                defaultTarget = [];
-            }
-            const targetParameters = target.parameters !== undefined ? target.parameters : defaultTarget;
-            await mi.sendTargetSelectRequest(this.gdb, { type: targetType, parameters: targetParameters });
-            this.sendEvent(new OutputEvent(`connected to ${targetType} target ${targetParameters.join(' ')}`));
-
-            if (args.initCommands) {
-                for (const command of args.initCommands) {
-                    await this.gdb.sendCommand(command);
+            if (args.imageAndSymbols) {
+                if (args.imageAndSymbols.symbolFileName) {
+                    if (args.imageAndSymbols.symbolOffset) {
+                        await this.gdb.sendAddSymbolFile(args.imageAndSymbols.symbolFileName,
+                            args.imageAndSymbols.symbolOffset);
+                    } else {
+                        await this.gdb.sendFileSymbolFile(args.imageAndSymbols.symbolFileName);
+                    }
                 }
             }
 
+            if (target.connectCommands === undefined) {
+                const targetType = target.type !== undefined ? target.type : 'remote';
+                let defaultTarget: string[];
+                if (target.port !== undefined) {
+                    defaultTarget = [target.host !== undefined
+                        ? `${target.host}:${target.port}` : `localhost:${target.port}`];
+                } else {
+                    defaultTarget = [];
+                }
+                const targetParameters = target.parameters !== undefined ? target.parameters : defaultTarget;
+                await mi.sendTargetSelectRequest(this.gdb, { type: targetType, parameters: targetParameters });
+                this.sendEvent(new OutputEvent(`connected to ${targetType} target ${targetParameters.join(' ')}`));
+            } else {
+                await this.gdb.sendCommands(target.connectCommands);
+                this.sendEvent(new OutputEvent('connected to target using provided connectCommands'));
+            }
+
+            await this.gdb.sendCommands(args.initCommands);
+
+            if (args.imageAndSymbols) {
+                if (args.imageAndSymbols.imageFileName) {
+                    await this.gdb.sendLoad(args.imageAndSymbols.imageFileName,
+                        args.imageAndSymbols.imageOffset);
+                }
+            }
+            await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
