@@ -146,12 +146,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
             this.sendEvent(new OutputEvent(`attached to process ${args.processId}`));
-
-            if (args.initCommands) {
-                for (const command of args.initCommands) {
-                    await this.gdb.sendCommand(command);
-                }
-            }
+            await this.gdb.sendCommands(args.initCommands);
 
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);

@@ -86,6 +86,14 @@ export class GDBBackend extends events.EventEmitter {
         });
     }
 
+    public async sendCommands(commands?: string[]) {
+        if (commands) {
+            for (const command of commands) {
+                await this.sendCommand(command);
+            }
+        }
+    }
+
     public sendCommand<T>(command: string): Promise<T> {
         const token = this.nextToken();
         logger.verbose(`GDB command: ${token} ${command}`);
@@ -129,8 +137,28 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand('-enable-pretty-printing');
     }
 
+    public escapeFileName(filename: string): string {
+        if (filename.indexOf(' ') > 0) {
+            return `"${filename}"`;
+        } else {
+            return filename;
+        }
+    }
+
     public sendFileExecAndSymbols(program: string) {
-        return this.sendCommand(`-file-exec-and-symbols ${program}`);
+        return this.sendCommand(`-file-exec-and-symbols ${this.escapeFileName(program)}`);
+    }
+
+    public sendFileSymbolFile(symbols: string) {
+        return this.sendCommand(`-file-symbol-file ${this.escapeFileName(symbols)}`);
+    }
+
+    public sendAddSymbolFile(symbols: string, offset: string) {
+        return this.sendCommand(`add-symbol-file ${this.escapeFileName(symbols)} ${offset}`);
+    }
+
+    public sendLoad(imageFileName: string, imageOffset: string | undefined) {
+        return this.sendCommand(`load ${this.escapeFileName(imageFileName)} ${imageOffset || ''}`);
     }
 
     public sendGDBSet(params: string) {
