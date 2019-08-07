@@ -89,6 +89,14 @@ export class GDBBackend extends events.EventEmitter {
         });
     }
 
+    public async sendCommands(commands?: string[]) {
+        if (commands) {
+            for (const command of commands) {
+                await this.sendCommand(command);
+            }
+        }
+    }
+
     public sendCommand<T>(command: string): Promise<T> {
         const token = this.nextToken();
         logger.verbose(`GDB command: ${token} ${command}`);
