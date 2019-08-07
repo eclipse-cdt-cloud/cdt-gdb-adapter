@@ -22,7 +22,9 @@ describe('launch', function() {
 
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
+    const emptySpaceProgram = path.join(testProgramsDir, 'empty space');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
+    const emptySpaceSrc = path.join(testProgramsDir, 'empty space.c');
 
     before(standardBefore);
 
@@ -65,5 +67,18 @@ describe('launch', function() {
 
         // When launching a remote test gdbserver generates the error
         expect(errorMessage.message).to.have.string('/does/not/exist: No such file or directory');
+    });
+
+    it('works with a space in file names', async function() {
+        await dc.hitBreakpoint({
+            logFile: '/tmp/log',
+            verbose: true,
+            gdb: gdbPath,
+            program: emptySpaceProgram,
+            openGdbConsole,
+        } as LaunchRequestArguments, {
+                path: emptySpaceSrc,
+                line: 3,
+            });
     });
 });

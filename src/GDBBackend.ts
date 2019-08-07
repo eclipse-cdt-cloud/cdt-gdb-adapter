@@ -120,8 +120,17 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand('-enable-pretty-printing');
     }
 
+    public escapeFileName(filename: string): string {
+        if (filename.indexOf(' ') > 0) {
+            return `"${filename}"`;
+        } else {
+            return filename;
+        }
+    }
+
     public sendFileExecAndSymbols(program: string) {
-        return this.sendCommand(`-file-exec-and-symbols ${program}`);
+        return this.sendCommand(`-file-exec-and-symbols ${this.escapeFileName(program)}`);
+    }
     }
 
     public sendGDBSet(params: string) {
