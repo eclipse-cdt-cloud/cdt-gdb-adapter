@@ -11,7 +11,7 @@
 import * as path from 'path';
 import { TargetLaunchRequestArguments, TargetLaunchArguments } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { standardBeforeEach, testProgramsDir } from './utils';
 import { gdbPath, openGdbConsole } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
@@ -21,8 +21,6 @@ describe('launch remote', function() {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
-
-    before(standardBefore);
 
     beforeEach(async function() {
         dc = await standardBeforeEach('debugTargetAdapter.js');

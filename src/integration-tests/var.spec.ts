@@ -13,7 +13,7 @@ import * as path from 'path';
 import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
-    gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope, standardBefore, standardBeforeEach,
+    gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope, standardBeforeEach,
     testProgramsDir, verifyVariable,
 } from './utils';
 
@@ -35,8 +35,6 @@ describe('Variables Test Suite', function() {
     const hexValueRegex = /0x[\d]+/;
 
     before(function() {
-        standardBefore();
-
         resolveLineTagLocations(varsSrc, lineTags);
     });
 

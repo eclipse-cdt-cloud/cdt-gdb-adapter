@@ -12,7 +12,7 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { standardBeforeEach, testProgramsDir } from './utils';
 import { gdbPath, openGdbConsole } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
@@ -25,8 +25,6 @@ describe('launch', function() {
     const emptySpaceProgram = path.join(testProgramsDir, 'empty space');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
     const emptySpaceSrc = path.join(testProgramsDir, 'empty space.c');
-
-    before(standardBefore);
 
     beforeEach(async function() {
         dc = await standardBeforeEach();
