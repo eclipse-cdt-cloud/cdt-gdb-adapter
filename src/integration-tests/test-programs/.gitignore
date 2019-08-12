@@ -1,10 +1,12 @@
 count
 empty
+empty space
 evaluate
 mem
 vars
 segv
 *.o
+*.exe
 .vscode
 /vars_cpp
 /log

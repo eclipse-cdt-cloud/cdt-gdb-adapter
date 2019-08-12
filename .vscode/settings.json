@@ -1,3 +1,4 @@
 {
-  "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false
+  "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+  "eslint.packageManager": "yarn"
 }
