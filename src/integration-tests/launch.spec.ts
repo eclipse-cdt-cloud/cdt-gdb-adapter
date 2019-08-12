@@ -65,13 +65,15 @@ describe('launch', function() {
                 .catch(resolve);
         });
 
-        // When launching a remote test gdbserver generates the error
-        expect(errorMessage.message).to.have.string('/does/not/exist: No such file or directory');
+        // When launching a remote test gdbserver generates the error which is not exactly the same
+        // as GDB's error
+        expect(errorMessage.message).to.satisfy((msg: string) => msg.includes('/does/not/exist')
+            && (msg.includes('The system cannot find the path specified')
+                || msg.includes('No such file or directory')));
     });
 
     it('works with a space in file names', async function() {
         await dc.hitBreakpoint({
-            logFile: '/tmp/log',
             verbose: true,
             gdb: gdbPath,
             program: emptySpaceProgram,

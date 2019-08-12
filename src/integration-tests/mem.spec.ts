@@ -38,10 +38,23 @@ describe('Memory Test Suite', function() {
                 line: 12,
             });
         const threads = await dc.threadsRequest();
-        expect(threads.body.threads.length).to.equal(1);
-        const stack = await dc.stackTraceRequest({ threadId: threads.body.threads[0].id });
-        expect(stack.body.stackFrames.length).to.equal(1);
-        frame = stack.body.stackFrames[0];
+        // On windows additional threads can exist to handle signals, therefore find
+        // the real thread & frame running the user code. The other thread will
+        // normally be running code from ntdll or similar.
+        loop_threads:
+        for (const thread of threads.body.threads) {
+            const stack = await dc.stackTraceRequest({ threadId: thread.id });
+            if (stack.body.stackFrames.length >= 1) {
+                for (const f of stack.body.stackFrames) {
+                    if (f.source && f.source.name === 'mem.c') {
+                        frame = f;
+                        break loop_threads;
+                    }
+                }
+            }
+        }
+        // Make sure we found the expected frame
+        expect(frame).not.eq(undefined);
     });
 
     afterEach(async function() {

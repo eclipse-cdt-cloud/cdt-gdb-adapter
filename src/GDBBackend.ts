@@ -128,28 +128,35 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand('-enable-pretty-printing');
     }
 
-    public escapeFileName(filename: string): string {
-        if (filename.indexOf(' ') > 0) {
-            return `"${filename}"`;
-        } else {
-            return filename;
+    // Rewrite the argument escaping whitespace, quotes and backslash
+    public standardEscape(arg: string): string {
+        let result = '';
+        for (const char of arg) {
+            if (char === '\\' || char === '"') {
+                result += '\\';
+            }
+            result += char;
         }
+        if (/\s/.test(arg)) {
+            result = `"${result}"`;
+        }
+        return result;
     }
 
     public sendFileExecAndSymbols(program: string) {
-        return this.sendCommand(`-file-exec-and-symbols ${this.escapeFileName(program)}`);
+        return this.sendCommand(`-file-exec-and-symbols ${this.standardEscape(program)}`);
     }
 
     public sendFileSymbolFile(symbols: string) {
-        return this.sendCommand(`-file-symbol-file ${this.escapeFileName(symbols)}`);
+        return this.sendCommand(`-file-symbol-file ${this.standardEscape(symbols)}`);
     }
 
     public sendAddSymbolFile(symbols: string, offset: string) {
-        return this.sendCommand(`add-symbol-file ${this.escapeFileName(symbols)} ${offset}`);
+        return this.sendCommand(`add-symbol-file ${this.standardEscape(symbols)} ${offset}`);
     }
 
     public sendLoad(imageFileName: string, imageOffset: string | undefined) {
-        return this.sendCommand(`load ${this.escapeFileName(imageFileName)} ${imageOffset || ''}`);
+        return this.sendCommand(`load ${this.standardEscape(imageFileName)} ${imageOffset || ''}`);
     }
 
     public sendGDBSet(params: string) {
