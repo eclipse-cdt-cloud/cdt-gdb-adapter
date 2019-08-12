@@ -13,7 +13,7 @@ import * as path from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
 import { LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { expectRejection, gdbPath, openGdbConsole, standardBefore, standardBeforeEach, testProgramsDir } from './utils';
+import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
@@ -23,8 +23,6 @@ describe('Memory Test Suite', function() {
     let frame: DebugProtocol.StackFrame;
     const memProgram = path.join(testProgramsDir, 'mem');
     const memSrc = path.join(testProgramsDir, 'mem.c');
-
-    before(standardBefore);
 
     beforeEach(async function() {
         dc = await standardBeforeEach();

@@ -13,7 +13,7 @@ import * as path from 'path';
 import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
-    compareVariable, gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope, standardBefore,
+    compareVariable, gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope,
     standardBeforeEach, testProgramsDir, verifyVariable,
 } from './utils';
 
@@ -33,8 +33,6 @@ describe('Variables CPP Test Suite', function() {
     };
 
     before(function() {
-        standardBefore();
-
         resolveLineTagLocations(varsCppSrc, lineTags);
     });
 

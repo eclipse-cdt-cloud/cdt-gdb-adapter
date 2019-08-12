@@ -99,10 +99,12 @@ export function compareVariable(
 
 export const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
 
-export async function standardBefore(): Promise<void> {
-    // Build the test program
+// Run make once per mocha execution by having root-level before
+before(function(done) {
+    this.timeout(20000);
     cp.execSync('make', { cwd: testProgramsDir });
-}
+    done();
+});
 
 function getAdapterAndArgs(adapter?: string): string {
     const chosenAdapter = adapter !== undefined ? adapter : defaultAdapter;

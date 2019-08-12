@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { CdtDebugClient } from './debugClient';
-import { standardBefore, standardBeforeEach, gdbPath, testProgramsDir, openGdbConsole } from './utils';
+import { standardBeforeEach, gdbPath, testProgramsDir, openGdbConsole } from './utils';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { expect } from 'chai';
 import * as path from 'path';
@@ -16,8 +16,6 @@ import * as path from 'path';
 describe('stop', async () => {
 
     let dc: CdtDebugClient;
-
-    before(standardBefore);
 
     beforeEach(async () => {
         dc = await standardBeforeEach();

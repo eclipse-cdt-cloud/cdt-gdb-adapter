@@ -12,7 +12,7 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
-    expectRejection, gdbPath, getScopes, openGdbConsole, Scope, standardBefore, standardBeforeEach, testProgramsDir,
+    expectRejection, gdbPath, getScopes, openGdbConsole, Scope, standardBeforeEach, testProgramsDir,
 } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
@@ -24,8 +24,6 @@ describe('evaluate request', function() {
 
     const evaluateProgram = path.join(testProgramsDir, 'evaluate');
     const evaluateSrc = path.join(testProgramsDir, 'evaluate.cpp');
-
-    before(standardBefore);
 
     beforeEach(async function() {
         // Move the timeout out of the way if the adapter is going to be debugged.

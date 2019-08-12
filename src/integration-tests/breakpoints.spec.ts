@@ -12,7 +12,6 @@ import * as path from 'path';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
-    standardBefore,
     standardBeforeEach,
     gdbPath,
     testProgramsDir,
@@ -24,8 +23,6 @@ import {
 
 describe('breakpoints', async () => {
     let dc: CdtDebugClient;
-
-    before(standardBefore);
 
     beforeEach(async () => {
         dc = await standardBeforeEach();
