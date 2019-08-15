@@ -28,10 +28,10 @@ export interface MIGDBShowResponse extends MIResponse {
 
 export declare interface GDBBackend {
     on(event: 'consoleStreamOutput', listener: (output: string, category: string) => void): this;
-    on(event: 'execAsync' | 'notifyAsync', listener: (asyncClass: string, data: any) => void): this;
+    on(event: 'execAsync' | 'notifyAsync' | 'statusAsync', listener: (asyncClass: string, data: any) => void): this;
 
     emit(event: 'consoleStreamOutput', output: string, category: string): boolean;
-    emit(event: 'execAsync' | 'notifyAsync', asyncClass: string, data: any): boolean;
+    emit(event: 'execAsync' | 'notifyAsync' | 'statusAsync', asyncClass: string, data: any): boolean;
 }
 
 export class GDBBackend extends events.EventEmitter {
