@@ -693,10 +693,13 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'thread-created':
                 this.threads.push(this.convertThread(notifyData));
                 break;
+            case 'thread-selected':
+            case 'thread-exited':
             case 'thread-group-added':
             case 'thread-group-started':
             case 'library-loaded':
             case 'breakpoint-modified':
+            case 'breakpoint-deleted':
                 // Known unhandled notifies
                 break;
             default:
