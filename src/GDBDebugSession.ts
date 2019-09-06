@@ -699,6 +699,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'thread-exited':
             case 'thread-group-added':
             case 'thread-group-started':
+            case 'thread-group-exited':
             case 'library-loaded':
             case 'breakpoint-modified':
             case 'breakpoint-deleted':
