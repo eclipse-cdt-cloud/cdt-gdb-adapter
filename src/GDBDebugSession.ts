@@ -11,13 +11,14 @@ import * as os from 'os';
 import * as path from 'path';
 import {
     Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
-    StackFrame, StoppedEvent, TerminatedEvent, Thread,
+    StackFrame, TerminatedEvent, Thread,
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
 import { sendDataReadMemoryBytes } from './mi/data';
 import * as varMgr from './varManager';
+import { StoppedEvent } from './stoppedEvent';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -641,36 +642,41 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected sendStoppedEvent(reason: string, threadId: number, exceptionText?: string) {
+    protected sendStoppedEvent(reason: string, threadId: number, allThreadsStopped?: boolean) {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
         // Send the event
-        this.sendEvent(new StoppedEvent(reason, threadId, exceptionText));
+        this.sendEvent(new StoppedEvent(reason, threadId, allThreadsStopped));
     }
 
     protected handleGDBStopped(result: any) {
+        const getThreadId = (resultData: any) => parseInt(resultData['thread-id'], 10);
+        const getAllThreadsStopped = (resultData: any) => {
+            return !!resultData['stopped-threads'] && resultData['stopped-threads'] === 'all';
+        };
+
         switch (result.reason) {
             case 'exited':
             case 'exited-normally':
                 this.sendEvent(new TerminatedEvent());
                 break;
             case 'breakpoint-hit':
-                this.sendStoppedEvent('breakpoint', parseInt(result['thread-id'], 10));
+                this.sendStoppedEvent('breakpoint', getThreadId(result), getAllThreadsStopped(result));
                 break;
             case 'end-stepping-range':
             case 'function-finished':
-                this.sendStoppedEvent('step', parseInt(result['thread-id'], 10));
+                this.sendStoppedEvent('step', getThreadId(result), getAllThreadsStopped(result));
                 break;
             case 'signal-received':
                 const name = result['signal-name'] || 'signal';
-                this.sendStoppedEvent(name, parseInt(result['thread-id'], 10));
+                this.sendStoppedEvent(name, getThreadId(result), getAllThreadsStopped(result));
                 if (this.waitPaused) {
                     this.waitPaused();
                 }
                 break;
             default:
-                this.sendStoppedEvent('generic', parseInt(result['thread-id'], 10));
+                this.sendStoppedEvent('generic', getThreadId(result), getAllThreadsStopped(result));
         }
     }
 
