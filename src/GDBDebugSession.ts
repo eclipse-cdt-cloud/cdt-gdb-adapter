@@ -85,6 +85,8 @@ export interface CDTDisassembleArguments extends DebugProtocol.DisassembleArgume
     endMemoryReference: string;
 }
 
+// Allow a single number for ignore count or the form '> [number]'
+const ignoreCountRegex = /\s|\>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
 const arrayChildRegex = /[\d]+/;
 
@@ -134,6 +136,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsSetVariable = true;
         response.body.supportsConditionalBreakpoints = true;
+        response.body.supportsHitConditionalBreakpoints = true;
         // response.body.supportsSetExpression = true;
         response.body.supportsDisassembleRequest = true;
         this.sendResponse(response);
@@ -287,9 +290,29 @@ export class GDBDebugSession extends LoggingDebugSession {
             });
 
             for (const vsbp of inserts) {
+                let temporary = false;
+                let ignoreCount: number | undefined;
+
+                if (vsbp.hitCondition !== undefined) {
+                    ignoreCount = parseInt(vsbp.hitCondition.replace(ignoreCountRegex, ''), 10);
+                    if (isNaN(ignoreCount)) {
+                        this.sendEvent(new OutputEvent(`Unable to decode expression: ${vsbp.hitCondition}`));
+                        continue;
+                    }
+
+                    // Allow hit condition continuously above the count
+                    temporary = !vsbp.hitCondition.startsWith('>');
+                    if (temporary) {
+                        // The expression is not 'greater than', decrease ignoreCount to match
+                        ignoreCount--;
+                    }
+                }
+
                 const gdbbp = await mi.sendBreakInsert(this.gdb, {
                     location: `${file}:${vsbp.line}`,
                     condition: vsbp.condition,
+                    temporary,
+                    ignoreCount,
                 });
                 actual.push({
                     id: parseInt(gdbbp.bkpt.number, 10),

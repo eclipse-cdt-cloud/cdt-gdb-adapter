@@ -78,4 +78,46 @@ describe('breakpoints', async () => {
         const vars = await dc.variablesRequest({ variablesReference: vr });
         verifyVariable(vars.body.variables[0], 'count', 'int', '5');
     });
+
+    it('hits a hit conditional breakpoint with >', async () => {
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                    hitCondition: '> 5',
+                },
+            ],
+        });
+        await dc.configurationDoneRequest();
+        const scope = await getScopes(dc);
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        verifyVariable(vars.body.variables[0], 'count', 'int', '5');
+    });
+
+    it('hits a hit conditional breakpoint without >', async () => {
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                    hitCondition: '5',
+                },
+            ],
+        });
+        await dc.configurationDoneRequest();
+        const scope = await getScopes(dc);
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        verifyVariable(vars.body.variables[0], 'count', 'int', '4');
+    });
 });
