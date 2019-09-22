@@ -114,6 +114,34 @@ export class CdtDebugClient extends DebugClient {
         return waitForStopped;
     }
 
+    /*
+     * Returns a promise that will resolve if an output event with a specific category was received.
+     * The promise will be rejected if a timeout occurs.
+     */
+    public async waitForOutputEvent(category: string, timeout: number = this.defaultTimeout)
+        : Promise<DebugProtocol.OutputEvent> {
+        const isOutputEvent = (event: any): event is DebugProtocol.OutputEvent => {
+            return !!(event as DebugProtocol.OutputEvent).body && !!(event as DebugProtocol.OutputEvent).body.output;
+        };
+
+        const timer = setTimeout(() => {
+            throw new Error(`no output event with category '${category}' received after ${timeout} ms`);
+        }, timeout);
+
+        while (true) {
+            const event = await new Promise((resolve) => this.once('output', (e) => resolve(e)));
+
+            if (!isOutputEvent(event)) {
+                continue;
+            }
+
+            if (event.body.category === category) {
+                clearTimeout(timer);
+                return event;
+            }
+        }
+    }
+
     /**
      * Send a response following a Debug Adapter Reverse Request.
      * @param request original request to respond to.

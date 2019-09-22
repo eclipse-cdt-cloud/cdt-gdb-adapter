@@ -103,6 +103,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected frameHandles = new Handles<FrameReference>();
     protected variableHandles = new Handles<VariableReference>();
+    protected logPointMessages: { [ key: string ]: string } = {};
 
     protected threads: Thread[] = [];
 
@@ -137,6 +138,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsSetVariable = true;
         response.body.supportsConditionalBreakpoints = true;
         response.body.supportsHitConditionalBreakpoints = true;
+        response.body.supportsLogPoints = true;
         // response.body.supportsSetExpression = true;
         response.body.supportsDisassembleRequest = true;
         this.sendResponse(response);
@@ -248,6 +250,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             await waitPromise;
         }
 
+        // Reset logPoint messages
+        this.logPointMessages = {};
+
         try {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
@@ -259,13 +264,21 @@ export class GDBDebugSession extends LoggingDebugSession {
             const deletes = new Array<string>();
 
             const actual = new Array<DebugProtocol.Breakpoint>();
+            const createActual = (breakpoint: mi.MIBreakpointInfo) => {
+                return {
+                    id: parseInt(breakpoint.number, 10),
+                    line: breakpoint.line ? parseInt(breakpoint.line, 10) : 0,
+                    verified: true,
+                };
+            };
 
             const result = await mi.sendBreakList(this.gdb);
             result.BreakpointTable.body.forEach((gdbbp) => {
                 if (gdbbp.fullname === file && gdbbp.line) {
                     // TODO probably need more thorough checks than just line number
                     const line = parseInt(gdbbp.line, 10);
-                    if (!breakpoints.find((vsbp) => vsbp.line === line)) {
+                    const breakpoint = breakpoints.find((vsbp) => vsbp.line === line);
+                    if (!breakpoint) {
                         deletes.push(gdbbp.number);
                     }
 
@@ -279,11 +292,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                         if (insertCond !== tableCond) {
                             return true;
                         }
-                        actual.push({
-                            verified: true,
-                            line: gdbbp.line ? parseInt(gdbbp.line, 10) : 0,
-                            id: parseInt(gdbbp.number, 10),
-                        });
+                        actual.push(createActual(gdbbp));
+
+                        if (breakpoint && breakpoint.logMessage) {
+                            this.logPointMessages[gdbbp.number] = breakpoint.logMessage;
+                        }
+
                         return false;
                     });
                 }
@@ -314,11 +328,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                     temporary,
                     ignoreCount,
                 });
-                actual.push({
-                    id: parseInt(gdbbp.bkpt.number, 10),
-                    line: gdbbp.bkpt.line ? parseInt(gdbbp.bkpt.line, 10) : 0,
-                    verified: true,
-                });
+                actual.push(createActual(gdbbp.bkpt));
+                if (vsbp.logMessage) {
+                    this.logPointMessages[gdbbp.bkpt.number] = vsbp.logMessage;
+                }
             }
 
             response.body = {
@@ -799,7 +812,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new TerminatedEvent());
                 break;
             case 'breakpoint-hit':
-                this.sendStoppedEvent('breakpoint', getThreadId(result), getAllThreadsStopped(result));
+                if (this.logPointMessages[result.bkptno]) {
+                    this.sendEvent(new OutputEvent(this.logPointMessages[result.bkptno]));
+                    mi.sendExecContinue(this.gdb);
+                } else {
+                    this.sendStoppedEvent('breakpoint', getThreadId(result), getAllThreadsStopped(result));
+                }
                 break;
             case 'end-stepping-range':
             case 'function-finished':
