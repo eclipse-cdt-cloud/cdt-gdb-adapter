@@ -103,6 +103,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected frameHandles = new Handles<FrameReference>();
     protected variableHandles = new Handles<VariableReference>();
+    protected functionBreakpoints: string[] = [];
     protected logPointMessages: { [ key: string ]: string } = {};
 
     protected threads: Thread[] = [];
@@ -139,6 +140,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsConditionalBreakpoints = true;
         response.body.supportsHitConditionalBreakpoints = true;
         response.body.supportsLogPoints = true;
+        response.body.supportsFunctionBreakpoints = true;
         // response.body.supportsSetExpression = true;
         response.body.supportsDisassembleRequest = true;
         this.sendResponse(response);
@@ -250,56 +252,65 @@ export class GDBDebugSession extends LoggingDebugSession {
             await waitPromise;
         }
 
-        // Reset logPoint messages
-        this.logPointMessages = {};
-
         try {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
             // deleting ones not requested and inserting new ones.
+
+            const result = await mi.sendBreakList(this.gdb);
+            const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
+                // Ignore function breakpoints
+                return this.functionBreakpoints.indexOf(gdbbp.number) === -1;
+            });
+
             const file = args.source.path as string;
-            const breakpoints = args.breakpoints || [];
+            const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints || [], gdbbps,
+                (vsbp, gdbbp) => {
 
-            let inserts = breakpoints.slice();
-            const deletes = new Array<string>();
+                    // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
+                    if (vsbp.hitCondition) {
+                        return false;
+                    }
 
-            const actual = new Array<DebugProtocol.Breakpoint>();
-            const createActual = (breakpoint: mi.MIBreakpointInfo) => {
+                    // Ensure we can compare undefined and empty strings
+                    const vsbpCond = vsbp.condition || undefined;
+                    const gdbbpCond = gdbbp.cond || undefined;
+
+                    // TODO probably need more thorough checks than just line number
+                    return !!(gdbbp.fullname === file
+                        && gdbbp.line && parseInt(gdbbp.line, 10) === vsbp.line
+                        && vsbpCond === gdbbpCond);
+                });
+
+            // Delete before insert to avoid breakpoint clashes in gdb
+            if (deletes.length > 0) {
+                await mi.sendBreakDelete(this.gdb, { breakpoints: deletes });
+                deletes.forEach((breakpoint) => delete this.logPointMessages[breakpoint]);
+            }
+
+            // Reset logPoints
+            this.logPointMessages = {};
+
+            // Set up logpoint messages and return a formatted breakpoint for the response body
+            const createState = (vsbp: DebugProtocol.SourceBreakpoint, gdbbp: mi.MIBreakpointInfo)
+                : DebugProtocol.Breakpoint => {
+
+                if (vsbp.logMessage) {
+                    this.logPointMessages[gdbbp.number] = vsbp.logMessage;
+                }
+
                 return {
-                    id: parseInt(breakpoint.number, 10),
-                    line: breakpoint.line ? parseInt(breakpoint.line, 10) : 0,
+                    id: parseInt(gdbbp.number, 10),
+                    line: vsbp.line || 0,
                     verified: true,
                 };
             };
 
-            const result = await mi.sendBreakList(this.gdb);
-            result.BreakpointTable.body.forEach((gdbbp) => {
-                if (gdbbp.fullname === file && gdbbp.line) {
-                    // TODO probably need more thorough checks than just line number
-                    const line = parseInt(gdbbp.line, 10);
-                    const breakpoint = breakpoints.find((vsbp) => vsbp.line === line);
-                    if (!breakpoint) {
-                        deletes.push(gdbbp.number);
-                    }
+            const actual = existing.map((bp) => createState(bp.vsbp, bp.gdbbp));
 
-                    inserts = inserts.filter((vsbp) => {
-                        if (vsbp.line !== line) {
-                            return true;
-                        }
-                        // Ensure we can compare undefined and empty strings
-                        const insertCond = vsbp.condition || undefined;
-                        const tableCond = gdbbp.cond || undefined;
-                        if (insertCond !== tableCond) {
-                            return true;
-                        }
-                        actual.push(createActual(gdbbp));
-
-                        if (breakpoint && breakpoint.logMessage) {
-                            this.logPointMessages[gdbbp.number] = breakpoint.logMessage;
-                        }
-
-                        return false;
-                    });
+            existing.forEach((bp) => {
+                if (bp.vsbp.logMessage) {
+                    this.logPointMessages[bp.gdbbp.number] = bp.vsbp.logMessage;
                 }
             });
 
@@ -328,19 +339,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                     temporary,
                     ignoreCount,
                 });
-                actual.push(createActual(gdbbp.bkpt));
-                if (vsbp.logMessage) {
-                    this.logPointMessages[gdbbp.bkpt.number] = vsbp.logMessage;
-                }
+
+                actual.push(createState(vsbp, gdbbp.bkpt));
             }
 
             response.body = {
                 breakpoints: actual,
             };
-
-            if (deletes.length > 0) {
-                await mi.sendBreakDelete(this.gdb, { breakpoints: deletes });
-            }
 
             this.sendResponse(response);
         } catch (err) {
@@ -350,6 +355,101 @@ export class GDBDebugSession extends LoggingDebugSession {
         if (neededPause) {
             mi.sendExecContinue(this.gdb);
         }
+    }
+
+    protected async setFunctionBreakPointsRequest(response: DebugProtocol.SetFunctionBreakpointsResponse,
+        args: DebugProtocol.SetFunctionBreakpointsArguments) {
+
+        const neededPause = this.isRunning;
+        if (neededPause) {
+            // Need to pause first
+            const waitPromise = new Promise<void>((resolve) => {
+                this.waitPaused = resolve;
+            });
+            this.gdb.pause();
+            await waitPromise;
+        }
+
+        try {
+            const result = await mi.sendBreakList(this.gdb);
+            const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
+                // Only function breakpoints
+                return this.functionBreakpoints.indexOf(gdbbp.number) > -1;
+            });
+
+            const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints, gdbbps,
+                (vsbp, gdbbp) => {
+
+                // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
+                if (vsbp.hitCondition) {
+                    return false;
+                }
+
+                // Ensure we can compare undefined and empty strings
+                const vsbpCond = vsbp.condition || undefined;
+                const gdbbpCond = gdbbp.cond || undefined;
+
+                return !!(gdbbp['original-location'] === `-function ${vsbp.name}`
+                    && vsbpCond === gdbbpCond);
+            });
+
+            // Delete before insert to avoid breakpoint clashes in gdb
+            if (deletes.length > 0) {
+                await mi.sendBreakDelete(this.gdb, { breakpoints: deletes });
+                this.functionBreakpoints = this.functionBreakpoints.filter((fnbp) => deletes.indexOf(fnbp) === -1);
+            }
+
+            const createActual = (breakpoint: mi.MIBreakpointInfo): DebugProtocol.Breakpoint => ({
+                id: parseInt(breakpoint.number, 10),
+                verified: true,
+            });
+
+            const actual = existing.map((bp) => createActual(bp.gdbbp));
+
+            for (const vsbp of inserts) {
+                const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, vsbp.name);
+                this.functionBreakpoints.push(gdbbp.bkpt.number);
+                actual.push(createActual(gdbbp.bkpt));
+            }
+
+            response.body = {
+                breakpoints: actual,
+            };
+
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
+        }
+
+        if (neededPause) {
+            mi.sendExecContinue(this.gdb);
+        }
+    }
+
+    protected resolveBreakpoints<T>(vsbps: T[], gdbbps: mi.MIBreakpointInfo[],
+        matchFn: (vsbp: T, gdbbp: mi.MIBreakpointInfo) => boolean)
+        : { inserts: T[]; existing: Array<{vsbp: T, gdbbp: mi.MIBreakpointInfo}>; deletes: string[]; } {
+
+        const inserts = vsbps.filter((vsbp) => {
+            return !gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
+        });
+
+        const existing: Array<{vsbp: T, gdbbp: mi.MIBreakpointInfo}> = [];
+        vsbps.forEach((vsbp) => {
+            const match = gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
+            if (match) {
+                existing.push({
+                    vsbp,
+                    gdbbp: match,
+                });
+            }
+        });
+
+        const deletes = gdbbps.filter((gdbbp) => {
+            return !vsbps.find((vsbp) => matchFn(vsbp, gdbbp));
+        }).map((gdbbp) => gdbbp.number);
+
+        return { inserts, existing, deletes };
     }
 
     protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
@@ -816,7 +916,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                     this.sendEvent(new OutputEvent(this.logPointMessages[result.bkptno]));
                     mi.sendExecContinue(this.gdb);
                 } else {
-                    this.sendStoppedEvent('breakpoint', getThreadId(result), getAllThreadsStopped(result));
+                    const reason = (this.functionBreakpoints.indexOf(result.bkptno) > -1)
+                        ? 'function breakpoint' : 'breakpoint';
+                    this.sendStoppedEvent(reason, getThreadId(result), getAllThreadsStopped(result));
                 }
                 break;
             case 'end-stepping-range':

@@ -57,7 +57,7 @@ describe('evaluate request', function() {
         const res = await dc.evaluateRequest({
             context: 'repl',
             expression: '2 + 2',
-            frameId: scope.frameId,
+            frameId: scope.frame.id,
         });
 
         expect(res.body.result).eq('4');
@@ -76,7 +76,7 @@ describe('evaluate request', function() {
         const err = await expectRejection(dc.evaluateRequest({
             context: 'repl',
             expression: '2 +',
-            frameId: scope.frameId,
+            frameId: scope.frame.id,
         }));
 
         expect(err.message).eq('-var-create: unable to create variable object');

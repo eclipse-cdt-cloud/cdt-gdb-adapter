@@ -68,3 +68,8 @@ export function sendBreakDelete(gdb: GDBBackend, request: {
 export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
     return gdb.sendCommand('-break-list');
 }
+
+export function sendBreakFunctionInsert(gdb: GDBBackend, fn: string): Promise<MIBreakInsertResponse> {
+    const command = `-break-insert --function ${fn}`;
+    return gdb.sendCommand<MIBreakInsertResponse>(command);
+}

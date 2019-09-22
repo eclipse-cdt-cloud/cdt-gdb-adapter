@@ -16,8 +16,8 @@ import { DebugProtocol } from 'vscode-debugprotocol';
 import { CdtDebugClient } from './debugClient';
 
 export interface Scope {
-    threadId: number;
-    frameId: number;
+    thread: DebugProtocol.Thread;
+    frame: DebugProtocol.StackFrame;
     scopes: DebugProtocol.ScopesResponse;
 }
 
@@ -29,13 +29,15 @@ export async function getScopes(
     // threads
     const threads = await dc.threadsRequest();
     expect(threads.body.threads.length, 'There are fewer threads than expected.').to.be.at.least(threadIndex + 1);
-    const threadId = threads.body.threads[threadIndex].id;
+    const thread = threads.body.threads[threadIndex];
+    const threadId = thread.id;
     // stack trace
     const stack = await dc.stackTraceRequest({ threadId });
     expect(stack.body.stackFrames.length, 'There are fewer stack frames than expected.').to.be.at.least(stackIndex + 1);
-    const frameId = stack.body.stackFrames[stackIndex].id;
+    const frame = stack.body.stackFrames[stackIndex];
+    const frameId = frame.id;
     const scopes = await dc.scopesRequest({ frameId });
-    return Promise.resolve({ threadId, frameId, scopes });
+    return Promise.resolve({ thread, frame, scopes });
 }
 
 /**
