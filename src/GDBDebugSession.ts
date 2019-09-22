@@ -260,7 +260,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                         if (vsbp.line !== line) {
                             return true;
                         }
-                        if (vsbp.condition !== gdbbp.cond) {
+                        // Ensure we can compare undefined and empty strings
+                        const insertCond = vsbp.condition || undefined;
+                        const tableCond = gdbbp.cond || undefined;
+                        if (insertCond !== tableCond) {
                             return true;
                         }
                         actual.push({
