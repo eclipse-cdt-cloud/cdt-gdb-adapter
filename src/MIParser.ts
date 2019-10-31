@@ -230,7 +230,11 @@ export class MIParser {
 
         switch (c) {
             case '^':
-                logger.verbose(`GDB result: ${token} ${this.restOfLine()}`);
+                const rest = this.restOfLine();
+                for (let i = 0; i < rest.length; i += 1000) {
+                    const msg = i === 0 ? 'result' : '-cont-';
+                    logger.verbose(`GDB ${msg}: ${token} ${rest.substr(i, 1000)}`);
+                }
                 const command = this.commandQueue[token];
                 if (command) {
                     const resultClass = this.handleString();

@@ -16,7 +16,7 @@ import {
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
-import { sendDataReadMemoryBytes } from './mi/data';
+import { sendDataReadMemoryBytes, sendDataDisassemble } from './mi/data';
 import * as varMgr from './varManager';
 import { StoppedEvent } from './stoppedEvent';
 
@@ -76,6 +76,15 @@ export interface MemoryResponse extends Response {
     body: MemoryContents;
 }
 
+export interface CDTDisassembleArguments extends DebugProtocol.DisassembleArguments {
+    /**
+     * Memory reference to the end location containing the instructions to disassemble. When this
+     * optional setting is provided, the minimum number of lines needed to get to the endMemoryReference
+     * is used.
+     */
+    endMemoryReference: string;
+}
+
 const arrayRegex = /.*\[[\d]+\].*/;
 const arrayChildRegex = /[\d]+/;
 
@@ -126,6 +135,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsSetVariable = true;
         response.body.supportsConditionalBreakpoints = true;
         // response.body.supportsSetExpression = true;
+        response.body.supportsDisassembleRequest = true;
         this.sendResponse(response);
     }
 
@@ -364,7 +374,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                     threadId: args.threadId,
                     frameId: parseInt(frame.level, 10),
                 });
-                return new StackFrame(frameHandle, frame.func || frame.fullname || '', source, line);
+                const name = frame.func || frame.fullname || '';
+                const sf = new StackFrame(frameHandle, name, source, line) as DebugProtocol.StackFrame;
+                sf.instructionPointerReference = frame.addr;
+                return sf;
             });
 
             response.body = {
@@ -629,6 +642,104 @@ export class GDBDebugSession extends LoggingDebugSession {
                 data: result.memory[0].contents,
                 address: result.memory[0].begin,
             };
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
+        }
+    }
+
+    protected async disassembleRequest(response: DebugProtocol.DisassembleResponse,
+        args: CDTDisassembleArguments) {
+        try {
+            const meanSizeOfInstruction = 4;
+            let startOffset = 0;
+            let lastStartOffset = -1;
+            const instructions: DebugProtocol.DisassembledInstruction[] = [];
+            let oneIterationOnly = false;
+            outer_loop:
+            while (instructions.length < args.instructionCount && !oneIterationOnly) {
+                if (startOffset === lastStartOffset) {
+                    // We have stopped getting new instructions, give up
+                    break outer_loop;
+                }
+                lastStartOffset = startOffset;
+
+                const fetchSize = (args.instructionCount - instructions.length) * meanSizeOfInstruction;
+
+                // args.memoryReference is an arbitrary expression, so let GDB do the
+                // math on resolving value rather than doing the addition in the adapter
+                try {
+                    const stepStartAddress = `(${args.memoryReference})+${startOffset}`;
+                    let stepEndAddress = `(${args.memoryReference})+${startOffset}+${fetchSize}`;
+                    if (args.endMemoryReference && instructions.length === 0) {
+                        // On the first call, if we have an end memory address use it instead of
+                        // the approx size
+                        stepEndAddress = args.endMemoryReference;
+                        oneIterationOnly = true;
+                    }
+                    const result = await sendDataDisassemble(this.gdb, stepStartAddress, stepEndAddress);
+                    for (const asmInsn of result.asm_insns) {
+                        const line: number | undefined = asmInsn.line ? parseInt(asmInsn.line, 10) : undefined;
+                        const source = {
+                            name: asmInsn.file,
+                            path: asmInsn.fullname,
+                        } as DebugProtocol.Source;
+                        for (const asmLine of asmInsn.line_asm_insn) {
+                            let funcAndOffset: string | undefined;
+                            if (asmLine.func_name && asmLine.offset) {
+                                funcAndOffset = `${asmLine.func_name}+${asmLine.offset}`;
+                            } else if (asmLine.func_name) {
+                                funcAndOffset = asmLine.func_name;
+                            } else {
+                                funcAndOffset = undefined;
+                            }
+                            const disInsn = {
+                                address: asmLine.address,
+                                instructionBytes: asmLine.opcodes,
+                                instruction: asmLine.inst,
+                                symbol: funcAndOffset,
+                                location: source,
+                                line,
+                            } as DebugProtocol.DisassembledInstruction;
+                            instructions.push(disInsn);
+                            if (instructions.length === args.instructionCount) {
+                                break outer_loop;
+                            }
+
+                            const bytes = asmLine.opcodes.replace(/\s/g, '');
+                            startOffset += bytes.length;
+                        }
+                    }
+                } catch (err) {
+                    // Failed to read instruction -- what best to do here?
+                    // in other words, whose responsibility (adapter or client)
+                    // to reissue reads in smaller chunks to find good memory
+                    while (instructions.length < args.instructionCount) {
+                        const badDisInsn = {
+                            // TODO this should start at byte after last retrieved address
+                            address: `0x${startOffset.toString(16)}`,
+                            instruction: err.message,
+                        } as DebugProtocol.DisassembledInstruction;
+                        instructions.push(badDisInsn);
+                        startOffset += 2;
+                    }
+                    break outer_loop;
+                }
+            }
+
+            if (!args.endMemoryReference) {
+                while (instructions.length < args.instructionCount) {
+                    const badDisInsn = {
+                        // TODO this should start at byte after last retrieved address
+                        address: `0x${startOffset.toString(16)}`,
+                        instruction: 'failed to retrieve instruction',
+                    } as DebugProtocol.DisassembledInstruction;
+                    instructions.push(badDisInsn);
+                    startOffset += 2;
+                }
+            }
+
+            response.body = { instructions };
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);

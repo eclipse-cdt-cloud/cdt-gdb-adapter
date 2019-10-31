@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble
 
 .PHONY: all
 all: $(BINS)
@@ -18,6 +18,9 @@ evaluate: evaluate.o
 	$(LINK)
 
 mem: mem.o
+	$(LINK)
+
+disassemble: disassemble.o
 	$(LINK)
 
 vars: vars.o
