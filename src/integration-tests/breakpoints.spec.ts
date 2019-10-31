@@ -20,7 +20,6 @@ import {
     verifyVariable,
 } from './utils';
 
-
 describe('breakpoints', async () => {
     let dc: CdtDebugClient;
 
