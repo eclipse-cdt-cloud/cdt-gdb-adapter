@@ -26,7 +26,8 @@
   "homepage": "https://github.com/eclipse-cdt/cdt-gdb-adapter#readme",
   "dependencies": {
     "node-addon-api": "^1.6.2",
-    "vscode-debugadapter": "^1.32.1"
+    "vscode-debugprotocol": "^1.37.0",
+    "vscode-debugadapter": "^1.37.1"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -42,7 +43,7 @@
     "tslint": "^5.11.0",
     "tslint-language-service": "^0.9.9",
     "typescript": "^3.1.5",
-    "vscode-debugadapter-testsupport": "^1.32.0",
+    "vscode-debugadapter-testsupport": "^1.37.1",
     "webpack": "^4.23.1",
     "webpack-cli": "^3.1.2"
   },
