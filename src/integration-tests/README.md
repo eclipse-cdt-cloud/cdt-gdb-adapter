@@ -10,6 +10,16 @@ session.  It uses the `gdb` in your `PATH`.
 2. Build the package as usual: run `yarn build` in the top-level directory
 3. Run the tests: run `yarn test:integration` in the top-level directory
 
+## Running the tests using Docker
+
+The tests can be run on a docker container. This is useful to run the testsuite
+in the same environment as it is run on the CI machine.
+
+To do this, simply prefix the desired command (such as `yarn test`) with this
+command to run it in docker:
+
+`docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-eclipse-full:latest`
+
 ## Debugging tips
 
 To debug, use the included launch configurations in the launch.json file for this vscode project.
