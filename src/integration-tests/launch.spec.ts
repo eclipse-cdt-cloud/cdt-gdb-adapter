@@ -46,9 +46,9 @@ describe('launch', function() {
             program: emptyProgram,
             openGdbConsole,
         } as LaunchRequestArguments, {
-                path: emptySrc,
-                line: 3,
-            });
+            path: emptySrc,
+            line: 3,
+        });
     });
 
     it('reports an error when specifying a non-existent binary', async function() {
@@ -67,7 +67,8 @@ describe('launch', function() {
         // as GDB's error
         expect(errorMessage.message).to.satisfy((msg: string) => msg.includes('/does/not/exist')
             && (msg.includes('The system cannot find the path specified')
-                || msg.includes('No such file or directory')));
+                || msg.includes('No such file or directory')
+                || msg.includes('not found')));
     });
 
     it('works with a space in file names', async function() {
@@ -77,8 +78,8 @@ describe('launch', function() {
             program: emptySpaceProgram,
             openGdbConsole,
         } as LaunchRequestArguments, {
-                path: emptySpaceSrc,
-                line: 3,
-            });
+            path: emptySpaceSrc,
+            line: 3,
+        });
     });
 });
