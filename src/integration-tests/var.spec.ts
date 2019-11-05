@@ -19,7 +19,6 @@ import {
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions
-
 describe('Variables Test Suite', function() {
 
     let dc: CdtDebugClient;
@@ -46,10 +45,11 @@ describe('Variables Test Suite', function() {
             gdb: gdbPath,
             program: varsProgram,
             openGdbConsole,
+            logFile: '/tmp/log',
         } as LaunchRequestArguments, {
-                path: varsSrc,
-                line: lineTags['STOP HERE'],
-            });
+            path: varsSrc,
+            line: lineTags['STOP HERE'],
+        });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
     });
@@ -64,7 +64,7 @@ describe('Variables Test Suite', function() {
     }
     it('can read and set simple variables in a program', async function() {
         // read the variables
-        const vr = scope.scopes.body.scopes[0].variablesReference;
+        let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
         verifyVariable(vars.body.variables[0], 'a', 'int', '1');
@@ -78,7 +78,10 @@ describe('Variables Test Suite', function() {
         verifyVariable(vars.body.variables[0], 'a', 'int', '25');
         verifyVariable(vars.body.variables[1], 'b', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 1 });
+        scope = await getScopes(dc);
+        expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
+        vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(vars.body.variables.length, 'There is a different number of variables than expected').to.equal(numVars);
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
@@ -86,8 +89,8 @@ describe('Variables Test Suite', function() {
 
     it('can read and set struct variables in a program', async function() {
         // step past the initialization for the structure
-        await dc.nextRequest({ threadId: scope.threadId });
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 1 });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 2 });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         // assert we can see the struct and its elements
@@ -116,7 +119,7 @@ describe('Variables Test Suite', function() {
         verifyVariable(children.body.variables[0], 'x', 'int', '25');
         verifyVariable(children.body.variables[1], 'y', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 3 });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         vr = scope.scopes.body.scopes[0].variablesReference;
@@ -127,8 +130,8 @@ describe('Variables Test Suite', function() {
 
     it('can read and set nested struct variables in a program', async function() {
         // step past the initialization for the structure
-        await dc.nextRequest({ threadId: scope.threadId });
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 1 });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 2 });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         // assert we can see the 'foo' struct and its child 'bar' struct
@@ -164,8 +167,8 @@ describe('Variables Test Suite', function() {
         verifyVariable(subChildren.body.variables[0], 'a', 'int', '25');
         verifyVariable(subChildren.body.variables[1], 'b', 'int', '10');
         // step the program and see that the values were passed to the program and evaluated.
-        await dc.nextRequest({ threadId: scope.threadId });
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 3 });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: lineTags['STOP HERE'] + 4 });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         vr = scope.scopes.body.scopes[0].variablesReference;
@@ -211,7 +214,7 @@ describe('Variables Test Suite', function() {
         verifyVariable(children.body.variables[1], '[1]', 'int', '22');
         verifyVariable(children.body.variables[2], '[2]', 'int', '33');
         // step the program and see that the values were passed to the program and evaluated.
-        await dc.nextRequest({ threadId: scope.threadId });
+        await dc.next({ threadId: scope.threadId }, { path: varsSrc, line: 25 });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         vr = scope.scopes.body.scopes[0].variablesReference;
