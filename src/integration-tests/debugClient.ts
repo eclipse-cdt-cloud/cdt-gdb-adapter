@@ -67,6 +67,54 @@ export class CdtDebugClient extends DebugClient {
     }
 
     /**
+     * Send a nextRequest and wait for target to stop
+     */
+    public async next(args: DebugProtocol.NextArguments, expected: {
+        path?: string | RegExp, line?: number, column?: number,
+    }): Promise<DebugProtocol.StackTraceResponse> {
+        const waitForStopped = this.assertStoppedLocation('step', expected);
+        const next = this.nextRequest(args);
+        await Promise.all([waitForStopped, next]);
+        return waitForStopped;
+    }
+
+    /**
+     * Send a stepInRequest and wait for target to stop
+     */
+    public async stepIn(args: DebugProtocol.StepInArguments, expected: {
+        path?: string | RegExp, line?: number, column?: number,
+    }): Promise<DebugProtocol.StackTraceResponse> {
+        const waitForStopped = this.assertStoppedLocation('step', expected);
+        const next = this.stepInRequest(args);
+        await Promise.all([waitForStopped, next]);
+        return waitForStopped;
+    }
+
+    /**
+     * Send a stepOutRequest and wait for target to stop
+     */
+    public async stepOut(args: DebugProtocol.StepOutArguments, expected: {
+        path?: string | RegExp, line?: number, column?: number,
+    }): Promise<DebugProtocol.StackTraceResponse> {
+        const waitForStopped = this.assertStoppedLocation('step', expected);
+        const next = this.stepOutRequest(args);
+        await Promise.all([waitForStopped, next]);
+        return waitForStopped;
+    }
+
+    /**
+     * Send a stepBackRequest and wait for target to stop
+     */
+    public async stepBack(args: DebugProtocol.StepBackArguments, expected: {
+        path?: string | RegExp, line?: number, column?: number,
+    }): Promise<DebugProtocol.StackTraceResponse> {
+        const waitForStopped = this.assertStoppedLocation('step', expected);
+        const next = this.stepBackRequest(args);
+        await Promise.all([waitForStopped, next]);
+        return waitForStopped;
+    }
+
+    /**
      * Send a response following a Debug Adapter Reverse Request.
      * @param request original request to respond to.
      * @param handler processes the request and returns the response body.
@@ -94,6 +142,7 @@ export class CdtDebugClient extends DebugClient {
         const json = JSON.stringify(response);
         this['outputStream'].write(`Content-Length: ${Buffer.byteLength(json, 'utf-8')}\r\n\r\n${json}`);
     }
+
 }
 
 /**
