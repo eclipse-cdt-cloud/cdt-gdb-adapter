@@ -9,8 +9,7 @@ We are at least learning from it.
 Build is pretty simple.
 
 ```sh
-yarn install
-yarn build
+yarn
 ```
 
 The entry point for the adapter is `out/debugAdapter.js` for local debugging

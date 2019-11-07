@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "prepublish": "tsc",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "yarn test:integration && yarn test:pty && yarn test:integration-run-in-terminal && yarn test:integration-remote-target && yarn test:integration-remote-target-run-in-terminal",
