@@ -5,6 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "install": "node install.js",
+    "nativebuild": "node-gyp rebuild",
     "prepublish": "yarn build",
     "build": "tsc",
     "watch": "tsc -w",
@@ -52,7 +54,6 @@
     "webpack-cli": "^3.1.2"
   },
   "files": [
-    "binding.gyp",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.d.ts",
