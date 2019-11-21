@@ -45,7 +45,6 @@ describe('Variables Test Suite', function() {
             gdb: gdbPath,
             program: varsProgram,
             openGdbConsole,
-            logFile: '/tmp/log',
         } as LaunchRequestArguments, {
             path: varsSrc,
             line: lineTags['STOP HERE'],
