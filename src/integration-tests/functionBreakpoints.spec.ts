@@ -9,7 +9,6 @@
  *********************************************************************/
 
 import { join } from 'path';
-import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import {
@@ -17,9 +16,7 @@ import {
     gdbPath,
     testProgramsDir,
     openGdbConsole,
-    getScopes,
 } from './utils';
-import { StoppedEvent } from 'vscode-debugadapter';
 
 describe('function breakpoints', async () => {
     let dc: CdtDebugClient;
@@ -48,9 +45,7 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        dc.waitForEvent('stopped');
-        const scope = await getScopes(dc);
-        expect(scope.frame.line).to.eq(6);
+        dc.assertStoppedLocation('function breakpoint', {line: 6});
     });
 
     it('hits the sub function breakpoint', async () => {
@@ -62,9 +57,6 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        const event = await dc.waitForEvent('stopped') as StoppedEvent;
-        expect(event.body.reason).to.eq('function breakpoint');
-        const scope = await getScopes(dc);
-        expect(scope.frame.line).to.eq(2);
+        dc.assertStoppedLocation('function breakpoint', {line: 2});
     });
 });
