@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions
 
 .PHONY: all
 all: $(BINS)
@@ -7,6 +7,9 @@ CC = gcc
 CXX = g++
 LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
+
+functions: functions.o
+	$(LINK)
 
 count: count.o
 	$(LINK)

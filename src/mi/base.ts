@@ -30,7 +30,7 @@ export interface MIBreakpointInfo {
     line?: string;
     threadGroups: string[];
     times: string;
-    originalLocation?: string;
+    'original-location'?: string;
     cond?: string;
     // TODO there are a lot more fields here
 }

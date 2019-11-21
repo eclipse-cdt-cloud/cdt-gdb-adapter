@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import * as path from 'path';
+import { expect } from 'chai';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -119,5 +120,76 @@ describe('breakpoints', async () => {
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
         verifyVariable(vars.body.variables[0], 'count', 'int', '4');
+    });
+
+    it('resolves breakpoints', async () => {
+        let response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
+
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+
+        response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                },
+                {
+                    column: 1,
+                    line: 3,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(2);
+
+        response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                    condition: 'count == 5',
+                },
+                {
+                    column: 1,
+                    line: 3,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(2);
+
+        response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                    condition: 'count == 3',
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
     });
 });

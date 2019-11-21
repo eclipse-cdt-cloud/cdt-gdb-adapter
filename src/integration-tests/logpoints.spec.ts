@@ -16,7 +16,7 @@ import {
     standardBeforeEach,
     gdbPath,
     testProgramsDir,
-    openGdbConsole
+    openGdbConsole,
 } from './utils';
 
 describe('logpoints', async () => {
@@ -54,7 +54,41 @@ describe('logpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        let logEvent = await dc.waitForOutputEvent('console');
+        const logEvent = await dc.waitForOutputEvent('console');
+        expect(logEvent.body.output).to.eq(logMessage);
+    });
+
+    it('supports changing log messages', async () => {
+        const logMessage = 'log message';
+
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                    logMessage: 'something uninteresting',
+                },
+            ],
+        });
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                    logMessage,
+                },
+            ],
+        });
+        await dc.configurationDoneRequest();
+        const logEvent = await dc.waitForOutputEvent('console');
         expect(logEvent.body.output).to.eq(logMessage);
     });
 });
