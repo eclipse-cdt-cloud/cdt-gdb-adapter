@@ -822,10 +822,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                         } as DebugProtocol.Source;
                         for (const asmLine of asmInsn.line_asm_insn) {
                             let funcAndOffset: string | undefined;
-                            if (asmLine.func_name && asmLine.offset) {
-                                funcAndOffset = `${asmLine.func_name}+${asmLine.offset}`;
-                            } else if (asmLine.func_name) {
-                                funcAndOffset = asmLine.func_name;
+                            if (asmLine['func-name'] && asmLine.offset) {
+                                funcAndOffset = `${asmLine['func-name']}+${asmLine.offset}`;
+                            } else if (asmLine['func-name']) {
+                                funcAndOffset = asmLine['func-name'];
                             } else {
                                 funcAndOffset = undefined;
                             }
