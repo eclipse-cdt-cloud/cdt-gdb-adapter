@@ -35,7 +35,6 @@ describe('evaluate request', function() {
             verbose: true,
             gdb: gdbPath,
             program: evaluateProgram,
-            logFile: '/tmp/gdb.log',
             openGdbConsole,
         }, {
                 path: evaluateSrc,
