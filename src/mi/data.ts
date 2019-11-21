@@ -22,7 +22,7 @@ interface MIDataReadMemoryBytesResponse {
 interface MIDataDisassembleAsmInsn {
     address: string;
     // func-name in MI
-    func_name: string;
+    'func-name': string;
     offset: string;
     opcodes: string;
     inst: string;
@@ -74,13 +74,6 @@ export async function sendDataDisassemble(gdb: GDBBackend, startAddress: string,
         for (const asmInsn of result.asm_insns) {
             if (!asmInsn.hasOwnProperty('line_asm_insn')) {
                 asmInsn.line_asm_insn = [];
-            }
-            for (const line of asmInsn.line_asm_insn) {
-                const untypeLine: any = line;
-                if (untypeLine.hasOwnProperty('func-name')) {
-                    line.func_name = untypeLine['func-name'];
-                    delete untypeLine['func-name'];
-                }
             }
         }
     }
