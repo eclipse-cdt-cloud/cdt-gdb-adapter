@@ -1,9 +1,9 @@
 const os = require('os');
-var spawn = require('cross-spawn');
+const { spawnSync } = require('child_process');
 
 if (os.platform() === 'linux') {
-    spawn.sync('npm', ['run', 'nativebuild'], {
-        input: 'linux detected. Build native module.',
+    const {status} = spawnSync('npm', ['run', 'nativebuild'], {
         stdio: 'inherit'
     });
+    process.exitCode = status;
 }

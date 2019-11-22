@@ -59,6 +59,7 @@
     "dist/**/*.d.ts",
     "src/**/*.cc",
     "src/**/*.h",
-    "install.js"
+    "install.js",
+    "binding.gyp"
   ]
 }
