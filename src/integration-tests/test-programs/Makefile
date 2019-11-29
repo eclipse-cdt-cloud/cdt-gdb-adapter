@@ -8,11 +8,14 @@ CXX = g++
 LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
 
-functions: functions.o
+functions: functions.o functions_other.o
 	$(LINK)
 
-count: count.o
-	$(LINK)
+count: count.o count_other.o count\ space.o
+	$(CC) -o "count" count.o count_other.o "count space.o"
+
+count\ space.o: count\ space.c
+	$(CC) -c "count space.c" -g3 -O0
 
 empty: empty.o
 	$(LINK)

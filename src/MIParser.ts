@@ -211,7 +211,7 @@ export class MIParser {
     protected handleLogStream() {
         const msg = this.handleCString();
         if (msg) {
-            logger.log(msg);
+            this.gdb.emit('consoleStreamOutput', msg, 'log');
         }
     }
 
