@@ -32,7 +32,6 @@ if (os.platform() !== 'win32') {
             }
         });
 
-
         it('should be able to open a ptmx/pts pair', async function() {
             const pty = new Pty();
 

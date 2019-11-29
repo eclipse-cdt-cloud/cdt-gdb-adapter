@@ -45,7 +45,7 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        dc.assertStoppedLocation('function breakpoint', {line: 6});
+        dc.assertStoppedLocation('function breakpoint', { line: 6 });
     });
 
     it('hits the sub function breakpoint', async () => {
@@ -57,6 +57,6 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        dc.assertStoppedLocation('function breakpoint', {line: 2});
+        dc.assertStoppedLocation('function breakpoint', { line: 2 });
     });
 });
