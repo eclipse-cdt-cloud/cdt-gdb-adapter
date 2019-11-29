@@ -336,14 +336,20 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                 }
 
-                const gdbbp = await mi.sendBreakInsert(this.gdb, {
-                    location: `${file}:${vsbp.line}`,
-                    condition: vsbp.condition,
-                    temporary,
-                    ignoreCount,
-                });
-
-                actual.push(createState(vsbp, gdbbp.bkpt));
+                try {
+                    const gdbbp = await mi.sendBreakInsert(this.gdb, {
+                        location: `${file}:${vsbp.line}`,
+                        condition: vsbp.condition,
+                        temporary,
+                        ignoreCount,
+                    });
+                    actual.push(createState(vsbp, gdbbp.bkpt));
+                } catch (err) {
+                    actual.push({
+                        verified: false,
+                        message: err.message,
+                    } as DebugProtocol.Breakpoint);
+                }
             }
 
             response.body = {
