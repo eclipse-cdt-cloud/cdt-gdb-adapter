@@ -104,7 +104,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected frameHandles = new Handles<FrameReference>();
     protected variableHandles = new Handles<VariableReference>();
     protected functionBreakpoints: string[] = [];
-    protected logPointMessages: { [ key: string ]: string } = {};
+    protected logPointMessages: { [key: string]: string } = {};
 
     protected threads: Thread[] = [];
 
@@ -380,18 +380,18 @@ export class GDBDebugSession extends LoggingDebugSession {
             const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints, gdbbps,
                 (vsbp, gdbbp) => {
 
-                // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
-                if (vsbp.hitCondition) {
-                    return false;
-                }
+                    // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
+                    if (vsbp.hitCondition) {
+                        return false;
+                    }
 
-                // Ensure we can compare undefined and empty strings
-                const vsbpCond = vsbp.condition || undefined;
-                const gdbbpCond = gdbbp.cond || undefined;
+                    // Ensure we can compare undefined and empty strings
+                    const vsbpCond = vsbp.condition || undefined;
+                    const gdbbpCond = gdbbp.cond || undefined;
 
-                return !!(gdbbp['original-location'] === `-function ${vsbp.name}`
-                    && vsbpCond === gdbbpCond);
-            });
+                    return !!(gdbbp['original-location'] === `-function ${vsbp.name}`
+                        && vsbpCond === gdbbpCond);
+                });
 
             // Delete before insert to avoid breakpoint clashes in gdb
             if (deletes.length > 0) {
@@ -428,13 +428,13 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected resolveBreakpoints<T>(vsbps: T[], gdbbps: mi.MIBreakpointInfo[],
         matchFn: (vsbp: T, gdbbp: mi.MIBreakpointInfo) => boolean)
-        : { inserts: T[]; existing: Array<{vsbp: T, gdbbp: mi.MIBreakpointInfo}>; deletes: string[]; } {
+        : { inserts: T[]; existing: Array<{ vsbp: T, gdbbp: mi.MIBreakpointInfo }>; deletes: string[]; } {
 
         const inserts = vsbps.filter((vsbp) => {
             return !gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
         });
 
-        const existing: Array<{vsbp: T, gdbbp: mi.MIBreakpointInfo}> = [];
+        const existing: Array<{ vsbp: T, gdbbp: mi.MIBreakpointInfo }> = [];
         vsbps.forEach((vsbp) => {
             const match = gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
             if (match) {

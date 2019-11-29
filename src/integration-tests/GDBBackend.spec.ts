@@ -12,7 +12,6 @@ import { expect } from 'chai';
 import { LaunchRequestArguments } from '..';
 import { GDBBackend } from '..';
 
-
 describe('GDB Backend Test Suite', function() {
     let gdb: GDBBackend;
 
