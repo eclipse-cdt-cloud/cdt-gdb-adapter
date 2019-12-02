@@ -302,9 +302,16 @@ export class GDBDebugSession extends LoggingDebugSession {
                     this.logPointMessages[gdbbp.number] = vsbp.logMessage;
                 }
 
+                let line = 0;
+                if (gdbbp.line) {
+                    line = parseInt(gdbbp.line, 10);
+                } else if (vsbp.line) {
+                    line = vsbp.line;
+                }
+
                 return {
                     id: parseInt(gdbbp.number, 10),
-                    line: vsbp.line || 0,
+                    line,
                     verified: true,
                 };
             };
