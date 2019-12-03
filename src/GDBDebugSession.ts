@@ -280,8 +280,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
-                    // TODO probably need more thorough checks than just line number
-                    return !!(gdbbp.line && parseInt(gdbbp.line, 10) === vsbp.line
+                    // Check with original-location so that relocated breakpoints are properly matched
+                    return !!(gdbbp['original-location'] === `${file}:${vsbp.line}`
                         && vsbpCond === gdbbpCond);
                 });
 
