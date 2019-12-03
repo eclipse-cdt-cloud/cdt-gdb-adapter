@@ -170,7 +170,9 @@ describe('breakpoints', async () => {
         expect(bpResp2.body.breakpoints[1].id).eq(bpResp1.body.breakpoints[0].id);
     });
 
-    it('reports back relocated line number', async () => {
+    // Pending support for testing multiple GDB versions - test requires
+    // GDB >= 8.2
+    it.skip('reports back relocated line number', async () => {
         const args = {
             source: {
                 name: 'count.c',
@@ -188,7 +190,9 @@ describe('breakpoints', async () => {
         expect(bpResp.body.breakpoints[0].line).eq(6);
     });
 
-    it('maintains gdb breakpoint when relocated', async () => {
+    // Pending support for testing multiple GDB versions - test requires
+    // GDB >= 8.2
+    it.skip('maintains gdb breakpoint when relocated', async () => {
         const args = {
             source: {
                 name: 'count.c',
@@ -211,7 +215,9 @@ describe('breakpoints', async () => {
         expect(bpResp2.body.breakpoints[0].id).eq(bpResp1.body.breakpoints[0].id);
     });
 
-    it('maintains gdb breakpoint when relocated - files with spaces', async () => {
+    // Pending support for testing multiple GDB versions - test requires
+    // GDB >= 8.2
+    it.skip('maintains gdb breakpoint when relocated - files with spaces', async () => {
         const args = {
             source: {
                 name: 'count space.c',
