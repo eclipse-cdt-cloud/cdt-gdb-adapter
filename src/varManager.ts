@@ -13,95 +13,102 @@ export interface VarObjType {
     isChild: boolean;
 }
 
-const variableMap: Map<string, VarObjType[]> = new Map<string, VarObjType[]>();
+export class VarManager {
+    protected readonly variableMap: Map<string, VarObjType[]> = new Map<string, VarObjType[]>();
 
-export function getKey(frameId: number, threadId: number, depth: number): string {
-    return `frame${frameId}_thread${threadId}_depth${depth}`;
-}
+    constructor(protected gdb: GDBBackend) {
+        this.gdb = gdb;
+    }
 
-export function getVars(frameId: number, threadId: number, depth: number): VarObjType[] | undefined {
-    return variableMap.get(getKey(frameId, threadId, depth));
-}
+    public getKey(frameId: number, threadId: number, depth: number): string {
+        return `frame${frameId}_thread${threadId}_depth${depth}`;
+    }
 
-export function getVar(frameId: number, threadId: number, depth: number, expression: string): VarObjType | undefined {
-    const vars = getVars(frameId, threadId, depth);
-    if (vars) {
-        for (const varobj of vars) {
-            if (varobj.expression === expression) {
-                return varobj;
+    public getVars(frameId: number, threadId: number, depth: number): VarObjType[] | undefined {
+        return this.variableMap.get(this.getKey(frameId, threadId, depth));
+    }
+
+    public getVar(frameId: number, threadId: number, depth: number, expression: string): VarObjType | undefined {
+        const vars = this.getVars(frameId, threadId, depth);
+        if (vars) {
+            for (const varobj of vars) {
+                if (varobj.expression === expression) {
+                    return varobj;
+                }
+            }
+        }
+        return;
+    }
+
+    public getVarByName(frameId: number, threadId: number, depth: number, varname: string)
+        : VarObjType | undefined {
+        const vars = this.getVars(frameId, threadId, depth);
+        if (vars) {
+            for (const varobj of vars) {
+                if (varobj.varname === varname) {
+                    return varobj;
+                }
+            }
+        }
+        return;
+    }
+
+    public addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
+        isChild: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
+        let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
+        if (!vars) {
+            vars = [];
+            this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
+        }
+        const varobj: VarObjType = {
+            varname: varCreateResponse.name, expression, numchild: varCreateResponse.numchild,
+            children: [], value: varCreateResponse.value, type: varCreateResponse.type, isVar, isChild,
+        };
+        vars.push(varobj);
+        return varobj;
+    }
+
+    public async removeVar(frameId: number, threadId: number, depth: number, varname: string)
+        : Promise<void> {
+        let deleteme: VarObjType | undefined;
+        const vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
+        if (vars) {
+            for (const varobj of vars) {
+                if (varobj.varname === varname) {
+                    deleteme = varobj;
+                    break;
+                }
+            }
+            if (deleteme) {
+                await sendVarDelete(this.gdb, { varname: deleteme.varname });
+                vars.splice(vars.indexOf(deleteme), 1);
+                for (const child of deleteme.children) {
+                    await this.removeVar(frameId, threadId, depth, child.varname);
+                }
             }
         }
     }
-    return;
-}
 
-export function getVarByName(frameId: number, threadId: number, depth: number, varname: string)
-    : VarObjType | undefined {
-    const vars = getVars(frameId, threadId, depth);
-    if (vars) {
-        for (const varobj of vars) {
-            if (varobj.varname === varname) {
-                return varobj;
+    public async updateVar(frameId: number, threadId: number, depth: number, varobj: VarObjType)
+        : Promise<VarObjType> {
+        let returnVar = varobj;
+        const vup = await sendVarUpdate(this.gdb, { threadId, name: varobj.varname });
+        const update = vup.changelist[0];
+        if (update) {
+            if (update.in_scope === 'true') {
+                if (update.name === varobj.varname) {
+                    // don't update the parent value to a child's value
+                    varobj.value = update.value;
+                }
+            } else {
+                this.removeVar(frameId, threadId, depth, varobj.varname);
+                await sendVarDelete(this.gdb, { varname: varobj.varname });
+                const createResponse = await sendVarCreate(this.gdb,
+                    { frame: 'current', expression: varobj.expression });
+                returnVar = this.addVar(frameId, threadId, depth, varobj.expression, varobj.isVar, varobj.isChild,
+                    createResponse);
             }
         }
+        return Promise.resolve(returnVar);
     }
-    return;
-}
-
-export function addVar(frameId: number, threadId: number, depth: number, expression: string, isVar: boolean,
-    isChild: boolean, varCreateResponse: MIVarCreateResponse): VarObjType {
-    let vars = variableMap.get(getKey(frameId, threadId, depth));
-    if (!vars) {
-        vars = [];
-        variableMap.set(getKey(frameId, threadId, depth), vars);
-    }
-    const varobj: VarObjType = {
-        varname: varCreateResponse.name, expression, numchild: varCreateResponse.numchild,
-        children: [], value: varCreateResponse.value, type: varCreateResponse.type, isVar, isChild,
-    };
-    vars.push(varobj);
-    return varobj;
-}
-
-export async function removeVar(gdb: GDBBackend, frameId: number, threadId: number, depth: number, varname: string)
-    : Promise<void> {
-    let deleteme: VarObjType | undefined;
-    const vars = variableMap.get(getKey(frameId, threadId, depth));
-    if (vars) {
-        for (const varobj of vars) {
-            if (varobj.varname === varname) {
-                deleteme = varobj;
-                break;
-            }
-        }
-        if (deleteme) {
-            await sendVarDelete(gdb, { varname: deleteme.varname });
-            vars.splice(vars.indexOf(deleteme), 1);
-            for (const child of deleteme.children) {
-                await removeVar(gdb, frameId, threadId, depth, child.varname);
-            }
-        }
-    }
-}
-
-export async function updateVar(gdb: GDBBackend, frameId: number, threadId: number, depth: number, varobj: VarObjType)
-    : Promise<VarObjType> {
-    let returnVar = varobj;
-    const vup = await sendVarUpdate(gdb, { threadId, name: varobj.varname });
-    const update = vup.changelist[0];
-    if (update) {
-        if (update.in_scope === 'true') {
-            if (update.name === varobj.varname) {
-                // don't update the parent value to a child's value
-                varobj.value = update.value;
-            }
-        } else {
-            removeVar(gdb, frameId, threadId, depth, varobj.varname);
-            await sendVarDelete(gdb, { varname: varobj.varname });
-            const createResponse = await sendVarCreate(gdb, { frame: 'current', expression: varobj.expression });
-            returnVar = addVar(frameId, threadId, depth, varobj.expression, varobj.isVar, varobj.isChild,
-                createResponse);
-        }
-    }
-    return Promise.resolve(returnVar);
 }

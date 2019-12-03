@@ -14,6 +14,7 @@ import { logger } from 'vscode-debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
+import { VarManager } from './varManager';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -36,9 +37,14 @@ export declare interface GDBBackend {
 
 export class GDBBackend extends events.EventEmitter {
     protected parser = new MIParser(this);
+    protected varMgr = new VarManager(this);
     protected out?: Writable;
     protected token = 0;
     protected proc?: ChildProcess;
+
+    get varManager(): VarManager {
+        return this.varMgr;
+    }
 
     public spawn(requestArgs: LaunchRequestArguments | AttachRequestArguments) {
         const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
