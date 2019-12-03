@@ -260,6 +260,11 @@ export class GDBDebugSession extends LoggingDebugSession {
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
+                // Ignore "children" breakpoint of <MULTIPLE> entries
+                if (gdbbp.number.includes('.')) {
+                    return false;
+                }
+
                 // Ignore other files
                 if (gdbbp.fullname !== file) {
                     return false;
@@ -326,7 +331,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                     continue;
                 }
-
 
                 let temporary = false;
                 let ignoreCount: number | undefined;
