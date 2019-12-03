@@ -67,6 +67,19 @@ export class CdtDebugClient extends DebugClient {
     }
 
     /**
+     * Send a continueRequest and wait for target to stop
+     */
+    public async continue(args: DebugProtocol.ContinueArguments, reason: string,
+        expected: {
+            path?: string | RegExp, line?: number, column?: number,
+        }): Promise<DebugProtocol.StackTraceResponse> {
+        const waitForStopped = this.assertStoppedLocation(reason, expected);
+        const continueResp = this.continueRequest(args);
+        await Promise.all([waitForStopped, continueResp]);
+        return waitForStopped;
+    }
+
+    /**
      * Send a nextRequest and wait for target to stop
      */
     public async next(args: DebugProtocol.NextArguments, expected: {

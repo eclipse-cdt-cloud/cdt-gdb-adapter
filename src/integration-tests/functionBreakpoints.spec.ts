@@ -77,8 +77,9 @@ describe('function breakpoints', async () => {
         await dc.configurationDoneRequest();
         await dc.assertStoppedLocation('function breakpoint', { line: 3, path: /functions.c$/ });
         const scope = await getScopes(dc);
-        await dc.continueRequest({ threadId: scope.thread.id });
-        await dc.assertStoppedLocation('function breakpoint', { line: 2, path: /functions_other.c$/ });
+        await dc.continue({ threadId: scope.thread.id },
+            'function breakpoint',
+            { line: 2, path: /functions_other.c$/ });
     });
 
     it('handles <MULTIPLE> function changes', async () => {
@@ -99,8 +100,9 @@ describe('function breakpoints', async () => {
         await dc.configurationDoneRequest();
         await dc.assertStoppedLocation('function breakpoint', { line: 6, path: /functions.c$/ });
         const scope = await getScopes(dc);
-        await dc.continueRequest({ threadId: scope.thread.id });
-        await dc.assertStoppedLocation('function breakpoint', { line: 5, path: /functions_other.c$/ });
+        await dc.continue({ threadId: scope.thread.id },
+            'function breakpoint',
+            { line: 5, path: /functions_other.c$/ });
     });
 
     it('handles <MULTIPLE> mixed with line breakpoints', async () => {
