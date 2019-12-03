@@ -432,10 +432,17 @@ export class GDBDebugSession extends LoggingDebugSession {
                     continue;
                 }
 
-                const vsbp = bp.vsbp;
-                const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, vsbp.name);
-                this.functionBreakpoints.push(gdbbp.bkpt.number);
-                actual.push(createActual(gdbbp.bkpt));
+                try {
+                    const vsbp = bp.vsbp;
+                    const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, vsbp.name);
+                    this.functionBreakpoints.push(gdbbp.bkpt.number);
+                    actual.push(createActual(gdbbp.bkpt));
+                } catch (err) {
+                    actual.push({
+                        verified: false,
+                        message: err.message,
+                    } as DebugProtocol.Breakpoint);
+                }
             }
 
             response.body = {
