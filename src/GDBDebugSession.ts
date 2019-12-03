@@ -258,12 +258,16 @@ export class GDBDebugSession extends LoggingDebugSession {
             // deleting ones not requested and inserting new ones.
 
             const result = await mi.sendBreakList(this.gdb);
+            const file = args.source.path as string;
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
+                // Ignore other files
+                if (gdbbp.fullname !== file) {
+                    return false;
+                }
                 // Ignore function breakpoints
                 return this.functionBreakpoints.indexOf(gdbbp.number) === -1;
             });
 
-            const file = args.source.path as string;
             const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints || [], gdbbps,
                 (vsbp, gdbbp) => {
 
@@ -277,8 +281,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const gdbbpCond = gdbbp.cond || undefined;
 
                     // TODO probably need more thorough checks than just line number
-                    return !!(gdbbp.fullname === file
-                        && gdbbp.line && parseInt(gdbbp.line, 10) === vsbp.line
+                    return !!(gdbbp.line && parseInt(gdbbp.line, 10) === vsbp.line
                         && vsbpCond === gdbbpCond);
                 });
 
