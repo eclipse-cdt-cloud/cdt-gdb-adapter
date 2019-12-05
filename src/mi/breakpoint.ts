@@ -10,8 +10,22 @@
 import { GDBBackend } from '../GDBBackend';
 import { MIBreakpointInfo, MIResponse } from './base';
 
+/**
+ * The generic MI Parser (see MIParser.handleAsyncData) cannot differentiate
+ * properly between an array or single result from -break-insert. Therefore
+ * we get two possible response types. The cleanupBreakpointResponse
+ * normalizes the response.
+ */
+interface MIBreakInsertResponseInternal extends MIResponse {
+    bkpt: MIBreakpointInfo[] | MIBreakpointInfo;
+}
 export interface MIBreakInsertResponse extends MIResponse {
     bkpt: MIBreakpointInfo;
+    /**
+     * In cases where GDB inserts multiple breakpoints, the "children"
+     * breakpoints will be stored in multiple field.
+     */
+    multiple?: MIBreakpointInfo[];
 }
 
 export interface MIBreakDeleteRequest {
@@ -35,6 +49,22 @@ export interface MIBreakListResponse extends MIResponse {
     };
 }
 
+function cleanupBreakpointResponse(raw: MIBreakInsertResponseInternal): MIBreakInsertResponse {
+    if (Array.isArray(raw.bkpt)) {
+        const bkpt = raw.bkpt[0];
+        const multiple = raw.bkpt.slice(1);
+        return {
+            _class: raw._class,
+            bkpt,
+            multiple,
+        };
+    }
+    return {
+        _class: raw._class,
+        bkpt: raw.bkpt,
+    };
+}
+
 export async function sendBreakInsert(gdb: GDBBackend, request: {
     temporary?: boolean;
     hardware?: boolean;
@@ -44,19 +74,22 @@ export async function sendBreakInsert(gdb: GDBBackend, request: {
     condition?: string;
     ignoreCount?: number;
     threadId?: string;
-    location: string;
+    source: string;
+    line: number;
 }): Promise<MIBreakInsertResponse> {
     // Todo: lots of options
     const temp = request.temporary ? '-t ' : '';
     const ignore = request.ignoreCount ? `-i ${request.ignoreCount} ` : '';
-    const escapedLocation = gdb.standardEscape(request.location);
-    const result = await gdb.sendCommand<MIBreakInsertResponse>(`-break-insert ${temp}${ignore}${escapedLocation}`);
-
+    const source = `--source ${gdb.standardEscape(request.source)}`;
+    const line = `--line ${request.line}`;
+    const command = `-break-insert ${temp}${ignore}${source} ${line}`;
+    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(command);
+    const clean = cleanupBreakpointResponse(result);
     if (request.condition) {
-        await gdb.sendCommand(`-break-condition ${result.bkpt.number} ${request.condition}`);
+        await gdb.sendCommand(`-break-condition ${clean.bkpt.number} ${request.condition}`);
     }
 
-    return result;
+    return clean;
 }
 
 export function sendBreakDelete(gdb: GDBBackend, request: {
@@ -69,7 +102,9 @@ export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
     return gdb.sendCommand('-break-list');
 }
 
-export function sendBreakFunctionInsert(gdb: GDBBackend, fn: string): Promise<MIBreakInsertResponse> {
+export async function sendBreakFunctionInsert(gdb: GDBBackend, fn: string): Promise<MIBreakInsertResponse> {
     const command = `-break-insert --function ${fn}`;
-    return gdb.sendCommand<MIBreakInsertResponse>(command);
+    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(command);
+    const clean = cleanupBreakpointResponse(result);
+    return clean;
 }

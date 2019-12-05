@@ -43,6 +43,14 @@ export class MIParser {
         this.commandQueue[token] = command;
     }
 
+    protected peek() {
+        if (this.pos < this.line.length) {
+            return this.line[this.pos];
+        } else {
+            return null;
+        }
+    }
+
     protected next() {
         if (this.pos < this.line.length) {
             return this.line[this.pos++];
@@ -187,13 +195,28 @@ export class MIParser {
     }
 
     protected handleAsyncData() {
-        const result: any = { };
+        const result: any = {};
 
         let c = this.next();
+        let name = 'missing';
         while (c === ',') {
-            const name = this.handleString();
-            if (this.next() === '=') {
-                result[name] = this.handleValue();
+            if (this.peek() !== '{') {
+                name = this.handleString();
+                if (this.next() === '=') {
+                    result[name] = this.handleValue();
+                }
+            } else {
+                // In some cases, such as -break-insert with multiple results
+                // GDB does not return an array, so we have to identify that
+                // case and convert result to an array
+                // An example is (many fields removed to make example readable):
+                // 3-break-insert --function staticfunc1
+                // tslint:disable-next-line: max-line-length
+                // 3^done,bkpt={number="1",addr="<MULTIPLE>"},{number="1.1",func="staticfunc1",file="functions.c"},{number="1.2",func="staticfunc1",file="functions_other.c"}
+                if (!Array.isArray(result[name])) {
+                    result[name] = [result[name]];
+                }
+                result[name].push(this.handleValue());
             }
             c = this.next();
         }
@@ -211,7 +234,7 @@ export class MIParser {
     protected handleLogStream() {
         const msg = this.handleCString();
         if (msg) {
-            logger.log(msg);
+            this.gdb.emit('consoleStreamOutput', msg, 'log');
         }
     }
 

@@ -259,16 +259,26 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
+            const gdbOriginalLocationPrefix = `-source ${file} -line `;
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
-                // Ignore other files
-                if (gdbbp.fullname !== file) {
+                // Ignore "children" breakpoint of <MULTIPLE> entries
+                if (gdbbp.number.includes('.')) {
                     return false;
                 }
+
+                // Ignore other files
+                if (!gdbbp['original-location']) {
+                    return false;
+                }
+                if (!gdbbp['original-location'].startsWith(gdbOriginalLocationPrefix)) {
+                    return false;
+                }
+
                 // Ignore function breakpoints
                 return this.functionBreakpoints.indexOf(gdbbp.number) === -1;
             });
 
-            const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints || [], gdbbps,
+            const { resolved, deletes } = this.resolveBreakpoints(args.breakpoints || [], gdbbps,
                 (vsbp, gdbbp) => {
 
                     // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
@@ -280,8 +290,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
-                    // TODO probably need more thorough checks than just line number
-                    return !!(gdbbp.line && parseInt(gdbbp.line, 10) === vsbp.line
+                    // Check with original-location so that relocated breakpoints are properly matched
+                    const gdbOriginalLocation = `${gdbOriginalLocationPrefix}${vsbp.line}`;
+                    return !!(gdbbp['original-location'] === gdbOriginalLocation
                         && vsbpCond === gdbbpCond);
                 });
 
@@ -302,25 +313,31 @@ export class GDBDebugSession extends LoggingDebugSession {
                     this.logPointMessages[gdbbp.number] = vsbp.logMessage;
                 }
 
+                let line = 0;
+                if (gdbbp.line) {
+                    line = parseInt(gdbbp.line, 10);
+                } else if (vsbp.line) {
+                    line = vsbp.line;
+                }
+
                 return {
                     id: parseInt(gdbbp.number, 10),
-                    line: vsbp.line || 0,
+                    line,
                     verified: true,
                 };
             };
 
-            const actual = existing.map((bp) => createState(bp.vsbp, bp.gdbbp));
+            const actual: DebugProtocol.Breakpoint[] = [];
 
-            existing.forEach((bp) => {
-                if (bp.vsbp.logMessage) {
-                    this.logPointMessages[bp.gdbbp.number] = bp.vsbp.logMessage;
+            for (const bp of resolved) {
+                if (bp.gdbbp) {
+                    actual.push(createState(bp.vsbp, bp.gdbbp));
+                    continue;
                 }
-            });
 
-            for (const vsbp of inserts) {
                 let temporary = false;
                 let ignoreCount: number | undefined;
-
+                const vsbp = bp.vsbp;
                 if (vsbp.hitCondition !== undefined) {
                     ignoreCount = parseInt(vsbp.hitCondition.replace(ignoreCountRegex, ''), 10);
                     if (isNaN(ignoreCount)) {
@@ -336,14 +353,21 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                 }
 
-                const gdbbp = await mi.sendBreakInsert(this.gdb, {
-                    location: `${file}:${vsbp.line}`,
-                    condition: vsbp.condition,
-                    temporary,
-                    ignoreCount,
-                });
-
-                actual.push(createState(vsbp, gdbbp.bkpt));
+                try {
+                    const gdbbp = await mi.sendBreakInsert(this.gdb, {
+                        source: file,
+                        line: vsbp.line,
+                        condition: vsbp.condition,
+                        temporary,
+                        ignoreCount,
+                    });
+                    actual.push(createState(vsbp, gdbbp.bkpt));
+                } catch (err) {
+                    actual.push({
+                        verified: false,
+                        message: err.message,
+                    } as DebugProtocol.Breakpoint);
+                }
             }
 
             response.body = {
@@ -380,7 +404,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 return this.functionBreakpoints.indexOf(gdbbp.number) > -1;
             });
 
-            const { inserts, existing, deletes } = this.resolveBreakpoints(args.breakpoints, gdbbps,
+            const { resolved, deletes } = this.resolveBreakpoints(args.breakpoints, gdbbps,
                 (vsbp, gdbbp) => {
 
                     // Always invalidate hit conditions as they have a one-way mapping to gdb ignore and temporary
@@ -407,12 +431,25 @@ export class GDBDebugSession extends LoggingDebugSession {
                 verified: true,
             });
 
-            const actual = existing.map((bp) => createActual(bp.gdbbp));
+            const actual: DebugProtocol.Breakpoint[] = [];
+            // const actual = existing.map((bp) => createActual(bp.gdbbp));
 
-            for (const vsbp of inserts) {
-                const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, vsbp.name);
-                this.functionBreakpoints.push(gdbbp.bkpt.number);
-                actual.push(createActual(gdbbp.bkpt));
+            for (const bp of resolved) {
+                if (bp.gdbbp) {
+                    actual.push(createActual(bp.gdbbp));
+                    continue;
+                }
+
+                try {
+                    const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, bp.vsbp.name);
+                    this.functionBreakpoints.push(gdbbp.bkpt.number);
+                    actual.push(createActual(gdbbp.bkpt));
+                } catch (err) {
+                    actual.push({
+                        verified: false,
+                        message: err.message,
+                    } as DebugProtocol.Breakpoint);
+                }
             }
 
             response.body = {
@@ -429,30 +466,38 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
+    /**
+     * Resolved which VS breakpoints needs to be installed, which
+     * GDB breakpoints need to be deleted and which VS breakpoints
+     * are already installed with which matching GDB breakpoint.
+     * @param vsbps VS DAP breakpoints
+     * @param gdbbps GDB breakpoints
+     * @param matchFn matcher to compare VS and GDB breakpoints
+     * @returns resolved -> array maintaining order of vsbps that identifies whether
+     * VS breakpoint has a cooresponding GDB breakpoint (gdbbp field set) or needs to be
+     * inserted (gdbbp field empty)
+     * deletes -> GDB bps ids that should be deleted because they don't match vsbps
+     */
     protected resolveBreakpoints<T>(vsbps: T[], gdbbps: mi.MIBreakpointInfo[],
         matchFn: (vsbp: T, gdbbp: mi.MIBreakpointInfo) => boolean)
-        : { inserts: T[]; existing: Array<{ vsbp: T, gdbbp: mi.MIBreakpointInfo }>; deletes: string[]; } {
+        : {
+            resolved: Array<{ vsbp: T, gdbbp?: mi.MIBreakpointInfo }>;
+            deletes: string[];
+        } {
 
-        const inserts = vsbps.filter((vsbp) => {
-            return !gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
-        });
-
-        const existing: Array<{ vsbp: T, gdbbp: mi.MIBreakpointInfo }> = [];
-        vsbps.forEach((vsbp) => {
-            const match = gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp));
-            if (match) {
-                existing.push({
+        const resolved: Array<{ vsbp: T, gdbbp?: mi.MIBreakpointInfo }>
+            = vsbps.map((vsbp) => {
+                return {
                     vsbp,
-                    gdbbp: match,
-                });
-            }
-        });
+                    gdbbp: gdbbps.find((gdbbp) => matchFn(vsbp, gdbbp)),
+                };
+            });
 
         const deletes = gdbbps.filter((gdbbp) => {
             return !vsbps.find((vsbp) => matchFn(vsbp, gdbbp));
         }).map((gdbbp) => gdbbp.number);
 
-        return { inserts, existing, deletes };
+        return { resolved, deletes };
     }
 
     protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,

@@ -180,7 +180,9 @@ describe('Variables Test Suite', function() {
         // skip ahead to array initialization
         const br = await dc.setBreakpointsRequest({ source: { path: varsSrc }, breakpoints: [{ line: 24 }] });
         expect(br.success).to.equal(true);
-        await dc.continueRequest({ threadId: scope.thread.id });
+        await dc.continue({ threadId: scope.thread.id },
+            'breakpoint',
+            { line: 24, path: varsSrc });
         scope = await getScopes(dc);
         expect(scope.scopes.body.scopes.length, 'Unexpected number of scopes returned').to.equal(1);
         // assert we can see the array and its elements
