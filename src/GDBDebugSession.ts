@@ -332,9 +332,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             for (const bp of resolved) {
                 if (bp.gdbbp) {
                     actual.push(createState(bp.vsbp, bp.gdbbp));
-                    if (bp.vsbp.logMessage) {
-                        this.logPointMessages[bp.gdbbp.number] = bp.vsbp.logMessage;
-                    }
                     continue;
                 }
 
@@ -444,8 +441,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 try {
-                    const vsbp = bp.vsbp;
-                    const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, vsbp.name);
+                    const gdbbp = await mi.sendBreakFunctionInsert(this.gdb, bp.vsbp.name);
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
                     actual.push(createActual(gdbbp.bkpt));
                 } catch (err) {
