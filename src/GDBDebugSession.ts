@@ -259,6 +259,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
+            const gdbOriginalLocationPrefix = `-source ${file} -line `;
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
                 // Ignore "children" breakpoint of <MULTIPLE> entries
                 if (gdbbp.number.includes('.')) {
@@ -266,9 +267,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 // Ignore other files
-                if (gdbbp.fullname !== file) {
+                if (!gdbbp['original-location']) {
                     return false;
                 }
+                if (!gdbbp['original-location'].startsWith(gdbOriginalLocationPrefix)) {
+                    return false;
+                }
+
                 // Ignore function breakpoints
                 return this.functionBreakpoints.indexOf(gdbbp.number) === -1;
             });
@@ -286,7 +291,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const gdbbpCond = gdbbp.cond || undefined;
 
                     // Check with original-location so that relocated breakpoints are properly matched
-                    return !!(gdbbp['original-location'] === `${file}:${vsbp.line}`
+                    const gdbOriginalLocation = `${gdbOriginalLocationPrefix}${vsbp.line}`;
+                    return !!(gdbbp['original-location'] === gdbOriginalLocation
                         && vsbpCond === gdbbpCond);
                 });
 
@@ -352,7 +358,8 @@ export class GDBDebugSession extends LoggingDebugSession {
 
                 try {
                     const gdbbp = await mi.sendBreakInsert(this.gdb, {
-                        location: `${file}:${vsbp.line}`,
+                        source: file,
+                        line: vsbp.line,
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,

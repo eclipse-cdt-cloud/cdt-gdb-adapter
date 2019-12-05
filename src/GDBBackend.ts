@@ -137,9 +137,7 @@ export class GDBBackend extends events.EventEmitter {
             }
             result += char;
         }
-        if (/\s/.test(arg)) {
-            result = `"${result}"`;
-        }
+        result = `"${result}"`;
         return result;
     }
 

@@ -74,13 +74,16 @@ export async function sendBreakInsert(gdb: GDBBackend, request: {
     condition?: string;
     ignoreCount?: number;
     threadId?: string;
-    location: string;
+    source: string;
+    line: number;
 }): Promise<MIBreakInsertResponse> {
     // Todo: lots of options
     const temp = request.temporary ? '-t ' : '';
     const ignore = request.ignoreCount ? `-i ${request.ignoreCount} ` : '';
-    const escapedLocation = gdb.standardEscape(request.location);
-    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(`-break-insert ${temp}${ignore}${escapedLocation}`);
+    const source = `--source ${gdb.standardEscape(request.source)}`;
+    const line = `--line ${request.line}`;
+    const command = `-break-insert ${temp}${ignore}${source} ${line}`;
+    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(command);
     const clean = cleanupBreakpointResponse(result);
     if (request.condition) {
         await gdb.sendCommand(`-break-condition ${clean.bkpt.number} ${request.condition}`);
