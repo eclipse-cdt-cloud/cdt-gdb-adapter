@@ -54,6 +54,10 @@
     "webpack-cli": "^3.1.2"
   },
   "files": [
+    "NOTICE",
+    "LICENSE",
+    "README.md",
+    "CONTRIBUTING.md",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.d.ts",
