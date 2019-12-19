@@ -32,10 +32,14 @@ export function sendStackListFramesRequest(gdb: GDBBackend, params: {
     noFrameFilters?: boolean;
     lowFrame?: number;
     highFrame?: number;
+    threadId?: number;
 }): Promise<{
     stack: MIFrameInfo[];
 }> {
     let command = '-stack-list-frames';
+    if (params.threadId) {
+        command += ` --thread ${params.threadId}`;
+    }
     if (params.noFrameFilters) {
         command += ' -no-frame-filters';
     }

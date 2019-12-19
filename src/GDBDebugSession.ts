@@ -543,7 +543,8 @@ export class GDBDebugSession extends LoggingDebugSession {
             const levels = args.levels ? (args.levels > depth ? depth : args.levels) : depth;
             const lowFrame = args.startFrame || 0;
             const highFrame = lowFrame + levels - 1;
-            const listResult = await mi.sendStackListFramesRequest(this.gdb, { lowFrame, highFrame });
+            const threadId = args.threadId;
+            const listResult = await mi.sendStackListFramesRequest(this.gdb, { lowFrame, highFrame, threadId });
 
             const stack = listResult.stack.map((frame) => {
                 let source;
