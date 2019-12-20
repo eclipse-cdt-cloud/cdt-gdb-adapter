@@ -25,6 +25,9 @@
     "url": "git+https://github.com/eclipse-cdt/cdt-gdb-adapter.git"
   },
   "author": "Eclipse CDT",
+  "contributors": [
+    "Rob Moran <github@thegecko.org>"
+  ],
   "license": "EPL-2.0",
   "bugs": {
     "url": "https://github.com/eclipse-cdt/cdt-gdb-adapter/issues"
