@@ -20,8 +20,12 @@ export interface MIStackListVariablesResponse extends MIResponse {
 
 export function sendStackInfoDepth(gdb: GDBBackend, params: {
     maxDepth: number;
+    threadId?: number;
 }): Promise<MIStackInfoDepthResponse> {
     let command = '-stack-info-depth';
+    if (params.threadId) {
+        command += ` --thread ${params.threadId}`;
+    }
     if (params.maxDepth) {
         command += ` ${params.maxDepth}`;
     }
