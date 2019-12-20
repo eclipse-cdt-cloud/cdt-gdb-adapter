@@ -515,7 +515,13 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected convertThread(thread: mi.MIThreadInfo) {
-        return new Thread(parseInt(thread.id, 10), thread.name ? thread.name : thread.id);
+        let name = thread.name || thread.id;
+
+        if (thread.details) {
+            name += ` (${thread.details})`;
+        }
+
+        return new Thread(parseInt(thread.id, 10), name);
     }
 
     protected async threadsRequest(response: DebugProtocol.ThreadsResponse): Promise<void> {
@@ -538,12 +544,12 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments): Promise<void> {
         try {
-            const depthResult = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100 });
+            const threadId = args.threadId;
+            const depthResult = await mi.sendStackInfoDepth(this.gdb, { maxDepth: 100, threadId });
             const depth = parseInt(depthResult.depth, 10);
             const levels = args.levels ? (args.levels > depth ? depth : args.levels) : depth;
             const lowFrame = args.startFrame || 0;
             const highFrame = lowFrame + levels - 1;
-            const threadId = args.threadId;
             const listResult = await mi.sendStackListFramesRequest(this.gdb, { lowFrame, highFrame, threadId });
 
             const stack = listResult.stack.map((frame) => {
