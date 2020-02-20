@@ -66,6 +66,9 @@
     "dist/**/*.d.ts",
     "src/**/*.cc",
     "src/**/*.h",
+    "src/*.ts",
+    "src/mi/*.ts",
+    "src/native/*.ts",
     "install.js",
     "binding.gyp"
   ]
