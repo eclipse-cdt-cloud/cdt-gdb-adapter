@@ -700,7 +700,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                     const children = await mi.sendVarListChildren(this.gdb, {
                         name: parentVarname,
-                        printValues: 'all-values',
+                        printValues: mi.MIVarPrintValues.all,
                     });
                     for (const child of children.children) {
                         if (this.isChildOfClass(child)) {
@@ -769,7 +769,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                     false, varCreateResponse);
             } else {
                 const vup = await mi.sendVarUpdate(this.gdb, {
-                    threadId: frame.threadId,
                     name: varobj.varname,
                 });
                 const update = vup.changelist[0];
@@ -1056,7 +1055,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 if (varobj.isVar && !varobj.isChild) {
                     // request update from GDB
                     const vup = await mi.sendVarUpdate(this.gdb, {
-                        threadId: frame.threadId,
                         name: varobj.varname,
                     });
                     // if changelist is length 0, update is undefined
@@ -1172,14 +1170,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         if (varobj) {
             children = await mi.sendVarListChildren(this.gdb, {
                 name: varobj.varname,
-                printValues: 'all-values',
+                printValues: mi.MIVarPrintValues.all,
             });
             parentVarname = varobj.varname;
         } else {
             // otherwise use the parent name passed in the variable reference
             children = await mi.sendVarListChildren(this.gdb, {
                 name: ref.varobjName,
-                printValues: 'all-values',
+                printValues: mi.MIVarPrintValues.all,
             });
         }
 
@@ -1191,7 +1189,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 const name = `${parentVarname}.${child.exp}`;
                 const objChildren = await mi.sendVarListChildren(this.gdb, {
                     name,
-                    printValues: 'all-values',
+                    printValues: mi.MIVarPrintValues.all,
                 });
                 for (const objChild of objChildren.children) {
                     const childName = `${name}.${objChild.exp}`;
