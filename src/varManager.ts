@@ -92,7 +92,7 @@ export class VarManager {
     public async updateVar(frameId: number, threadId: number, depth: number, varobj: VarObjType)
         : Promise<VarObjType> {
         let returnVar = varobj;
-        const vup = await sendVarUpdate(this.gdb, { threadId, name: varobj.varname });
+        const vup = await sendVarUpdate(this.gdb, { name: varobj.varname });
         const update = vup.changelist[0];
         if (update) {
             if (update.in_scope === 'true') {
