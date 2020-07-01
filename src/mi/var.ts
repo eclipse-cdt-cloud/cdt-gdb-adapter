@@ -10,6 +10,12 @@
 import { GDBBackend } from '../GDBBackend';
 import { MIResponse } from './base';
 
+export enum MIVarPrintValues {
+    no = "0",
+    all = "1",
+    simple = "2",
+}
+
 export interface MIVarCreateResponse extends MIResponse {
     name: string;
     numchild: string;
@@ -90,14 +96,14 @@ export function sendVarCreate(gdb: GDBBackend, params: {
 }
 
 export function sendVarListChildren(gdb: GDBBackend, params: {
-    printValues?: 'no-values' | 'all-values' | 'simple-values';
+    printValues?: MIVarPrintValues.no | MIVarPrintValues.all | MIVarPrintValues.simple;
     name: string;
     from?: number;
     to?: number;
 }): Promise<MIVarListChildrenResponse> {
     let command = '-var-list-children';
     if (params.printValues) {
-        command += ` --${params.printValues}`;
+        command += ` ${params.printValues}`;
     }
     command += ` ${params.name}`;
     if (params.from && params.to) {
@@ -108,12 +114,14 @@ export function sendVarListChildren(gdb: GDBBackend, params: {
 }
 
 export function sendVarUpdate(gdb: GDBBackend, params: {
-    threadId?: number;
     name?: string;
+    printValues?: MIVarPrintValues.no | MIVarPrintValues.all | MIVarPrintValues.simple;
 }): Promise<MIVarUpdateResponse> {
     let command = '-var-update';
-    if (params.threadId) {
-        command += ` ${params.threadId}`;
+    if (params.printValues) {
+        command += ` ${params.printValues}`;
+    } else {
+        command += ` ${MIVarPrintValues.all}`;
     }
     if (params.name) {
         command += ` ${params.name}`;
