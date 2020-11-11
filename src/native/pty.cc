@@ -9,19 +9,14 @@
  *********************************************************************/
 #include "napi.h"
 
-#ifndef WINDOWS
+#ifdef LINUX
 #include "scoped_fd.h"
 #include <cstdlib>
 #include <cstring>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <termios.h>
-#endif
 
-static void _throw_exc(const Napi::Env env, const char *message) {
-  throw Napi::Error::New(env, message);
-}
-
-#ifdef LINUX
 /**
  * Takes an error code and throws a pretty JS error such as:
  * "function_name: errormsg".
@@ -41,22 +36,21 @@ static void _throw_exc_format(const Napi::Env env, int error,
   } else {
     snprintf(message, ERRMSG_MAX_SIZE, "%s: %s", function_name, errmsg_buffer);
   }
-#endif
-
-  _throw_exc(env, message);
+#endif // _GNU_SOURCE
+  throw Napi::Error::New(env, message);
 }
-#endif
+#endif // LINUX
 
 static Napi::Value create_pty(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
 #ifndef LINUX
   // Windows does not supports TTYs.
-  _throw_exc(env, ".create_pty() is not supported on this platform");
+  throw Napi::Error::New(env, ".create_pty() is not supported on this platform");
 #else
   // master_fd will be closed on scope exit if an error is thrown.
-  scoped_fd master_fd(open("/dev/ptmx", O_RDWR));
+  scoped_fd master_fd(posix_openpt(O_RDWR | O_NOCTTY));
   if (master_fd == -1) {
-    _throw_exc(env, "open(\"/dev/ptmx\", O_RDWR) failed");
+    throw Napi::Error::New(env, "posix_openpt(O_RDWR | O_NOCTTY) failed");
   }
   const int SLAVE_NAME_MAX_SIZE = 128;
   char slave_name[SLAVE_NAME_MAX_SIZE];
