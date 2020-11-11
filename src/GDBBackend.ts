@@ -64,13 +64,13 @@ export class GDBBackend extends events.EventEmitter {
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
         const pty = new Pty();
-        let args = [gdb, '-ex', `new-ui mi2 ${pty.name}`];
+        let args = [gdb, '-ex', `new-ui mi2 ${pty.slave_name}`];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
         await cb(args);
-        this.out = pty.master;
-        return this.parser.parse(pty.master);
+        this.out = pty.writer;
+        return this.parser.parse(pty.reader);
     }
 
     public pause() {

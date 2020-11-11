@@ -7,21 +7,20 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
+
 import { expect } from 'chai';
-import * as fs from 'fs';
-import { Socket } from 'net';
-import * as os from 'os';
-import { Duplex, Readable, Writable } from 'stream';
+import { Readable, Writable } from 'stream';
 import { Pty } from '../native/pty';
+import { ForkedFile } from '../native/forked-file';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
 // tslint:disable:only-arrow-functions no-console no-bitwise
 
-if (os.platform() !== 'win32') {
+if (process.platform !== 'win32') {
     describe('pty creation', function() {
 
-        let master: Socket;
-        let slave: File;
+        let master: Pty;
+        let slave: ForkedFile;
 
         afterEach(function() {
             if (slave) {
@@ -32,95 +31,56 @@ if (os.platform() !== 'win32') {
             }
         });
 
-        it('should be able to open a ptmx/pts pair', async function() {
-            const pty = new Pty();
+        it('should be able to open a ptmx/pts pair', failFast(async function (fail) {
+            master = new Pty();
+            slave = new ForkedFile(master.slave_name);
 
-            master = pty.master;
-            slave = new File(fs.openSync(pty.name, 'r+'));
+            let masterBuffer = '';
+            let slaveBuffer = '';
 
-            function onError(error: Error) {
-                console.error(error);
-                throw error;
-            }
-            master.on('error', onError);
-            slave.on('error', onError);
+            master.reader.on('error', fail);
+            slave.reader.on('error', fail);
 
-            let masterStream = '';
-            let slaveStream = '';
+            master.reader.on('data', data => masterBuffer += data.toString('utf8'));
+            slave.reader.on('data', data => slaveBuffer += data.toString('utf8'));
 
-            master.on('data', (data) => masterStream += data.toString('utf8'));
-            slave.on('data', (data) => slaveStream += data.toString('utf8'));
+            await sendAndAwait('master2slave', master.writer, slave.reader);
 
-            expect(masterStream).eq('');
-            expect(slaveStream).eq('');
+            expect(masterBuffer).eq('');
+            expect(slaveBuffer).eq('master2slave');
 
-            await sendAndAwait('master2slave', master, slave);
+            await sendAndAwait('slave2master', slave.writer, master.reader);
 
-            expect(masterStream).eq('');
-            expect(slaveStream).eq('master2slave');
-
-            await sendAndAwait('slave2master', slave, master);
-
-            expect(masterStream).eq('slave2master');
-            expect(slaveStream).eq('master2slave');
-        });
-
+            expect(masterBuffer).eq('slave2master');
+            expect(slaveBuffer).eq('master2slave');
+        }));
     });
 
     /**
-     * Assumes that we are the only one writing to
-     * @param str
-     * @param writeTo
-     * @param readFrom
+     * What goes in should come out. Useful to test PTYs since what we write on `master` should come out of `slave` and vice-versa.
+     *
+     * @param str payload
+     * @param writeTo where to write into
+     * @param readFrom where to wait for it to come out
      */
     function sendAndAwait(str: string, writeTo: Writable, readFrom: Readable): Promise<void> {
-        return new Promise<void | never>((resolve) => {
+        return new Promise<void>((resolve) => {
             readFrom.once('data', () => resolve());
             writeTo.write(str);
         });
     }
 
-    class File extends Duplex {
-
-        public static MIN_BUFFER_SIZE = 1 << 10;
-        public static DEFAULT_BUFFER_SIZE = 1 << 16;
-
-        protected destroyed = false;
-        protected buffer: Buffer;
-
-        constructor(
-            public fd: number,
-            bufferSize: number = File.DEFAULT_BUFFER_SIZE,
-        ) {
-            super();
-            this.buffer = Buffer.alloc(Math.max(bufferSize, File.MIN_BUFFER_SIZE));
-        }
-
-        public _write(str: string, encoding: string, callback: (error?: Error | null) => void): void {
-            fs.write(this.fd, Buffer.from(str, encoding), callback);
-        }
-
-        public _read(size: number): void {
-            fs.read(this.fd, this.buffer, 0, Math.min(this.buffer.length, size), null,
-                (error, bytesRead, readBuffer) => {
-                    if (error) {
-                        if (this.destroyed) { return; }
-                        throw error;
-                    }
-                    this.push(readBuffer.slice(0, bytesRead));
-                },
-            );
-        }
-
-        public _destroy(error: Error | null, callback?: (error: Error | null) => void): void {
-            this.destroyed = true;
-            if (error) {
-                throw error;
-            }
-            if (callback) {
-                fs.close(this.fd, callback);
-            }
+    /**
+     * Allows an async function to reject early.
+     */
+    function failFast<T>(callback: (this: T, fail: (error: Error) => void) => Promise<void>): (this: T) => Promise<void> {
+        let fail!: (error: Error) => void;
+        const abortPromise = new Promise<never>((_, reject) => { fail = reject; })
+        return function (this: T) {
+            return Promise.race([
+                abortPromise,
+                callback.call(this, fail),
+            ]);
         }
     }
-
 }
