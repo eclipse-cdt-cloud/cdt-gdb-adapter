@@ -43,7 +43,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
     // provided, it is the delay after that regexp is seen.
     serverStartupDelay?: number;
-	// Specifies the working directory of gdbserver
+    // Specifies the working directory of gdbserver
     cwd?: string;
 }
 
@@ -111,7 +111,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         const target = args.target;
         const serverExe = target.server !== undefined ? target.server : 'gdbserver';
-		const serverCwd = target.cwd !== undefined ? target.cwd : args.cwd;
+        const serverCwd = target.cwd !== undefined ? target.cwd : args.cwd;
         const serverParams = target.serverParameters !== undefined
             ? target.serverParameters : ['--once', ':0', args.program];
 
