@@ -43,8 +43,6 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
     // provided, it is the delay after that regexp is seen.
     serverStartupDelay?: number;
-    // Specifies the working directory of gdbserver
-    cwd?: string;
 }
 
 export interface ImageAndSymbolArguments {
@@ -111,13 +109,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         const target = args.target;
         const serverExe = target.server !== undefined ? target.server : 'gdbserver';
-        const serverCwd = target.cwd !== undefined ? target.cwd : args.cwd;
         const serverParams = target.serverParameters !== undefined
             ? target.serverParameters : ['--once', ':0', args.program];
 
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
-            this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
+            this.gdbserver = spawn(serverExe, serverParams, { cwd: args.cwd });
             let gdbserverStartupResolved = false;
             let accumulatedStderr = '';
             let checkTargetPort = (data: any) => {
