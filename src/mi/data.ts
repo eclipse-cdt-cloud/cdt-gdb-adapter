@@ -47,6 +47,11 @@ export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: 
     return gdb.sendCommand(`-data-read-memory-bytes -o ${offset} "${address}" ${size}`);
 }
 
+export function sendDataWriteMemoryBytes(gdb: GDBBackend, memoryReference: string, data: string)
+    : Promise<void> {
+    return gdb.sendCommand(`-data-write-memory-bytes "${memoryReference}" "${data}"`);
+}
+
 export function sendDataEvaluateExpression(gdb: GDBBackend, expr: string)
     : Promise<MIGDBDataEvaluateExpressionResponse> {
     return gdb.sendCommand(`-data-evaluate-expression "${expr}"`);

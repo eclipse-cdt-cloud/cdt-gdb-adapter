@@ -16,7 +16,7 @@ import {
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
-import { sendDataReadMemoryBytes, sendDataDisassemble } from './mi/data';
+import { sendDataReadMemoryBytes, sendDataDisassemble, sendDataWriteMemoryBytes } from './mi/data';
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
 
@@ -98,10 +98,21 @@ export function hexToBase64(hex: string): string {
     const base64 = Buffer.from(hex, 'hex').toString('base64');
     // If the hex input includes characters that are not hex digits, Buffer.from() will return an empty buffer, and the base64 string will be empty.
     if (base64.length === 0 && hex.length !== 0) {
-        throw new Error('Received illformed hex input: ' + hex);
+        throw new Error('Received ill-formed hex input: ' + hex);
     }
     return base64;
 }
+
+export function base64ToHex(base64: string): string {
+    const buffer = Buffer.from(base64, 'base64');
+    // The caller likely passed in a value that left dangling bits that couldn't be assigned to a full byte and so
+    // were ignored by Buffer. We can't be sure what the client thought they wanted to do with those extra bits, so fail here.
+    if (buffer.length === 0 || !buffer.toString('base64').startsWith(base64)) {
+        throw new Error('Received ill-formed base64 input: ' + base64);
+    }
+    return buffer.toString('hex');
+}
+
 
 export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
@@ -138,6 +149,16 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected customRequest(command: string, response: DebugProtocol.Response, args: any): void {
         if (command === 'cdt-gdb-adapter/Memory') {
             this.memoryRequest(response as MemoryResponse, args);
+            // This custom request exists to allow tests in this repository to run arbitrary commands
+            // Use at your own risk!
+        } else if (command === 'cdt-gdb-tests/executeCommand') {
+            this.gdb.sendCommand(args.command).then(() => {
+                response.body = 'Ok'
+                this.sendResponse(response);
+            }).catch((e) => {
+                const message = e instanceof Error ? e.message : `Encountered a problem executing ${args.command}`;
+                this.sendErrorResponse(response, 1, message);
+            })
         } else {
             return super.customRequest(command, response, args);
         }
@@ -157,6 +178,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         // response.body.supportsSetExpression = true;
         response.body.supportsDisassembleRequest = true;
         response.body.supportsReadMemoryRequest = true;
+        response.body.supportsWriteMemoryRequest = true;
         this.sendResponse(response);
     }
 
@@ -960,6 +982,28 @@ export class GDBDebugSession extends LoggingDebugSession {
                 data: hexToBase64(result.memory[0].contents),
                 address: result.memory[0].begin,
             };
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(response, 1, err.message);
+        }
+    }
+
+    /**
+    * Implement the memoryWrite request.
+    */
+    protected async writeMemoryRequest(response: DebugProtocol.WriteMemoryResponse, args: DebugProtocol.WriteMemoryArguments) {
+        try {
+            const { memoryReference, data } = args
+            const typeofAddress = typeof memoryReference;
+            const typeofContent = typeof data;
+            if (typeofAddress !== 'string') {
+                throw new Error(`Invalid type for 'address', expected string, got ${typeofAddress}`);
+            }
+            if (typeofContent !== 'string') {
+                throw new Error(`Invalid type for 'content', expected string, got ${typeofContent}`);
+            }
+            const hexContent = base64ToHex(data);
+            await sendDataWriteMemoryBytes(this.gdb, memoryReference, hexContent);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(response, 1, err.message);
