@@ -1,6 +1,6 @@
 {
   "name": "cdt-gdb-adapter",
-  "version": "0.0.15",
+  "version": "0.0.16-next",
   "description": "gdb adapter implementing the debug adapter protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
