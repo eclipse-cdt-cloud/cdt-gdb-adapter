@@ -90,6 +90,19 @@ const ignoreCountRegex = /\s|\>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
 const arrayChildRegex = /[\d]+/;
 
+export function hexToBase64(hex: string): string {
+    // The buffer will ignore incomplete bytes (unpaired digits), so we need to catch that early
+    if (hex.length % 2 !== 0) {
+        throw new Error('Received memory with incomplete bytes.');
+    }
+    const base64 = Buffer.from(hex, 'hex').toString('base64');
+    // If the hex input includes characters that are not hex digits, Buffer.from() will return an empty buffer, and the base64 string will be empty.
+    if (base64.length === 0 && hex.length !== 0) {
+        throw new Error('Received illformed hex input: ' + hex);
+    }
+    return base64;
+}
+
 export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
@@ -944,7 +957,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             const result = await sendDataReadMemoryBytes(
                 this.gdb, args.memoryReference, args.count, args.offset);
             response.body = {
-                data: result.memory[0].contents,
+                data: hexToBase64(result.memory[0].contents),
                 address: result.memory[0].begin,
             };
             this.sendResponse(response);

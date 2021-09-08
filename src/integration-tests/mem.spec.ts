@@ -11,7 +11,7 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
-import { LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
+import { hexToBase64, LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
 
@@ -32,9 +32,9 @@ describe('Memory Test Suite', function() {
             program: memProgram,
             openGdbConsole,
         } as LaunchRequestArguments, {
-                path: memSrc,
-                line: 12,
-            });
+            path: memSrc,
+            line: 12,
+        });
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will
@@ -133,5 +133,35 @@ describe('Memory Test Suite', function() {
         })) as MemoryResponse;
 
         verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
+    });
+
+    it('Converts hex to base64 without loss', () => {
+        const base64ToHex = (base64: string): string => Buffer.from(base64, 'base64').toString('hex');
+        const normalize = (original: string): string => original.toLowerCase();
+
+        const wellFormedTestCases = [
+            'fe',
+            '00',
+            'fedc',
+            '00FE',
+            '29348798237abfeCCD',
+        ];
+
+        for (const test of wellFormedTestCases) {
+            expect(normalize(base64ToHex(hexToBase64(test)))).equal(normalize(test));
+        }
+    });
+
+    it('Throws an error if it detects ill-formed input', () => {
+        const illFormedTestCases = [
+            'f',
+            'fED',
+            '0fedc',
+            'zyxd'
+        ];
+
+        for (const test of illFormedTestCases) {
+            expect(() => hexToBase64(test)).throws();
+        }
     });
 });
