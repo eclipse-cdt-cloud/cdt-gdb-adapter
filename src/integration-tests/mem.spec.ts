@@ -11,7 +11,7 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
-import { hexToBase64, LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
+import { base64ToHex, hexToBase64, LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
 
@@ -135,11 +135,35 @@ describe('Memory Test Suite', function() {
         verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 
-    it('Converts hex to base64 without loss', () => {
-        const base64ToHex = (base64: string): string => Buffer.from(base64, 'base64').toString('hex');
+    const newValue = '123456789abcdef01234';
+    const writeArguments: DebugProtocol.WriteMemoryArguments = {
+        data: hexToBase64(newValue),
+        memoryReference: '&array'
+    };
+
+    it('can write memory', async function() {
+        const addrOfArray = parseInt((await dc.evaluateRequest({ expression: '&array', frameId: frame.id })).body.result);
+        await dc.send('writeMemory', writeArguments);
+        const memory = await dc.send('cdt-gdb-adapter/Memory', {
+            address: '&array',
+            length: 10,
+            offset: 0,
+        }) as MemoryResponse;
+        verifyMemoryReadResult(memory, newValue, addrOfArray);
+    });
+
+    it('fails when trying to write to read-only memory', async function() {
+        const addrOfArray = parseInt((await dc.evaluateRequest({ expression: '&array', frameId: frame.id })).body.result);
+        await dc.send('cdt-gdb-tests/executeCommand', { command: `-interpreter-exec console "mem ${addrOfArray} ${addrOfArray + 10} ro"` });
+        const error = await expectRejection(dc.send('writeMemory', writeArguments));
+
+        expect(error.message).contains('Cannot access memory');
+    });
+
+    it('Converts between hex and base64 without loss', () => {
         const normalize = (original: string): string => original.toLowerCase();
 
-        const wellFormedTestCases = [
+        const hexToBase64TestCases = [
             'fe',
             '00',
             'fedc',
@@ -147,21 +171,46 @@ describe('Memory Test Suite', function() {
             '29348798237abfeCCD',
         ];
 
-        for (const test of wellFormedTestCases) {
+        const base64ToHexTestCases = [
+            'bGlnaHQgd29yay4=',
+            'bGlnaHQgd29yaw==',
+            'abc',
+            'abcd',
+        ]
+
+        for (const test of hexToBase64TestCases) {
             expect(normalize(base64ToHex(hexToBase64(test)))).equal(normalize(test));
+        }
+
+        for (const test of base64ToHexTestCases) {
+            expect(hexToBase64(base64ToHex(test))).equal(test + '='.repeat((4 - (test.length % 4)) % 4));
         }
     });
 
     it('Throws an error if it detects ill-formed input', () => {
-        const illFormedTestCases = [
+        const hexToBase64TextCases = [
             'f',
             'fED',
             '0fedc',
             'zyxd'
         ];
 
-        for (const test of illFormedTestCases) {
+        const base64ToHexTestCases = [
+            'ab',
+            'a',
+            'a=',
+            'abcde',
+            '!A==',
+            '#$*@^',
+            '234bGeuTHEUDReuhr',
+        ];
+
+        for (const test of hexToBase64TextCases) {
             expect(() => hexToBase64(test)).throws();
+        }
+
+        for (const test of base64ToHexTestCases) {
+            expect(() => base64ToHex(test)).throws();
         }
     });
 });

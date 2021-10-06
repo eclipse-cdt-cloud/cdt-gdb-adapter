@@ -53,7 +53,7 @@ export class CdtDebugClient extends DebugClient {
     /**
      * Notify the Debug Adapter by default that this client supports `runInTerminal`.
      */
-    public initializeRequest(args?: DebugProtocol.InitializeRequestArguments) {
+    public initializeRequest(args?: DebugProtocol.InitializeRequestArguments): Promise<DebugProtocol.InitializeResponse> {
         if (!args) {
             args = {
                 supportsRunInTerminalRequest: true,

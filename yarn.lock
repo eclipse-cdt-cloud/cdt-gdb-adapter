@@ -2063,12 +2063,17 @@ mkdirp@0.5.1:
   dependencies:
     minimist "0.0.8"
 
-"mkdirp@>=0.5 0", mkdirp@^0.5.0, mkdirp@^0.5.1, mkdirp@^0.5.3, mkdirp@^0.5.4, mkdirp@^0.5.5:
+"mkdirp@>=0.5 0", mkdirp@^0.5.0, mkdirp@^0.5.1, mkdirp@^0.5.3, mkdirp@^0.5.4:
   version "0.5.5"
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-0.5.5.tgz#d91cefd62d1436ca0f41620e251288d420099def"
   integrity sha512-NKmAlESf6jMGym1++R0Ra7wvhV+wFW63FaSOFPwRahvea0gMUcGUhVeAg/0BC0wiv9ih5NYPB1Wn1UEI1/L+xQ==
   dependencies:
     minimist "^1.2.5"
+
+mkdirp@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-1.0.4.tgz#3eb5ed62622756d79a5f0e2a221dfebad75c2f7e"
+  integrity sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==
 
 mocha-jenkins-reporter@^0.4.1:
   version "0.4.6"
@@ -3317,18 +3322,18 @@ vscode-debugadapter-testsupport@^1.37.1:
   dependencies:
     vscode-debugprotocol "^1.48.0"
 
-vscode-debugadapter@^1.37.1:
-  version "1.48.0"
-  resolved "https://registry.yarnpkg.com/vscode-debugadapter/-/vscode-debugadapter-1.48.0.tgz#36a622dff1c3fda4ab22e67279a9de24f6eb797b"
-  integrity sha512-iyGPdfWYKaAA2HkOgQ2GKpHhA2ZuQxk1VGMQZrIR4OWy1FSADlDCPZVQIdUsD/OlhxVYwbj8K8xjmNEB4dENCw==
+vscode-debugadapter@^1.48.0:
+  version "1.49.0"
+  resolved "https://registry.yarnpkg.com/vscode-debugadapter/-/vscode-debugadapter-1.49.0.tgz#d82777adf31d2b5b651b23fecda9a8797fae98cc"
+  integrity sha512-nhes9zaLanFcHuchytOXGsLTGpU5qkz10mC9gVchiwNuX2Bljmc6+wsNbCyE5dOxu6F0pn3f+LEJQGMU1kcnvQ==
   dependencies:
-    mkdirp "^0.5.5"
-    vscode-debugprotocol "1.48.0"
+    mkdirp "^1.0.4"
+    vscode-debugprotocol "1.49.0"
 
-vscode-debugprotocol@1.48.0, vscode-debugprotocol@^1.37.0, vscode-debugprotocol@^1.48.0:
-  version "1.48.0"
-  resolved "https://registry.yarnpkg.com/vscode-debugprotocol/-/vscode-debugprotocol-1.48.0.tgz#6af8e3726572ff1716308e8fe50775882074ab12"
-  integrity sha512-l2jtStdGHAca+B/ZmGAeYZtx7NHT9SY9LL6g0QeImKZjQ9P7S6wB2lcBwz1LSkgFltwLw197yFULnCr36OkLKA==
+vscode-debugprotocol@1.49.0, vscode-debugprotocol@^1.48.0:
+  version "1.49.0"
+  resolved "https://registry.yarnpkg.com/vscode-debugprotocol/-/vscode-debugprotocol-1.49.0.tgz#1ed0b7d9f2806df24ca9f18bb3485de060f85166"
+  integrity sha512-3VkK3BmaqN+BGIq4lavWp9a2IC6VYgkWkkMQm6Sa5ACkhBF6ThJDrkP+/3rFE4G7F8+mM3f4bhhJhhMax2IPfg==
 
 watchpack-chokidar2@^2.0.1:
   version "2.0.1"
