@@ -12,7 +12,6 @@ import * as fs from 'fs';
 import { Duplex, Readable, Writable } from 'stream';
 
 export class File {
-
     protected _duplex: Duplex;
 
     get reader(): Readable {
@@ -23,24 +22,31 @@ export class File {
         return this._duplex;
     }
 
-    constructor(
-        public fd: number,
-    ) {
+    constructor(public fd: number) {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const _this = this;
         this._duplex = new Duplex({
             read(size) {
-                fs.read(fd, Buffer.alloc(size), 0, size, null, (err, bytesRead, buffer) => {
-                    if (err) {
-                        console.error(fd, err.message);
-                        this.push(null);
-                    } else {
-                        this.push(buffer.slice(0, bytesRead));
+                fs.read(
+                    fd,
+                    Buffer.alloc(size),
+                    0,
+                    size,
+                    null,
+                    (err, bytesRead, buffer) => {
+                        if (err) {
+                            console.error(fd, err.message);
+                            this.push(null);
+                        } else {
+                            this.push(buffer.slice(0, bytesRead));
+                        }
                     }
-                })
+                );
             },
             write(chunk, encoding, callback) {
-                const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+                const buffer = Buffer.isBuffer(chunk)
+                    ? chunk
+                    : Buffer.from(chunk, encoding);
                 fs.write(fd, buffer, (err, _written, _buffer) => {
                     callback(err);
                 });
@@ -48,8 +54,8 @@ export class File {
             destroy(err, callback) {
                 fs.close(fd, callback);
                 _this.fd = -1;
-            }
-        })
+            },
+        });
     }
 
     destroy() {

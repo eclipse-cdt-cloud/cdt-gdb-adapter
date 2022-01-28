@@ -12,35 +12,44 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
-    expectRejection, gdbPath, getScopes, openGdbConsole, Scope, standardBeforeEach, testProgramsDir,
+    expectRejection,
+    gdbPath,
+    getScopes,
+    openGdbConsole,
+    Scope,
+    standardBeforeEach,
+    testProgramsDir,
 } from './utils';
 
-describe('evaluate request', function() {
+describe('evaluate request', function () {
     let dc: CdtDebugClient;
     let scope: Scope;
 
     const evaluateProgram = path.join(testProgramsDir, 'evaluate');
     const evaluateSrc = path.join(testProgramsDir, 'evaluate.cpp');
 
-    beforeEach(async function() {
+    beforeEach(async function () {
         // Move the timeout out of the way if the adapter is going to be debugged.
         if (process.env.INSPECT_DEBUG_ADAPTER) {
             this.timeout(9999999);
         }
         dc = await standardBeforeEach();
-        await dc.hitBreakpoint({
-            verbose: true,
-            gdb: gdbPath,
-            program: evaluateProgram,
-            openGdbConsole,
-        }, {
+        await dc.hitBreakpoint(
+            {
+                verbose: true,
+                gdb: gdbPath,
+                program: evaluateProgram,
+                openGdbConsole,
+            },
+            {
                 path: evaluateSrc,
                 line: 2,
-            });
+            }
+        );
         scope = await getScopes(dc);
     });
 
-    afterEach(async function() {
+    afterEach(async function () {
         await dc.stop();
     });
 
@@ -49,7 +58,7 @@ describe('evaluate request', function() {
         this.timeout(9999999);
     }
 
-    it('should evaluate a simple literal expression', async function() {
+    it('should evaluate a simple literal expression', async function () {
         const res = await dc.evaluateRequest({
             context: 'repl',
             expression: '2 + 2',
@@ -59,21 +68,27 @@ describe('evaluate request', function() {
         expect(res.body.result).eq('4');
     });
 
-    it('should reject evaluation of expression without a frame', async function() {
-        const err = await expectRejection(dc.evaluateRequest({
-            context: 'repl',
-            expression: '2 + 2',
-        }));
+    it('should reject evaluation of expression without a frame', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: '2 + 2',
+            })
+        );
 
-        expect(err.message).eq('Evaluation of expression without frameId is not supported.');
+        expect(err.message).eq(
+            'Evaluation of expression without frameId is not supported.'
+        );
     });
 
-    it('should reject evaluation of invalid expression', async function() {
-        const err = await expectRejection(dc.evaluateRequest({
-            context: 'repl',
-            expression: '2 +',
-            frameId: scope.frame.id,
-        }));
+    it('should reject evaluation of invalid expression', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: '2 +',
+                frameId: scope.frame.id,
+            })
+        );
 
         expect(err.message).eq('-var-create: unable to create variable object');
     });

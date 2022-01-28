@@ -1,8 +1,8 @@
 # Integration tests
 
-This directory contains integration tests of the debug adapter.  Theses tests
+This directory contains integration tests of the debug adapter. Theses tests
 spawn a debug adapter process and, using a "fake" client, drive a debug
-session.  It uses the `gdb` in your `PATH`.
+session. It uses the `gdb` in your `PATH`.
 
 ## Running the tests
 
@@ -40,11 +40,11 @@ To debug, use the included launch configurations in the launch.json file for thi
 'Mocha All' will run all compiled spec.js files in the {workspace}/dist/integration-tests/ directory.
 'Mocha Current File' will run the currently open spec.js file in the editor window. You can find the corresponding spec.js file for a given spec.ts file in the directory listed above.
 
-Breakpoints can be set in the corresponding spec.ts file and will work as expected, though stepping 
-may take you into compiled or framework .js files. 
+Breakpoints can be set in the corresponding spec.ts file and will work as expected, though stepping
+may take you into compiled or framework .js files.
 It may be possible with some additional configuration to run the spec.ts files directly.
 
-When debugging a test case, you will likely want to run just this one.  You can
+When debugging a test case, you will likely want to run just this one. You can
 do so by changing the test declaration:
 
     it('should do something', ...)

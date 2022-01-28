@@ -13,32 +13,38 @@ import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    gdbPath,
+    openGdbConsole,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 
-describe('Disassembly Test Suite', function() {
-
+describe('Disassembly Test Suite', function () {
     let dc: CdtDebugClient;
     let frame: DebugProtocol.StackFrame;
     const disProgram = path.join(testProgramsDir, 'disassemble');
     const disSrc = path.join(testProgramsDir, 'disassemble.c');
 
-    beforeEach(async function() {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.hitBreakpoint({
-            gdb: gdbPath,
-            program: disProgram,
-            openGdbConsole,
-        } as LaunchRequestArguments, {
+        await dc.hitBreakpoint(
+            {
+                gdb: gdbPath,
+                program: disProgram,
+                openGdbConsole,
+            } as LaunchRequestArguments,
+            {
                 path: disSrc,
                 line: 2,
-            });
+            }
+        );
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will
         // normally be running code from ntdll or similar.
-        loop_threads:
-        for (const thread of threads.body.threads) {
+        loop_threads: for (const thread of threads.body.threads) {
             const stack = await dc.stackTraceRequest({ threadId: thread.id });
             if (stack.body.stackFrames.length >= 1) {
                 for (const f of stack.body.stackFrames) {
@@ -53,11 +59,11 @@ describe('Disassembly Test Suite', function() {
         expect(frame).not.eq(undefined);
     });
 
-    afterEach(async function() {
+    afterEach(async function () {
         await dc.stop();
     });
 
-    it('can disassemble', async function() {
+    it('can disassemble', async function () {
         const disassemble = (await dc.send('disassemble', {
             memoryReference: 'main',
             instructionCount: 100,
@@ -77,7 +83,7 @@ describe('Disassembly Test Suite', function() {
         }
     });
 
-    it('can disassemble with no source references', async function() {
+    it('can disassemble with no source references', async function () {
         // In this case we attempt to read from where there is no source,
         // GDB returns data in a different format in that case
         const disassemble = (await dc.send('disassemble', {
@@ -99,7 +105,7 @@ describe('Disassembly Test Suite', function() {
         }
     });
 
-    it('can handle disassemble at bad address', async function() {
+    it('can handle disassemble at bad address', async function () {
         const disassemble = (await dc.send('disassemble', {
             memoryReference: '0x0',
             instructionCount: 10,
@@ -118,5 +124,4 @@ describe('Disassembly Test Suite', function() {
             }
         }
     });
-
 });

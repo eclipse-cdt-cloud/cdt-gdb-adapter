@@ -14,12 +14,11 @@ import { Pty } from '../native/pty';
 import { ForkedFile } from '../native/forked-file';
 
 if (process.platform !== 'win32') {
-    describe('pty creation', function() {
-
+    describe('pty creation', function () {
         let master: Pty;
         let slave: ForkedFile;
 
-        afterEach(function() {
+        afterEach(function () {
             if (slave) {
                 slave.destroy();
             }
@@ -28,31 +27,39 @@ if (process.platform !== 'win32') {
             }
         });
 
-        it('should be able to open a ptmx/pts pair', failFast(async function (fail) {
-            master = new Pty();
-            slave = new ForkedFile(master.slave_name);
+        it(
+            'should be able to open a ptmx/pts pair',
+            failFast(async function (fail) {
+                master = new Pty();
+                slave = new ForkedFile(master.slave_name);
 
-            let masterBuffer = '';
-            let slaveBuffer = '';
+                let masterBuffer = '';
+                let slaveBuffer = '';
 
-            master.reader.on('error', fail);
-            slave.reader.on('error', fail);
+                master.reader.on('error', fail);
+                slave.reader.on('error', fail);
 
-            master.reader.on('data', data => masterBuffer += data.toString('utf8'));
-            slave.reader.on('data', data => slaveBuffer += data.toString('utf8'));
+                master.reader.on(
+                    'data',
+                    (data) => (masterBuffer += data.toString('utf8'))
+                );
+                slave.reader.on(
+                    'data',
+                    (data) => (slaveBuffer += data.toString('utf8'))
+                );
 
-            await sendAndAwait('master2slave', master.writer, slave.reader);
+                await sendAndAwait('master2slave', master.writer, slave.reader);
 
-            expect(masterBuffer).eq('');
-            expect(slaveBuffer).eq('master2slave');
+                expect(masterBuffer).eq('');
+                expect(slaveBuffer).eq('master2slave');
 
-            await sendAndAwait('slave2master', slave.writer, master.reader);
+                await sendAndAwait('slave2master', slave.writer, master.reader);
 
-            expect(masterBuffer).eq('slave2master');
-            expect(slaveBuffer).eq('master2slave');
-        }));
+                expect(masterBuffer).eq('slave2master');
+                expect(slaveBuffer).eq('master2slave');
+            })
+        );
     });
-
 }
 
 /**
@@ -62,7 +69,11 @@ if (process.platform !== 'win32') {
  * @param writeTo where to write into
  * @param readFrom where to wait for it to come out
  */
-function sendAndAwait(str: string, writeTo: Writable, readFrom: Readable): Promise<void> {
+function sendAndAwait(
+    str: string,
+    writeTo: Writable,
+    readFrom: Readable
+): Promise<void> {
     return new Promise<void>((resolve) => {
         readFrom.once('data', () => resolve());
         writeTo.write(str);
@@ -72,13 +83,14 @@ function sendAndAwait(str: string, writeTo: Writable, readFrom: Readable): Promi
 /**
  * Allows an async function to reject early.
  */
-function failFast<T>(callback: (this: T, fail: (error: Error) => void) => Promise<void>): (this: T) => Promise<void> {
+function failFast<T>(
+    callback: (this: T, fail: (error: Error) => void) => Promise<void>
+): (this: T) => Promise<void> {
     let fail!: (error: Error) => void;
-    const abortPromise = new Promise<never>((_, reject) => { fail = reject; })
+    const abortPromise = new Promise<never>((_, reject) => {
+        fail = reject;
+    });
     return function (this: T) {
-        return Promise.race([
-            abortPromise,
-            callback.call(this, fail),
-        ]);
-    }
+        return Promise.race([abortPromise, callback.call(this, fail)]);
+    };
 }

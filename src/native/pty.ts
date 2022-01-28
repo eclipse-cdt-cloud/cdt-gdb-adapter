@@ -23,7 +23,6 @@ interface PtyHandles {
  * Represents the master-side of a pseudo-terminal master/slave pair.
  */
 export class Pty extends File {
-
     public readonly slave_name: string;
 
     constructor() {

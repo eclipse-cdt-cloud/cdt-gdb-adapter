@@ -3,9 +3,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2015",
-    "lib": [
-      "es2015"
-    ],
+    "lib": ["es2015"],
     "outDir": "dist",
     "sourceMap": true,
     "declaration": true,
@@ -21,7 +19,5 @@
       }
     ]
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

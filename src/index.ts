@@ -11,4 +11,4 @@
 export * from './mi';
 export * from './GDBBackend';
 export * from './GDBDebugSession';
-export * from './GDBTargetDebugSession'
+export * from './GDBTargetDebugSession';

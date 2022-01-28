@@ -11,34 +11,46 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
-import { base64ToHex, hexToBase64, LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
+import {
+    base64ToHex,
+    hexToBase64,
+    LaunchRequestArguments,
+    MemoryResponse,
+} from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    expectRejection,
+    gdbPath,
+    openGdbConsole,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 
-describe('Memory Test Suite', function() {
-
+describe('Memory Test Suite', function () {
     let dc: CdtDebugClient;
     let frame: DebugProtocol.StackFrame;
     const memProgram = path.join(testProgramsDir, 'mem');
     const memSrc = path.join(testProgramsDir, 'mem.c');
 
-    beforeEach(async function() {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.hitBreakpoint({
-            gdb: gdbPath,
-            program: memProgram,
-            openGdbConsole,
-        } as LaunchRequestArguments, {
-            path: memSrc,
-            line: 12,
-        });
+        await dc.hitBreakpoint(
+            {
+                gdb: gdbPath,
+                program: memProgram,
+                openGdbConsole,
+            } as LaunchRequestArguments,
+            {
+                path: memSrc,
+                line: 12,
+            }
+        );
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will
         // normally be running code from ntdll or similar.
-        loop_threads:
-        for (const thread of threads.body.threads) {
+        loop_threads: for (const thread of threads.body.threads) {
             const stack = await dc.stackTraceRequest({ threadId: thread.id });
             if (stack.body.stackFrames.length >= 1) {
                 for (const f of stack.body.stackFrames) {
@@ -53,7 +65,7 @@ describe('Memory Test Suite', function() {
         expect(frame).not.eq(undefined);
     });
 
-    afterEach(async function() {
+    afterEach(async function () {
         await dc.stop();
     });
 
@@ -63,7 +75,11 @@ describe('Memory Test Suite', function() {
      *
      * `expectedAddress` should be an hexadecimal string, with the leading 0x.
      */
-    function verifyMemoryReadResult(resp: MemoryResponse, expectedBytes: string, expectedAddress: number) {
+    function verifyMemoryReadResult(
+        resp: MemoryResponse,
+        expectedBytes: string,
+        expectedAddress: number
+    ) {
         expect(resp.body.data).eq(expectedBytes);
         expect(resp.body.address).match(/^0x[0-9a-fA-F]+$/);
 
@@ -72,9 +88,12 @@ describe('Memory Test Suite', function() {
     }
 
     // Test reading memory using cdt-gdb-adapter's extension request.
-    it('can read memory', async function() {
+    it('can read memory', async function () {
         // Get the address of the array.
-        const addrOfArrayResp = await dc.evaluateRequest({ expression: '&array', frameId: frame.id });
+        const addrOfArrayResp = await dc.evaluateRequest({
+            expression: '&array',
+            frameId: frame.id,
+        });
         const addrOfArray = parseInt(addrOfArrayResp.body.result, 16);
 
         let mem = (await dc.send('cdt-gdb-adapter/Memory', {
@@ -99,17 +118,22 @@ describe('Memory Test Suite', function() {
         verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 
-    it('handles unable to read memory', async function() {
+    it('handles unable to read memory', async function () {
         // This test will only work for targets for which address 0 is not readable, which is good enough for now.
-        const err = await expectRejection(dc.send('cdt-gdb-adapter/Memory', {
-            address: '0',
-            length: 10,
-        }));
+        const err = await expectRejection(
+            dc.send('cdt-gdb-adapter/Memory', {
+                address: '0',
+                length: 10,
+            })
+        );
         expect(err.message).contains('Unable to read memory');
     });
 
-    it('can read memory with offset', async function() {
-        const addrOfArrayResp = await dc.evaluateRequest({ expression: '&array', frameId: frame.id });
+    it('can read memory with offset', async function () {
+        const addrOfArrayResp = await dc.evaluateRequest({
+            expression: '&array',
+            frameId: frame.id,
+        });
         const addrOfArray = parseInt(addrOfArrayResp.body.result, 16);
 
         // Test positive offset
@@ -136,24 +160,44 @@ describe('Memory Test Suite', function() {
     const newValue = '123456789abcdef01234';
     const writeArguments: DebugProtocol.WriteMemoryArguments = {
         data: hexToBase64(newValue),
-        memoryReference: '&array'
+        memoryReference: '&array',
     };
 
-    it('can write memory', async function() {
-        const addrOfArray = parseInt((await dc.evaluateRequest({ expression: '&array', frameId: frame.id })).body.result);
+    it('can write memory', async function () {
+        const addrOfArray = parseInt(
+            (
+                await dc.evaluateRequest({
+                    expression: '&array',
+                    frameId: frame.id,
+                })
+            ).body.result
+        );
         await dc.send('writeMemory', writeArguments);
-        const memory = await dc.send('cdt-gdb-adapter/Memory', {
+        const memory = (await dc.send('cdt-gdb-adapter/Memory', {
             address: '&array',
             length: 10,
             offset: 0,
-        }) as MemoryResponse;
+        })) as MemoryResponse;
         verifyMemoryReadResult(memory, newValue, addrOfArray);
     });
 
-    it('fails when trying to write to read-only memory', async function() {
-        const addrOfArray = parseInt((await dc.evaluateRequest({ expression: '&array', frameId: frame.id })).body.result);
-        await dc.send('cdt-gdb-tests/executeCommand', { command: `-interpreter-exec console "mem ${addrOfArray} ${addrOfArray + 10} ro"` });
-        const error = await expectRejection(dc.send('writeMemory', writeArguments));
+    it('fails when trying to write to read-only memory', async function () {
+        const addrOfArray = parseInt(
+            (
+                await dc.evaluateRequest({
+                    expression: '&array',
+                    frameId: frame.id,
+                })
+            ).body.result
+        );
+        await dc.send('cdt-gdb-tests/executeCommand', {
+            command: `-interpreter-exec console "mem ${addrOfArray} ${
+                addrOfArray + 10
+            } ro"`,
+        });
+        const error = await expectRejection(
+            dc.send('writeMemory', writeArguments)
+        );
 
         expect(error.message).contains('Cannot access memory');
     });
@@ -174,24 +218,23 @@ describe('Memory Test Suite', function() {
             'bGlnaHQgd29yaw==',
             'abc',
             'abcd',
-        ]
+        ];
 
         for (const test of hexToBase64TestCases) {
-            expect(normalize(base64ToHex(hexToBase64(test)))).equal(normalize(test));
+            expect(normalize(base64ToHex(hexToBase64(test)))).equal(
+                normalize(test)
+            );
         }
 
         for (const test of base64ToHexTestCases) {
-            expect(hexToBase64(base64ToHex(test))).equal(test + '='.repeat((4 - (test.length % 4)) % 4));
+            expect(hexToBase64(base64ToHex(test))).equal(
+                test + '='.repeat((4 - (test.length % 4)) % 4)
+            );
         }
     });
 
     it('Throws an error if it detects ill-formed input', () => {
-        const hexToBase64TextCases = [
-            'f',
-            'fED',
-            '0fedc',
-            'zyxd'
-        ];
+        const hexToBase64TextCases = ['f', 'fED', '0fedc', 'zyxd'];
 
         const base64ToHexTestCases = [
             'ab',

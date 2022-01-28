@@ -10,9 +10,12 @@
 import { GDBBackend } from '../GDBBackend';
 import { MIResponse } from './base';
 
-export function sendExecArguments(gdb: GDBBackend, params: {
-    arguments: string;
-}): Promise<MIResponse> {
+export function sendExecArguments(
+    gdb: GDBBackend,
+    params: {
+        arguments: string;
+    }
+): Promise<MIResponse> {
     return gdb.sendCommand(`-exec-arguments ${params.arguments}`);
 }
 

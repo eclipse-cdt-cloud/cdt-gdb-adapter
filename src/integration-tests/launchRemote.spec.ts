@@ -9,22 +9,24 @@
  *********************************************************************/
 
 import * as path from 'path';
-import { TargetLaunchRequestArguments, TargetLaunchArguments } from '../GDBTargetDebugSession';
+import {
+    TargetLaunchRequestArguments,
+    TargetLaunchArguments,
+} from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { standardBeforeEach, testProgramsDir } from './utils';
 import { gdbPath, openGdbConsole } from './utils';
 
-describe('launch remote', function() {
-
+describe('launch remote', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
 
-    beforeEach(async function() {
+    beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
     });
 
-    afterEach(async function() {
+    afterEach(async function () {
         await dc.stop();
     });
 
@@ -33,19 +35,21 @@ describe('launch remote', function() {
         this.timeout(9999999);
     }
 
-    it('can launch remote and hit a breakpoint', async function() {
-        await dc.hitBreakpoint({
-            verbose: true,
-            gdb: gdbPath,
-            program: emptyProgram,
-            openGdbConsole,
-            target : {
-                type: 'remote',
-            } as TargetLaunchArguments,
-        } as TargetLaunchRequestArguments, {
+    it('can launch remote and hit a breakpoint', async function () {
+        await dc.hitBreakpoint(
+            {
+                verbose: true,
+                gdb: gdbPath,
+                program: emptyProgram,
+                openGdbConsole,
+                target: {
+                    type: 'remote',
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments,
+            {
                 path: emptySrc,
                 line: 3,
-            });
+            }
+        );
     });
-
 });

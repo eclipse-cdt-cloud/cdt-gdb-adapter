@@ -1,0 +1,8 @@
+compile_commands.json
+node_modules
+/.vscode/ipch/
+/build/
+/dist/
+/test-reports/
+*.tgz
+yarn-error.log

@@ -12,10 +12,10 @@ import { expect } from 'chai';
 import { LaunchRequestArguments } from '..';
 import { GDBBackend } from '..';
 
-describe('GDB Backend Test Suite', function() {
+describe('GDB Backend Test Suite', function () {
     let gdb: GDBBackend;
 
-    beforeEach(function() {
+    beforeEach(function () {
         gdb = new GDBBackend();
         const args: LaunchRequestArguments = {
             program: 'foo',
@@ -23,7 +23,7 @@ describe('GDB Backend Test Suite', function() {
         gdb.spawn(args);
     });
 
-    afterEach(function() {
+    afterEach(function () {
         gdb.sendGDBExit();
     });
     // Move the timeout out of the way if the adapter is going to be debugged.
@@ -31,14 +31,14 @@ describe('GDB Backend Test Suite', function() {
         this.timeout(9999999);
     }
 
-    it('can read a value from -gdb-show', async function() {
+    it('can read a value from -gdb-show', async function () {
         const response = await gdb.sendGDBShow('width');
         expect(response.value).to.be.a('string');
         expect(Number(response.value)).to.be.not.equal(NaN);
         expect(Number(response.value)).to.be.greaterThan(0);
     });
 
-    it('can set a value using -gdb-set', async function() {
+    it('can set a value using -gdb-set', async function () {
         await gdb.sendGDBSet('width 88');
         const response = await gdb.sendGDBShow('width');
         expect(response.value).to.equal('88');

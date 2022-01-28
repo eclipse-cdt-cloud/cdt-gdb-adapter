@@ -75,11 +75,16 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        await dc.assertStoppedLocation('function breakpoint', { line: 3, path: /functions.c$/ });
+        await dc.assertStoppedLocation('function breakpoint', {
+            line: 3,
+            path: /functions.c$/,
+        });
         const scope = await getScopes(dc);
-        await dc.continue({ threadId: scope.thread.id },
+        await dc.continue(
+            { threadId: scope.thread.id },
             'function breakpoint',
-            { line: 2, path: /functions_other.c$/ });
+            { line: 2, path: /functions_other.c$/ }
+        );
     });
 
     it('handles <MULTIPLE> function changes', async () => {
@@ -98,11 +103,16 @@ describe('function breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
-        await dc.assertStoppedLocation('function breakpoint', { line: 6, path: /functions.c$/ });
+        await dc.assertStoppedLocation('function breakpoint', {
+            line: 6,
+            path: /functions.c$/,
+        });
         const scope = await getScopes(dc);
-        await dc.continue({ threadId: scope.thread.id },
+        await dc.continue(
+            { threadId: scope.thread.id },
             'function breakpoint',
-            { line: 5, path: /functions_other.c$/ });
+            { line: 5, path: /functions_other.c$/ }
+        );
     });
 
     it('handles <MULTIPLE> mixed with line breakpoints', async () => {
@@ -139,7 +149,10 @@ describe('function breakpoints', async () => {
         });
         expect(logOutput).does.not.contain('warning');
         await dc.configurationDoneRequest();
-        await dc.assertStoppedLocation('breakpoint', { line: 14, path: /functions.c$/ });
+        await dc.assertStoppedLocation('breakpoint', {
+            line: 14,
+            path: /functions.c$/,
+        });
     });
 
     it('fails gracefully on unknown function', async () => {
@@ -176,8 +189,12 @@ describe('function breakpoints', async () => {
         // Unlike with line breakpoints, function breakpoints don't
         // really report back anything other than the ID that can
         // be used to check order is maintained
-        expect(bpResp2.body.breakpoints[1].id).eq(bpResp1.body.breakpoints[0].id);
-        expect(bpResp2.body.breakpoints[0].id).not.eq(bpResp1.body.breakpoints[0].id);
+        expect(bpResp2.body.breakpoints[1].id).eq(
+            bpResp1.body.breakpoints[0].id
+        );
+        expect(bpResp2.body.breakpoints[0].id).not.eq(
+            bpResp1.body.breakpoints[0].id
+        );
     });
 
     it('deletes breakpoints in gdb when removed in IDE', async () => {
@@ -201,5 +218,4 @@ describe('function breakpoints', async () => {
         await dc.configurationDoneRequest();
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
     });
-
 });

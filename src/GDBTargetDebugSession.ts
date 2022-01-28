@@ -10,7 +10,10 @@
 
 import { GDBDebugSession, RequestArguments } from './GDBDebugSession';
 import {
-    InitializedEvent, Logger, logger, OutputEvent,
+    InitializedEvent,
+    Logger,
+    logger,
+    OutputEvent,
 } from '@vscode/debugadapter';
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -63,7 +66,8 @@ export interface TargetAttachRequestArguments extends RequestArguments {
     preRunCommands?: string[];
 }
 
-export interface TargetLaunchRequestArguments extends TargetAttachRequestArguments {
+export interface TargetLaunchRequestArguments
+    extends TargetAttachRequestArguments {
     target?: TargetLaunchArguments;
     imageAndSymbols?: ImageAndSymbolArguments;
     // Optional commands to issue between loading image and resuming target
@@ -73,47 +77,71 @@ export interface TargetLaunchRequestArguments extends TargetAttachRequestArgumen
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
 
-    protected async launchRequest(response: DebugProtocol.LaunchResponse,
-        args: TargetLaunchRequestArguments): Promise<void> {
+    protected async launchRequest(
+        response: DebugProtocol.LaunchResponse,
+        args: TargetLaunchRequestArguments
+    ): Promise<void> {
         try {
             this.setupCommonLoggerAndHandlers(args);
             await this.startGDBServer(args);
             await this.startGDBAndAttachToTarget(response, args);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
         }
     }
 
-    protected async attachRequest(response: DebugProtocol.AttachResponse,
-        args: TargetAttachRequestArguments): Promise<void> {
+    protected async attachRequest(
+        response: DebugProtocol.AttachResponse,
+        args: TargetAttachRequestArguments
+    ): Promise<void> {
         try {
             this.setupCommonLoggerAndHandlers(args);
             await this.startGDBAndAttachToTarget(response, args);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
         }
     }
 
     protected setupCommonLoggerAndHandlers(args: TargetLaunchRequestArguments) {
-        logger.setup(args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn, args.logFile || false);
+        logger.setup(
+            args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
+            args.logFile || false
+        );
 
         this.gdb.on('consoleStreamOutput', (output, category) => {
             this.sendEvent(new OutputEvent(output, category));
         });
 
-        this.gdb.on('execAsync', (resultClass, resultData) => this.handleGDBAsync(resultClass, resultData));
-        this.gdb.on('notifyAsync', (resultClass, resultData) => this.handleGDBNotify(resultClass, resultData));
+        this.gdb.on('execAsync', (resultClass, resultData) =>
+            this.handleGDBAsync(resultClass, resultData)
+        );
+        this.gdb.on('notifyAsync', (resultClass, resultData) =>
+            this.handleGDBNotify(resultClass, resultData)
+        );
     }
 
-    protected async startGDBServer(args: TargetLaunchRequestArguments): Promise<void> {
+    protected async startGDBServer(
+        args: TargetLaunchRequestArguments
+    ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
         }
         const target = args.target;
-        const serverExe = target.server !== undefined ? target.server : 'gdbserver';
+        const serverExe =
+            target.server !== undefined ? target.server : 'gdbserver';
         const serverCwd = target.cwd !== undefined ? target.cwd : args.cwd;
-        const serverParams = target.serverParameters !== undefined
-            ? target.serverParameters : ['--once', ':0', args.program];
+        const serverParams =
+            target.serverParameters !== undefined
+                ? target.serverParameters
+                : ['--once', ':0', args.program];
 
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
@@ -124,21 +152,34 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 // do nothing by default
             };
             if (target.port && target.serverParameters) {
-                setTimeout(() => {
-                    gdbserverStartupResolved = true;
-                    resolve();
-                }, target.serverStartupDelay !== undefined ? target.serverStartupDelay : 0);
+                setTimeout(
+                    () => {
+                        gdbserverStartupResolved = true;
+                        resolve();
+                    },
+                    target.serverStartupDelay !== undefined
+                        ? target.serverStartupDelay
+                        : 0
+                );
             } else {
                 checkTargetPort = (data: any) => {
-                    const regex = new RegExp(target.serverPortRegExp
-                        ? target.serverPortRegExp : 'Listening on port ([0-9]+)');
+                    const regex = new RegExp(
+                        target.serverPortRegExp
+                            ? target.serverPortRegExp
+                            : 'Listening on port ([0-9]+)'
+                    );
                     const m = regex.exec(data);
                     if (m !== null) {
                         target.port = m[1];
-                        setTimeout(() => {
-                            gdbserverStartupResolved = true;
-                            resolve();
-                        }, target.serverStartupDelay !== undefined ? target.serverStartupDelay : 0);
+                        setTimeout(
+                            () => {
+                                gdbserverStartupResolved = true;
+                                resolve();
+                            },
+                            target.serverStartupDelay !== undefined
+                                ? target.serverStartupDelay
+                                : 0
+                        );
                     }
                 };
             }
@@ -148,7 +189,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     checkTargetPort(data);
                 });
             } else {
-                throw new Error("Missing stdout in spawned gdbserver");
+                throw new Error('Missing stdout in spawned gdbserver');
             }
 
             if (this.gdbserver.stderr) {
@@ -159,7 +200,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     checkTargetPort(data);
                 });
             } else {
-                throw new Error("Missing stderr in spawned gdbserver");
+                throw new Error('Missing stderr in spawned gdbserver');
             }
 
             this.gdbserver.on('exit', (code) => {
@@ -182,8 +223,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
-    protected async startGDBAndAttachToTarget(response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
-        args: TargetAttachRequestArguments): Promise<void> {
+    protected async startGDBAndAttachToTarget(
+        response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
+        args: TargetAttachRequestArguments
+    ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
         }
@@ -196,44 +239,74 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
-                        await this.gdb.sendAddSymbolFile(args.imageAndSymbols.symbolFileName,
-                            args.imageAndSymbols.symbolOffset);
+                        await this.gdb.sendAddSymbolFile(
+                            args.imageAndSymbols.symbolFileName,
+                            args.imageAndSymbols.symbolOffset
+                        );
                     } else {
-                        await this.gdb.sendFileSymbolFile(args.imageAndSymbols.symbolFileName);
+                        await this.gdb.sendFileSymbolFile(
+                            args.imageAndSymbols.symbolFileName
+                        );
                     }
                 }
             }
 
             if (target.connectCommands === undefined) {
-                const targetType = target.type !== undefined ? target.type : 'remote';
+                const targetType =
+                    target.type !== undefined ? target.type : 'remote';
                 let defaultTarget: string[];
                 if (target.port !== undefined) {
-                    defaultTarget = [target.host !== undefined
-                        ? `${target.host}:${target.port}` : `localhost:${target.port}`];
+                    defaultTarget = [
+                        target.host !== undefined
+                            ? `${target.host}:${target.port}`
+                            : `localhost:${target.port}`,
+                    ];
                 } else {
                     defaultTarget = [];
                 }
-                const targetParameters = target.parameters !== undefined ? target.parameters : defaultTarget;
-                await mi.sendTargetSelectRequest(this.gdb, { type: targetType, parameters: targetParameters });
-                this.sendEvent(new OutputEvent(`connected to ${targetType} target ${targetParameters.join(' ')}`));
+                const targetParameters =
+                    target.parameters !== undefined
+                        ? target.parameters
+                        : defaultTarget;
+                await mi.sendTargetSelectRequest(this.gdb, {
+                    type: targetType,
+                    parameters: targetParameters,
+                });
+                this.sendEvent(
+                    new OutputEvent(
+                        `connected to ${targetType} target ${targetParameters.join(
+                            ' '
+                        )}`
+                    )
+                );
             } else {
                 await this.gdb.sendCommands(target.connectCommands);
-                this.sendEvent(new OutputEvent('connected to target using provided connectCommands'));
+                this.sendEvent(
+                    new OutputEvent(
+                        'connected to target using provided connectCommands'
+                    )
+                );
             }
 
             await this.gdb.sendCommands(args.initCommands);
 
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
-                    await this.gdb.sendLoad(args.imageAndSymbols.imageFileName,
-                        args.imageAndSymbols.imageOffset);
+                    await this.gdb.sendLoad(
+                        args.imageAndSymbols.imageFileName,
+                        args.imageAndSymbols.imageOffset
+                    );
                 }
             }
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
         }
     }
 }

@@ -18,10 +18,13 @@ export interface MIStackListVariablesResponse extends MIResponse {
     variables: MIVariableInfo[];
 }
 
-export function sendStackInfoDepth(gdb: GDBBackend, params: {
-    maxDepth: number;
-    threadId?: number;
-}): Promise<MIStackInfoDepthResponse> {
+export function sendStackInfoDepth(
+    gdb: GDBBackend,
+    params: {
+        maxDepth: number;
+        threadId?: number;
+    }
+): Promise<MIStackInfoDepthResponse> {
     let command = '-stack-info-depth';
     if (params.threadId) {
         command += ` --thread ${params.threadId}`;
@@ -32,12 +35,15 @@ export function sendStackInfoDepth(gdb: GDBBackend, params: {
     return gdb.sendCommand(command);
 }
 
-export function sendStackListFramesRequest(gdb: GDBBackend, params: {
-    noFrameFilters?: boolean;
-    lowFrame?: number;
-    highFrame?: number;
-    threadId?: number;
-}): Promise<{
+export function sendStackListFramesRequest(
+    gdb: GDBBackend,
+    params: {
+        noFrameFilters?: boolean;
+        lowFrame?: number;
+        highFrame?: number;
+        threadId?: number;
+    }
+): Promise<{
     stack: MIFrameInfo[];
 }> {
     let command = '-stack-list-frames';
@@ -56,19 +62,25 @@ export function sendStackListFramesRequest(gdb: GDBBackend, params: {
     return gdb.sendCommand(command);
 }
 
-export function sendStackSelectFrame(gdb: GDBBackend, params: {
-    framenum: number;
-}): Promise<MIResponse> {
+export function sendStackSelectFrame(
+    gdb: GDBBackend,
+    params: {
+        framenum: number;
+    }
+): Promise<MIResponse> {
     return gdb.sendCommand(`-stack-select-frame ${params.framenum}`);
 }
 
-export function sendStackListVariables(gdb: GDBBackend, params: {
-    thread?: number;
-    frame?: number;
-    printValues: 'no-values' | 'all-values' | 'simple-values';
-    noFrameFilters?: boolean;
-    skipUnavailable?: boolean;
-}): Promise<MIStackListVariablesResponse> {
+export function sendStackListVariables(
+    gdb: GDBBackend,
+    params: {
+        thread?: number;
+        frame?: number;
+        printValues: 'no-values' | 'all-values' | 'simple-values';
+        noFrameFilters?: boolean;
+        skipUnavailable?: boolean;
+    }
+): Promise<MIStackListVariablesResponse> {
     let command = '-stack-list-variables';
     if (params.noFrameFilters) {
         command += ' --no-frame-filters';

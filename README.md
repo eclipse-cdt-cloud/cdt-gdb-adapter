@@ -27,6 +27,6 @@ To debug the adapter there are multiple options depending on how this module is 
 if being used as a VS Code extension, see https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode#building.
 
 However, if you are writing tests and developing this module independently you can use the launch
-configurations in the launch.json with VS Code. For example, if you open a *.spec.ts file in VS Code
+configurations in the launch.json with VS Code. For example, if you open a \*.spec.ts file in VS Code
 you can use the "Mocha Current File & launch Server" configuration to automatically launch the debug
 server in one debugged process and the test in another.

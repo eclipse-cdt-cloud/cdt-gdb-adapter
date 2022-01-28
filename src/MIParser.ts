@@ -17,8 +17,7 @@ export class MIParser {
     protected commandQueue: any = {};
     protected waitReady?: (value?: void | PromiseLike<void>) => void;
 
-    constructor(protected gdb: GDBBackend) {
-    }
+    constructor(protected gdb: GDBBackend) {}
 
     public parse(stream: Readable): Promise<void> {
         return new Promise((resolve) => {
@@ -32,14 +31,19 @@ export class MIParser {
                     this.line = regexArray[1];
                     this.pos = 0;
                     this.handleLine();
-                    buff = buff.substring(regexArray[1].length + regexArray[2].length);
+                    buff = buff.substring(
+                        regexArray[1].length + regexArray[2].length
+                    );
                     regexArray = lineRegex.exec(buff);
                 }
             });
         });
     }
 
-    public queueCommand(token: number, command: (resultClass: string, resultData: any) => void) {
+    public queueCommand(
+        token: number,
+        command: (resultClass: string, resultData: any) => void
+    ) {
         this.commandQueue[token] = command;
     }
 
@@ -255,7 +259,9 @@ export class MIParser {
                 const rest = this.restOfLine();
                 for (let i = 0; i < rest.length; i += 1000) {
                     const msg = i === 0 ? 'result' : '-cont-';
-                    logger.verbose(`GDB ${msg}: ${token} ${rest.substr(i, 1000)}`);
+                    logger.verbose(
+                        `GDB ${msg}: ${token} ${rest.substr(i, 1000)}`
+                    );
                 }
                 const command = this.commandQueue[token];
                 if (command) {
@@ -278,7 +284,11 @@ export class MIParser {
             case '=': {
                 logger.verbose('GDB notify async: ' + this.restOfLine());
                 const notifyClass = this.handleString();
-                this.gdb.emit('notifyAsync', notifyClass, this.handleAsyncData());
+                this.gdb.emit(
+                    'notifyAsync',
+                    notifyClass,
+                    this.handleAsyncData()
+                );
                 break;
             }
             case '*': {
@@ -290,7 +300,11 @@ export class MIParser {
             case '+': {
                 logger.verbose('GDB status async: ' + this.restOfLine());
                 const statusClass = this.handleString();
-                this.gdb.emit('statusAsync', statusClass, this.handleAsyncData());
+                this.gdb.emit(
+                    'statusAsync',
+                    statusClass,
+                    this.handleAsyncData()
+                );
                 break;
             }
             case '(':
@@ -302,7 +316,11 @@ export class MIParser {
             default:
                 // treat as console output. happens on Windows.
                 this.back();
-                this.gdb.emit('consoleStreamOutput', this.restOfLine() + '\n', 'stdout');
+                this.gdb.emit(
+                    'consoleStreamOutput',
+                    this.restOfLine() + '\n',
+                    'stdout'
+                );
         }
     }
 }

@@ -11,9 +11,9 @@ import { GDBBackend } from '../GDBBackend';
 import { MIResponse } from './base';
 
 export enum MIVarPrintValues {
-    no = "0",
-    all = "1",
-    simple = "2",
+    no = '0',
+    all = '1',
+    simple = '2',
 }
 
 export interface MIVarCreateResponse extends MIResponse {
@@ -67,15 +67,18 @@ export interface MIVarPathInfoResponse {
 }
 
 function quote(expression: string) {
-    return `"${expression}"` ;
+    return `"${expression}"`;
 }
 
-export function sendVarCreate(gdb: GDBBackend, params: {
-    name?: string;
-    frameAddr?: string;
-    frame?: 'current' | 'floating';
-    expression: string;
-}): Promise<MIVarCreateResponse> {
+export function sendVarCreate(
+    gdb: GDBBackend,
+    params: {
+        name?: string;
+        frameAddr?: string;
+        frame?: 'current' | 'floating';
+        expression: string;
+    }
+): Promise<MIVarCreateResponse> {
     let command = '-var-create';
     command += ` ${params.name ? params.name : '-'}`;
     if (params.frameAddr) {
@@ -95,12 +98,18 @@ export function sendVarCreate(gdb: GDBBackend, params: {
     return gdb.sendCommand(command);
 }
 
-export function sendVarListChildren(gdb: GDBBackend, params: {
-    printValues?: MIVarPrintValues.no | MIVarPrintValues.all | MIVarPrintValues.simple;
-    name: string;
-    from?: number;
-    to?: number;
-}): Promise<MIVarListChildrenResponse> {
+export function sendVarListChildren(
+    gdb: GDBBackend,
+    params: {
+        printValues?:
+            | MIVarPrintValues.no
+            | MIVarPrintValues.all
+            | MIVarPrintValues.simple;
+        name: string;
+        from?: number;
+        to?: number;
+    }
+): Promise<MIVarListChildrenResponse> {
     let command = '-var-list-children';
     if (params.printValues) {
         command += ` ${params.printValues}`;
@@ -113,10 +122,16 @@ export function sendVarListChildren(gdb: GDBBackend, params: {
     return gdb.sendCommand(command);
 }
 
-export function sendVarUpdate(gdb: GDBBackend, params: {
-    name?: string;
-    printValues?: MIVarPrintValues.no | MIVarPrintValues.all | MIVarPrintValues.simple;
-}): Promise<MIVarUpdateResponse> {
+export function sendVarUpdate(
+    gdb: GDBBackend,
+    params: {
+        name?: string;
+        printValues?:
+            | MIVarPrintValues.no
+            | MIVarPrintValues.all
+            | MIVarPrintValues.simple;
+    }
+): Promise<MIVarUpdateResponse> {
     let command = '-var-update';
     if (params.printValues) {
         command += ` ${params.printValues}`;
@@ -131,29 +146,41 @@ export function sendVarUpdate(gdb: GDBBackend, params: {
     return gdb.sendCommand(command);
 }
 
-export function sendVarDelete(gdb: GDBBackend, params: {
-    varname: string,
-}): Promise<void> {
+export function sendVarDelete(
+    gdb: GDBBackend,
+    params: {
+        varname: string;
+    }
+): Promise<void> {
     const command = `-var-delete ${params.varname}`;
     return gdb.sendCommand(command);
 }
 
-export function sendVarAssign(gdb: GDBBackend, params: {
-    varname: string,
-    expression: string,
-}): Promise<MIVarAssignResponse> {
+export function sendVarAssign(
+    gdb: GDBBackend,
+    params: {
+        varname: string;
+        expression: string;
+    }
+): Promise<MIVarAssignResponse> {
     const command = `-var-assign ${params.varname} ${params.expression}`;
     return gdb.sendCommand(command);
 }
 
-export function sendVarEvaluateExpression(gdb: GDBBackend, params: {
-    varname: string,
-}): Promise<MIVarEvalResponse> {
+export function sendVarEvaluateExpression(
+    gdb: GDBBackend,
+    params: {
+        varname: string;
+    }
+): Promise<MIVarEvalResponse> {
     const command = `-var-evaluate-expression ${params.varname}`;
     return gdb.sendCommand(command);
 }
 
-export function sendVarInfoPathExpression(gdb: GDBBackend, name: string): Promise<MIVarPathInfoResponse> {
+export function sendVarInfoPathExpression(
+    gdb: GDBBackend,
+    name: string
+): Promise<MIVarPathInfoResponse> {
     const command = `-var-info-path-expression ${name}`;
     return gdb.sendCommand(command);
 }

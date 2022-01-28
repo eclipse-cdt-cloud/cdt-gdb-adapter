@@ -25,7 +25,6 @@ import { File } from './file';
  * which will properly release read callbacks for some reason.
  */
 export class ForkedFile {
-
     protected _fork: ChildProcess;
 
     get reader(): Readable {
@@ -42,14 +41,16 @@ export class ForkedFile {
         return this._fork.stdin;
     }
 
-    constructor(
-        readonly path: string,
-    ) {
+    constructor(readonly path: string) {
         // To write to the file, we'll write to stdin.
         // To read from the file, we'll read from stdout.
-        this._fork = spawn(process.execPath, [...process.execArgv, __filename, path], {
-            stdio: ['pipe', 'pipe', 'inherit'],
-        });
+        this._fork = spawn(
+            process.execPath,
+            [...process.execArgv, __filename, path],
+            {
+                stdio: ['pipe', 'pipe', 'inherit'],
+            }
+        );
     }
 
     destroy(): void {

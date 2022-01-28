@@ -42,42 +42,67 @@ export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
     value?: string;
 }
 
-export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number, offset = 0)
-    : Promise<MIDataReadMemoryBytesResponse> {
-    return gdb.sendCommand(`-data-read-memory-bytes -o ${offset} "${address}" ${size}`);
+export function sendDataReadMemoryBytes(
+    gdb: GDBBackend,
+    address: string,
+    size: number,
+    offset = 0
+): Promise<MIDataReadMemoryBytesResponse> {
+    return gdb.sendCommand(
+        `-data-read-memory-bytes -o ${offset} "${address}" ${size}`
+    );
 }
 
-export function sendDataWriteMemoryBytes(gdb: GDBBackend, memoryReference: string, data: string)
-    : Promise<void> {
-    return gdb.sendCommand(`-data-write-memory-bytes "${memoryReference}" "${data}"`);
+export function sendDataWriteMemoryBytes(
+    gdb: GDBBackend,
+    memoryReference: string,
+    data: string
+): Promise<void> {
+    return gdb.sendCommand(
+        `-data-write-memory-bytes "${memoryReference}" "${data}"`
+    );
 }
 
-export function sendDataEvaluateExpression(gdb: GDBBackend, expr: string)
-    : Promise<MIGDBDataEvaluateExpressionResponse> {
+export function sendDataEvaluateExpression(
+    gdb: GDBBackend,
+    expr: string
+): Promise<MIGDBDataEvaluateExpressionResponse> {
     return gdb.sendCommand(`-data-evaluate-expression "${expr}"`);
 }
 
 // https://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Data-Manipulation.html#The-_002ddata_002ddisassemble-Command
-export async function sendDataDisassemble(gdb: GDBBackend, startAddress: string, endAddress: string)
-    : Promise<MIDataDisassembleResponse> {
+export async function sendDataDisassemble(
+    gdb: GDBBackend,
+    startAddress: string,
+    endAddress: string
+): Promise<MIDataDisassembleResponse> {
     // -- 5 == mixed source and disassembly with raw opcodes
     // TODO needs to be -- 3 for GDB < 7.11 -- are we supporting such old versions?
-    const result: MIDataDisassembleResponse =
-        await gdb.sendCommand(`-data-disassemble -s "${startAddress}" -e "${endAddress}" -- 5`);
+    const result: MIDataDisassembleResponse = await gdb.sendCommand(
+        `-data-disassemble -s "${startAddress}" -e "${endAddress}" -- 5`
+    );
 
     // cleanup the result data
     if (result.asm_insns.length > 0) {
-        if (!Object.prototype.hasOwnProperty.call(result.asm_insns[0], 'line_asm_insn')) {
+        if (
+            !Object.prototype.hasOwnProperty.call(
+                result.asm_insns[0],
+                'line_asm_insn'
+            )
+        ) {
             // In this case there is no source info available for any instruction,
             // so GDB treats as if we had done -- 2 instead of -- 5
             // This bit of code remaps the data to look like it should
             const e: MIDataDisassembleSrcAndAsmLine = {
-                line_asm_insn: result.asm_insns as unknown as MIDataDisassembleAsmInsn[],
+                line_asm_insn:
+                    result.asm_insns as unknown as MIDataDisassembleAsmInsn[],
             } as MIDataDisassembleSrcAndAsmLine;
             result.asm_insns = [e];
         }
         for (const asmInsn of result.asm_insns) {
-            if (!Object.prototype.hasOwnProperty.call(asmInsn, 'line_asm_insn')) {
+            if (
+                !Object.prototype.hasOwnProperty.call(asmInsn, 'line_asm_insn')
+            ) {
                 asmInsn.line_asm_insn = [];
             }
         }

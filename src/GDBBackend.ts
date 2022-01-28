@@ -11,7 +11,10 @@ import { execFile, spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
-import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
+import {
+    AttachRequestArguments,
+    LaunchRequestArguments,
+} from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
@@ -21,19 +24,32 @@ export interface MIExecNextRequest {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface MIExecNextResponse extends MIResponse {
-}
+export interface MIExecNextResponse extends MIResponse {}
 
 export interface MIGDBShowResponse extends MIResponse {
     value?: string;
 }
 
 export declare interface GDBBackend {
-    on(event: 'consoleStreamOutput', listener: (output: string, category: string) => void): this;
-    on(event: 'execAsync' | 'notifyAsync' | 'statusAsync', listener: (asyncClass: string, data: any) => void): this;
+    on(
+        event: 'consoleStreamOutput',
+        listener: (output: string, category: string) => void
+    ): this;
+    on(
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        listener: (asyncClass: string, data: any) => void
+    ): this;
 
-    emit(event: 'consoleStreamOutput', output: string, category: string): boolean;
-    emit(event: 'execAsync' | 'notifyAsync' | 'statusAsync', asyncClass: string, data: any): boolean;
+    emit(
+        event: 'consoleStreamOutput',
+        output: string,
+        category: string
+    ): boolean;
+    emit(
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        asyncClass: string,
+        data: any
+    ): boolean;
 }
 
 export class GDBBackend extends events.EventEmitter {
@@ -55,14 +71,16 @@ export class GDBBackend extends events.EventEmitter {
         }
         this.proc = spawn(gdb, args);
         if (this.proc.stdin == null || this.proc.stdout == null) {
-            throw new Error("Spawned GDB does not have stdout or stdin");
+            throw new Error('Spawned GDB does not have stdout or stdin');
         }
         this.out = this.proc.stdin;
         return this.parser.parse(this.proc.stdout);
     }
 
-    public async spawnInClientTerminal(requestArgs: LaunchRequestArguments | AttachRequestArguments,
-        cb: (args: string[]) => Promise<void>) {
+    public async spawnInClientTerminal(
+        requestArgs: LaunchRequestArguments | AttachRequestArguments,
+        cb: (args: string[]) => Promise<void>
+    ) {
         const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
@@ -89,13 +107,17 @@ export class GDBBackend extends events.EventEmitter {
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
         const gdb = gdbPath || 'gdb';
         return new Promise<boolean>((resolve) => {
-            execFile(gdb, ['-nx', '-batch', '-ex', 'new-ui'], (error, stdout, stderr) => {
-                // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
-                // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'
-                // - gdb < 7.12 doesn't support the new-ui command, and outputs
-                //   'Undefined command: "new-ui".  Try "help".'
-                resolve(/^usage: new-ui/im.test(stderr));
-            });
+            execFile(
+                gdb,
+                ['-nx', '-batch', '-ex', 'new-ui'],
+                (error, stdout, stderr) => {
+                    // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
+                    // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'
+                    // - gdb < 7.12 doesn't support the new-ui command, and outputs
+                    //   'Undefined command: "new-ui".  Try "help".'
+                    resolve(/^usage: new-ui/im.test(stderr));
+                }
+            );
         });
     }
 
@@ -124,7 +146,13 @@ export class GDBBackend extends events.EventEmitter {
                             reject(new Error(resultData.msg));
                             break;
                         default:
-                            reject(new Error(`Unknown response ${resultClass}: ${JSON.stringify(resultData)}`));
+                            reject(
+                                new Error(
+                                    `Unknown response ${resultClass}: ${JSON.stringify(
+                                        resultData
+                                    )}`
+                                )
+                            );
                     }
                 });
                 this.out.write(`${token}${command}\n`);
@@ -152,19 +180,27 @@ export class GDBBackend extends events.EventEmitter {
     }
 
     public sendFileExecAndSymbols(program: string) {
-        return this.sendCommand(`-file-exec-and-symbols ${this.standardEscape(program)}`);
+        return this.sendCommand(
+            `-file-exec-and-symbols ${this.standardEscape(program)}`
+        );
     }
 
     public sendFileSymbolFile(symbols: string) {
-        return this.sendCommand(`-file-symbol-file ${this.standardEscape(symbols)}`);
+        return this.sendCommand(
+            `-file-symbol-file ${this.standardEscape(symbols)}`
+        );
     }
 
     public sendAddSymbolFile(symbols: string, offset: string) {
-        return this.sendCommand(`add-symbol-file ${this.standardEscape(symbols)} ${offset}`);
+        return this.sendCommand(
+            `add-symbol-file ${this.standardEscape(symbols)} ${offset}`
+        );
     }
 
     public sendLoad(imageFileName: string, imageOffset: string | undefined) {
-        return this.sendCommand(`load ${this.standardEscape(imageFileName)} ${imageOffset || ''}`);
+        return this.sendCommand(
+            `load ${this.standardEscape(imageFileName)} ${imageOffset || ''}`
+        );
     }
 
     public sendGDBSet(params: string) {

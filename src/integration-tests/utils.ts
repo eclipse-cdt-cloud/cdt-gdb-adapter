@@ -24,16 +24,22 @@ export interface Scope {
 export async function getScopes(
     dc: CdtDebugClient,
     threadIndex = 0,
-    stackIndex = 0,
+    stackIndex = 0
 ): Promise<Scope> {
     // threads
     const threads = await dc.threadsRequest();
-    expect(threads.body.threads.length, 'There are fewer threads than expected.').to.be.at.least(threadIndex + 1);
+    expect(
+        threads.body.threads.length,
+        'There are fewer threads than expected.'
+    ).to.be.at.least(threadIndex + 1);
     const thread = threads.body.threads[threadIndex];
     const threadId = thread.id;
     // stack trace
     const stack = await dc.stackTraceRequest({ threadId });
-    expect(stack.body.stackFrames.length, 'There are fewer stack frames than expected.').to.be.at.least(stackIndex + 1);
+    expect(
+        stack.body.stackFrames.length,
+        'There are fewer stack frames than expected.'
+    ).to.be.at.least(stackIndex + 1);
     const frame = stack.body.stackFrames[stackIndex];
     const frameId = frame.id;
     const scopes = await dc.scopesRequest({ frameId });
@@ -59,19 +65,32 @@ export function verifyVariable(
     expectedName: string,
     expectedType?: string,
     expectedValue?: string,
-    hasChildren = false,
+    hasChildren = false
 ) {
-    expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(expectedName);
+    expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(
+        expectedName
+    );
     if (expectedType) {
-        expect(variable.type, `The type of ${expectedName} is wrong`).to.equal(expectedType);
+        expect(variable.type, `The type of ${expectedName} is wrong`).to.equal(
+            expectedType
+        );
     }
     if (expectedValue) {
-        expect(variable.value, `The value of ${expectedName} is wrong`).to.equal(expectedValue);
+        expect(
+            variable.value,
+            `The value of ${expectedName} is wrong`
+        ).to.equal(expectedValue);
     }
     if (hasChildren) {
-        expect(variable.variablesReference, `${expectedName} has no children`).to.not.equal(0);
+        expect(
+            variable.variablesReference,
+            `${expectedName} has no children`
+        ).to.not.equal(0);
     } else {
-        expect(variable.variablesReference, `${expectedName} has children`).to.equal(0);
+        expect(
+            variable.variablesReference,
+            `${expectedName} has children`
+        ).to.equal(0);
     }
 }
 
@@ -80,29 +99,54 @@ export function compareVariable(
     varB: DebugProtocol.Variable,
     namesMatch: boolean,
     typesMatch: boolean,
-    valuesMatch: boolean,
+    valuesMatch: boolean
 ) {
     if (namesMatch) {
-        expect(varA.name, `The name of ${varA.name} and ${varB.name} does not match`).to.equal(varB.name);
+        expect(
+            varA.name,
+            `The name of ${varA.name} and ${varB.name} does not match`
+        ).to.equal(varB.name);
     } else {
-        expect(varA.name, `The name of ${varA.name} and ${varB.name} matches`).to.not.equal(varB.name);
+        expect(
+            varA.name,
+            `The name of ${varA.name} and ${varB.name} matches`
+        ).to.not.equal(varB.name);
     }
     if (typesMatch) {
-        expect(varA.type, `The type of ${varA.name} and ${varB.name} does not match`).to.equal(varB.type);
+        expect(
+            varA.type,
+            `The type of ${varA.name} and ${varB.name} does not match`
+        ).to.equal(varB.type);
     } else {
-        expect(varA.type, `The type of ${varA.name} and ${varB.name} match`).to.equal(varB.type);
+        expect(
+            varA.type,
+            `The type of ${varA.name} and ${varB.name} match`
+        ).to.equal(varB.type);
     }
     if (valuesMatch) {
-        expect(varA.value, `The value of ${varA.name} and ${varB.name} do not match`).to.equal(varB.value);
+        expect(
+            varA.value,
+            `The value of ${varA.name} and ${varB.name} do not match`
+        ).to.equal(varB.value);
     } else {
-        expect(varA.value, `The value of ${varA.name} and ${varB.name} matches`).to.not.equal(varB.value);
+        expect(
+            varA.value,
+            `The value of ${varA.name} and ${varB.name} matches`
+        ).to.not.equal(varB.value);
     }
 }
 
-export const testProgramsDir = path.join(__dirname, '..', '..', 'src', 'integration-tests', 'test-programs');
+export const testProgramsDir = path.join(
+    __dirname,
+    '..',
+    '..',
+    'src',
+    'integration-tests',
+    'test-programs'
+);
 
 // Run make once per mocha execution by having root-level before
-before(function(done) {
+before(function (done) {
     this.timeout(20000);
     cp.execSync('make', { cwd: testProgramsDir });
     done();
@@ -117,18 +161,27 @@ function getAdapterAndArgs(adapter?: string): string {
     return args;
 }
 
-export async function standardBeforeEach(adapter?: string): Promise<CdtDebugClient> {
-    const dc: CdtDebugClient = new CdtDebugClient('node', getAdapterAndArgs(adapter), 'cppdbg', {
-        shell: true,
-    });
+export async function standardBeforeEach(
+    adapter?: string
+): Promise<CdtDebugClient> {
+    const dc: CdtDebugClient = new CdtDebugClient(
+        'node',
+        getAdapterAndArgs(adapter),
+        'cppdbg',
+        {
+            shell: true,
+        }
+    );
     await dc.start(debugServerPort);
     await dc.initializeRequest();
 
     return dc;
 }
 
-export const openGdbConsole: boolean = process.argv.indexOf('--run-in-terminal') !== -1;
-export const isRemoteTest: boolean = process.argv.indexOf('--test-remote') !== -1;
+export const openGdbConsole: boolean =
+    process.argv.indexOf('--run-in-terminal') !== -1;
+export const isRemoteTest: boolean =
+    process.argv.indexOf('--test-remote') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
@@ -165,7 +218,9 @@ function getDefaultAdapterCli(): string {
     return 'debugTargetAdapter.js';
 }
 
-export interface LineTags { [key: string]: number; }
+export interface LineTags {
+    [key: string]: number;
+}
 
 /**
  * Find locations of tags in `sourceFile`.
@@ -180,8 +235,13 @@ export interface LineTags { [key: string]: number; }
  *             This function will modify the object in place to full the values
  *             with line number.
  */
-export function resolveLineTagLocations(sourceFile: string, tags: LineTags): void {
-    const lines = fs.readFileSync(sourceFile, { encoding: 'utf-8' }).split('\n');
+export function resolveLineTagLocations(
+    sourceFile: string,
+    tags: LineTags
+): void {
+    const lines = fs
+        .readFileSync(sourceFile, { encoding: 'utf-8' })
+        .split('\n');
 
     for (let i = 0; i < lines.length; i++) {
         for (const tag of Object.keys(tags)) {

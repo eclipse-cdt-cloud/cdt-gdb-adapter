@@ -167,7 +167,9 @@ describe('breakpoints', async () => {
         expect(bpResp2.body.breakpoints[0].line).eq(4);
         expect(bpResp2.body.breakpoints[1].line).eq(6);
         // Make sure the GDB id of the breakpoint on line 6 is unchanged
-        expect(bpResp2.body.breakpoints[1].id).eq(bpResp1.body.breakpoints[0].id);
+        expect(bpResp2.body.breakpoints[1].id).eq(
+            bpResp1.body.breakpoints[0].id
+        );
     });
 
     // Pending support for testing multiple GDB versions - test requires
@@ -212,7 +214,9 @@ describe('breakpoints', async () => {
         expect(bpResp2.body.breakpoints.length).to.eq(1);
         expect(bpResp2.body.breakpoints[0].line).eq(6);
         // Make sure the GDB id of the breakpoint is unchanged
-        expect(bpResp2.body.breakpoints[0].id).eq(bpResp1.body.breakpoints[0].id);
+        expect(bpResp2.body.breakpoints[0].id).eq(
+            bpResp1.body.breakpoints[0].id
+        );
     });
 
     // Pending support for testing multiple GDB versions - test requires
@@ -237,7 +241,9 @@ describe('breakpoints', async () => {
         expect(bpResp2.body.breakpoints.length).to.eq(1);
         expect(bpResp2.body.breakpoints[0].line).eq(9);
         // Make sure the GDB id of the breakpoint is unchanged
-        expect(bpResp2.body.breakpoints[0].id).eq(bpResp1.body.breakpoints[0].id);
+        expect(bpResp2.body.breakpoints[0].id).eq(
+            bpResp1.body.breakpoints[0].id
+        );
     });
 
     it('hits a conditional breakpoint', async () => {
