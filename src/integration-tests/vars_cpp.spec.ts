@@ -14,7 +14,7 @@ import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
     compareVariable, gdbPath, getScopes, openGdbConsole, resolveLineTagLocations, Scope,
-    standardBeforeEach, testProgramsDir, verifyVariable,
+    standardBeforeEach, testProgramsDir, verifyVariable, isRemoteTest,
 } from './utils';
 
 // Allow non-arrow functions: https://mochajs.org/#arrow-functions
@@ -32,13 +32,21 @@ describe('Variables CPP Test Suite', function() {
         'STOP HERE': 0,
     };
 
+    // Move the timeout out of the way if the adapter is going to be debugged.
+    if (process.env.INSPECT_DEBUG_ADAPTER) {
+        this.timeout(9999999);
+    } else if (isRemoteTest) {
+        // On remote targets it can take quite a while to read all libc/libm
+        // over the remote connection, so increase the timeout
+        this.timeout(5000);
+    }
+
     before(function() {
         resolveLineTagLocations(varsCppSrc, lineTags);
     });
 
     beforeEach(async function() {
         dc = await standardBeforeEach();
-
         await dc.hitBreakpoint({
             verbose: true,
             gdb: gdbPath,
@@ -55,11 +63,6 @@ describe('Variables CPP Test Suite', function() {
     afterEach(async function() {
         await dc.stop();
     });
-
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    }
 
     it('can read and set a cpp object variable', async function() {
         // check the initial conditions of the two variables

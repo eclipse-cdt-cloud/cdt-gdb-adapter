@@ -128,6 +128,7 @@ export async function standardBeforeEach(adapter?: string): Promise<CdtDebugClie
 }
 
 export const openGdbConsole: boolean = process.argv.indexOf('--run-in-terminal') !== -1;
+export const isRemoteTest: boolean = process.argv.indexOf('--test-remote') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
@@ -158,8 +159,7 @@ function getDebugServerPortCli(): number | undefined {
 }
 
 function getDefaultAdapterCli(): string {
-    const keyIndex = process.argv.indexOf('--test-remote');
-    if (keyIndex === -1) {
+    if (!isRemoteTest) {
         return 'debugAdapter.js';
     }
     return 'debugTargetAdapter.js';
