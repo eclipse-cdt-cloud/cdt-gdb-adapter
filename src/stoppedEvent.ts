@@ -7,8 +7,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { Event } from 'vscode-debugadapter';
-import { DebugProtocol } from 'vscode-debugprotocol';
+import { Event } from '@vscode/debugadapter';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 export class StoppedEvent extends Event implements DebugProtocol.StoppedEvent {
     public body: {

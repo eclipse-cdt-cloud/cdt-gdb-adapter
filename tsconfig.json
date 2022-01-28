@@ -10,6 +10,7 @@
     "sourceMap": true,
     "declaration": true,
     "strict": true,
+    "useUnknownInCatchVariables": false,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,

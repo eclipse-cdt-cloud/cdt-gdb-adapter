@@ -29,15 +29,19 @@ describe('attach remote', function() {
         dc = await standardBeforeEach('debugTargetAdapter.js');
         gdbserver = cp.spawn(gdbServerPath, [':0', emptyProgram], { cwd: testProgramsDir });
         port = await new Promise<number>((resolve, reject) => {
-            gdbserver.stderr.on('data', (data) => {
-                const line = String(data);
-                const LISTENING_ON_PORT = 'Listening on port ';
-                const index = line.indexOf(LISTENING_ON_PORT);
-                if (index >= 0) {
-                    const portStr = line.substr(index + LISTENING_ON_PORT.length, 6).trim();
-                    resolve(parseInt(portStr, 10));
-                }
-            });
+            if (gdbserver.stderr) {
+                gdbserver.stderr.on('data', (data) => {
+                    const line = String(data);
+                    const LISTENING_ON_PORT = 'Listening on port ';
+                    const index = line.indexOf(LISTENING_ON_PORT);
+                    if (index >= 0) {
+                        const portStr = line.substr(index + LISTENING_ON_PORT.length, 6).trim();
+                        resolve(parseInt(portStr, 10));
+                    }
+                });
+            } else {
+                reject(new Error('Missing stderr on spawned gdbserver'));
+            }
         });
     });
 

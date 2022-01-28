@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { Readable } from 'stream';
-import { logger } from 'vscode-debugadapter/lib/logger';
+import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from './GDBBackend';
 
 export class MIParser {

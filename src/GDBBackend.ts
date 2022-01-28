@@ -10,7 +10,7 @@
 import { execFile, spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
-import { logger } from 'vscode-debugadapter/lib/logger';
+import { logger } from '@vscode/debugadapter/lib/logger';
 import { AttachRequestArguments, LaunchRequestArguments } from './GDBDebugSession';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
@@ -53,6 +53,9 @@ export class GDBBackend extends events.EventEmitter {
             args = args.concat(requestArgs.gdbArguments);
         }
         this.proc = spawn(gdb, args);
+        if (this.proc.stdin == null || this.proc.stdout == null) {
+            throw new Error("Spawned GDB does not have stdout or stdin");
+        }
         this.out = this.proc.stdin;
         return this.parser.parse(this.proc.stdout);
     }

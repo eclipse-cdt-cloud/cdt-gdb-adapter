@@ -11,9 +11,9 @@
 import { GDBDebugSession, RequestArguments } from './GDBDebugSession';
 import {
     InitializedEvent, Logger, logger, OutputEvent,
-} from 'vscode-debugadapter';
+} from '@vscode/debugadapter';
 import * as mi from './mi';
-import { DebugProtocol } from 'vscode-debugprotocol';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
 
 export interface TargetAttachArguments {
@@ -142,18 +142,25 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     }
                 };
             }
+            if (this.gdbserver.stdout) {
+                this.gdbserver.stdout.on('data', (data) => {
+                    this.sendEvent(new OutputEvent(data.toString(), 'server'));
+                    checkTargetPort(data);
+                });
+            } else {
+                throw new Error("Missing stdout in spawned gdbserver");
+            }
 
-            this.gdbserver.stdout.on('data', (data) => {
-                this.sendEvent(new OutputEvent(data.toString(), 'server'));
-                checkTargetPort(data);
-            });
-
-            this.gdbserver.stderr.on('data', (data) => {
-                const err = data.toString();
-                accumulatedStderr += err;
-                this.sendEvent(new OutputEvent(err, 'server'));
-                checkTargetPort(data);
-            });
+            if (this.gdbserver.stderr) {
+                this.gdbserver.stderr.on('data', (data) => {
+                    const err = data.toString();
+                    accumulatedStderr += err;
+                    this.sendEvent(new OutputEvent(err, 'server'));
+                    checkTargetPort(data);
+                });
+            } else {
+                throw new Error("Missing stderr in spawned gdbserver");
+            }
 
             this.gdbserver.on('exit', (code) => {
                 const exitmsg = `${serverExe} has exited with code ${code}`;

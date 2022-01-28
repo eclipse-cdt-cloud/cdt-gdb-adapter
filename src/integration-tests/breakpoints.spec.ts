@@ -20,7 +20,7 @@ import {
     getScopes,
     verifyVariable,
 } from './utils';
-import { DebugProtocol } from 'vscode-debugprotocol';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 describe('breakpoints', async () => {
     let dc: CdtDebugClient;

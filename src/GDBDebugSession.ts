@@ -12,8 +12,8 @@ import * as path from 'path';
 import {
     Handles, InitializedEvent, Logger, logger, LoggingDebugSession, OutputEvent, Response, Scope, Source,
     StackFrame, TerminatedEvent, Thread,
-} from 'vscode-debugadapter';
-import { DebugProtocol } from 'vscode-debugprotocol';
+} from '@vscode/debugadapter';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBBackend } from './GDBBackend';
 import * as mi from './mi';
 import { sendDataReadMemoryBytes, sendDataDisassemble, sendDataWriteMemoryBytes } from './mi/data';
@@ -204,7 +204,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err);
         }
     }
 

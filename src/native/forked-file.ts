@@ -29,10 +29,16 @@ export class ForkedFile {
     protected _fork: ChildProcess;
 
     get reader(): Readable {
+        if (!this._fork.stdout) {
+            throw new Error('Forked process missing stdout');
+        }
         return this._fork.stdout;
     }
 
     get writer(): Writable {
+        if (!this._fork.stdin) {
+            throw new Error('Forked process missing stdin');
+        }
         return this._fork.stdin;
     }
 

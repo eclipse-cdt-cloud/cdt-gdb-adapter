@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import * as cp from 'child_process';
-import { DebugClient } from 'vscode-debugadapter-testsupport';
-import { DebugProtocol } from 'vscode-debugprotocol';
+import { DebugClient } from '@vscode/debugadapter-testsupport';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 // tslint:disable:no-string-literal
 

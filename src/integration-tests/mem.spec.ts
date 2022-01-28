@@ -10,7 +10,7 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { DebugProtocol } from 'vscode-debugprotocol/lib/debugProtocol';
+import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
 import { base64ToHex, hexToBase64, LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
