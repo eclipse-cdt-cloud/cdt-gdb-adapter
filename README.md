@@ -4,7 +4,7 @@ This is an implementation of the Debug Adapter Protocol for gdb.
 It is loosely based on the Eclipse CDT MI layer.
 We are at least learning from it.
 
-The source code can be found in the following repository: https://github.com/eclipse-cdt/cdt-gdb-adapter
+The source code can be found in the following repository: https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter
 
 ## Building
 
@@ -24,7 +24,7 @@ Testing of the adapter can be run with `yarn test`.
 ## Debugging
 
 To debug the adapter there are multiple options depending on how this module is integrated. For example,
-if being used as a VS Code extension, see https://github.com/eclipse-cdt/cdt-gdb-vscode#building.
+if being used as a VS Code extension, see https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode#building.
 
 However, if you are writing tests and developing this module independently you can use the launch
 configurations in the launch.json with VS Code. For example, if you open a *.spec.ts file in VS Code

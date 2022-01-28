@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eclipse-cdt/cdt-gdb-adapter.git"
+    "url": "git+https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter.git"
   },
   "author": "Eclipse CDT",
   "contributors": [
@@ -30,9 +30,9 @@
   ],
   "license": "EPL-2.0",
   "bugs": {
-    "url": "https://github.com/eclipse-cdt/cdt-gdb-adapter/issues"
+    "url": "https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues"
   },
-  "homepage": "https://github.com/eclipse-cdt/cdt-gdb-adapter#readme",
+  "homepage": "https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter#readme",
   "dependencies": {
     "node-addon-api": "^1.6.2",
     "vscode-debugadapter": "^1.48.0",

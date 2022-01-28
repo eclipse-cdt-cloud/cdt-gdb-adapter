@@ -1,8 +1,8 @@
 # Contributing to CDT GDB Debug Adapter
 
-Thanks for your interest in this project, part of the [Eclipse C/C++ Development Tools project](https://projects.eclipse.org/projects/tools.cdt)
+Thanks for your interest in this project, part of the [Eclipse C/C++ Development Tools project](https://projects.eclipse.org/projects/ecd.cdt.cloud)
 
-The source code can be found in the following repository: https://github.com/eclipse-cdt/cdt-gdb-adapter
+The source code can be found in the following repository: https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter
 
 ## Project description
 
@@ -37,4 +37,4 @@ https://www.eclipse.org/projects/handbook/#resources-commit
 
 Contact the project developers via the project's "dev" list.
 
-* https://dev.eclipse.org/mailman/listinfo/cdt-dev
+* https://dev.eclipse.org/mailman/listinfo/cdt-cloud-dev
