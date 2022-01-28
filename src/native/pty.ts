@@ -11,7 +11,7 @@
 import { File } from './file';
 export { File };
 
-// tslint:disable-next-line:no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const pty = require('../../build/Release/pty.node');
 
 interface PtyHandles {

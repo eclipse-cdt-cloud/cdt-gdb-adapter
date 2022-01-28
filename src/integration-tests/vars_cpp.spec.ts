@@ -17,9 +17,6 @@ import {
     standardBeforeEach, testProgramsDir, verifyVariable, isRemoteTest,
 } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
-
 describe('Variables CPP Test Suite', function() {
 
     let dc: CdtDebugClient;

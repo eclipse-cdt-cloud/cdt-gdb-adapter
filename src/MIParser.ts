@@ -211,7 +211,6 @@ export class MIParser {
                 // case and convert result to an array
                 // An example is (many fields removed to make example readable):
                 // 3-break-insert --function staticfunc1
-                // tslint:disable-next-line: max-line-length
                 // 3^done,bkpt={number="1",addr="<MULTIPLE>"},{number="1.1",func="staticfunc1",file="functions.c"},{number="1.2",func="staticfunc1",file="functions_other.c"}
                 if (!Array.isArray(result[name])) {
                     result[name] = [result[name]];
@@ -252,7 +251,7 @@ export class MIParser {
         }
 
         switch (c) {
-            case '^':
+            case '^': {
                 const rest = this.restOfLine();
                 for (let i = 0; i < rest.length; i += 1000) {
                     const msg = i === 0 ? 'result' : '-cont-';
@@ -268,6 +267,7 @@ export class MIParser {
                     logger.error('GDB response with no command: ' + token);
                 }
                 break;
+            }
             case '~':
             case '@':
                 this.handleConsoleStream();
@@ -275,21 +275,24 @@ export class MIParser {
             case '&':
                 this.handleLogStream();
                 break;
-            case '=':
+            case '=': {
                 logger.verbose('GDB notify async: ' + this.restOfLine());
                 const notifyClass = this.handleString();
                 this.gdb.emit('notifyAsync', notifyClass, this.handleAsyncData());
                 break;
-            case '*':
+            }
+            case '*': {
                 logger.verbose('GDB exec async: ' + this.restOfLine());
                 const execClass = this.handleString();
                 this.gdb.emit('execAsync', execClass, this.handleAsyncData());
                 break;
-            case '+':
+            }
+            case '+': {
                 logger.verbose('GDB status async: ' + this.restOfLine());
                 const statusClass = this.handleString();
                 this.gdb.emit('statusAsync', statusClass, this.handleAsyncData());
                 break;
+            }
             case '(':
                 if (this.waitReady) {
                     this.waitReady();

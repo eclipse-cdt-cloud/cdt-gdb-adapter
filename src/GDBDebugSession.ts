@@ -86,7 +86,7 @@ export interface CDTDisassembleArguments extends DebugProtocol.DisassembleArgume
 }
 
 // Allow a single number for ignore count or the form '> [number]'
-const ignoreCountRegex = /\s|\>/g;
+const ignoreCountRegex = /\s|>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
 const arrayChildRegex = /[\d]+/;
 
@@ -146,6 +146,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     /**
      * Handle requests not defined in the debug adapter protocol.
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected customRequest(command: string, response: DebugProtocol.Response, args: any): void {
         if (command === 'cdt-gdb-adapter/Memory') {
             this.memoryRequest(response as MemoryResponse, args);
@@ -537,7 +538,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse,
-        args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
+        _args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
         try {
             if (this.isAttach) {
                 await mi.sendExecContinue(this.gdb);
@@ -659,7 +660,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async pauseRequest(response: DebugProtocol.PauseResponse,
-        args: DebugProtocol.PauseArguments): Promise<void> {
+        _args: DebugProtocol.PauseArguments): Promise<void> {
         if (!this.gdb.pause()) {
             response.success = false;
         }
@@ -847,6 +848,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     /**
      * Implement the cdt-gdb-adapter/Memory request.
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected async memoryRequest(response: MemoryResponse, args: any) {
         try {
             if (typeof (args.address) !== 'string') {
@@ -1011,7 +1013,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async disconnectRequest(response: DebugProtocol.DisconnectResponse,
-        args: DebugProtocol.DisconnectArguments): Promise<void> {
+        _args: DebugProtocol.DisconnectArguments): Promise<void> {
         try {
             await this.gdb.sendGDBExit();
             this.sendResponse(response);
@@ -1053,13 +1055,14 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'function-finished':
                 this.sendStoppedEvent('step', getThreadId(result), getAllThreadsStopped(result));
                 break;
-            case 'signal-received':
+            case 'signal-received': {
                 const name = result['signal-name'] || 'signal';
                 this.sendStoppedEvent(name, getThreadId(result), getAllThreadsStopped(result));
                 if (this.waitPaused) {
                     this.waitPaused();
                 }
                 break;
+            }
             default:
                 this.sendStoppedEvent('generic', getThreadId(result), getAllThreadsStopped(result));
         }

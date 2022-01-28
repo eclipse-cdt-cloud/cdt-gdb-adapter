@@ -15,9 +15,6 @@ import {
     expectRejection, gdbPath, getScopes, openGdbConsole, Scope, standardBeforeEach, testProgramsDir,
 } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
-
 describe('evaluate request', function() {
     let dc: CdtDebugClient;
     let scope: Scope;

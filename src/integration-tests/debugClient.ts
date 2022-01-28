@@ -11,8 +11,6 @@ import * as cp from 'child_process';
 import { DebugClient } from '@vscode/debugadapter-testsupport';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
-// tslint:disable:no-string-literal
-
 export type ReverseRequestHandler<A = any, R extends DebugProtocol.Response = DebugProtocol.Response> =
     (args: A) => Promise<R['body']>;
 export interface ReverseRequestHandlers {
@@ -141,7 +139,7 @@ export class CdtDebugClient extends DebugClient {
             throw new Error(`no output event with category '${category}' received after ${timeout} ms`);
         }, timeout);
 
-        while (true) {
+        for (;;) {
             const event = await new Promise((resolve) => this.once('output', (e) => resolve(e)));
 
             if (!isOutputEvent(event)) {

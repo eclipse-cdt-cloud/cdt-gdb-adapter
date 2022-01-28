@@ -15,8 +15,6 @@ import { base64ToHex, hexToBase64, LaunchRequestArguments, MemoryResponse } from
 import { CdtDebugClient } from './debugClient';
 import { expectRejection, gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
 describe('Memory Test Suite', function() {
 
     let dc: CdtDebugClient;

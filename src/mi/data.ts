@@ -42,7 +42,7 @@ export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
     value?: string;
 }
 
-export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number, offset: number = 0)
+export function sendDataReadMemoryBytes(gdb: GDBBackend, address: string, size: number, offset = 0)
     : Promise<MIDataReadMemoryBytesResponse> {
     return gdb.sendCommand(`-data-read-memory-bytes -o ${offset} "${address}" ${size}`);
 }
@@ -67,7 +67,7 @@ export async function sendDataDisassemble(gdb: GDBBackend, startAddress: string,
 
     // cleanup the result data
     if (result.asm_insns.length > 0) {
-        if (!result.asm_insns[0].hasOwnProperty('line_asm_insn')) {
+        if (!Object.prototype.hasOwnProperty.call(result.asm_insns[0], 'line_asm_insn')) {
             // In this case there is no source info available for any instruction,
             // so GDB treats as if we had done -- 2 instead of -- 5
             // This bit of code remaps the data to look like it should
@@ -77,7 +77,7 @@ export async function sendDataDisassemble(gdb: GDBBackend, startAddress: string,
             result.asm_insns = [e];
         }
         for (const asmInsn of result.asm_insns) {
-            if (!asmInsn.hasOwnProperty('line_asm_insn')) {
+            if (!Object.prototype.hasOwnProperty.call(asmInsn, 'line_asm_insn')) {
                 asmInsn.line_asm_insn = [];
             }
         }

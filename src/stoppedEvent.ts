@@ -17,7 +17,7 @@ export class StoppedEvent extends Event implements DebugProtocol.StoppedEvent {
         allThreadsStopped?: boolean;
     };
 
-    constructor(reason: string, threadId: number, allThreadsStopped: boolean = false) {
+    constructor(reason: string, threadId: number, allThreadsStopped = false) {
         super('stopped');
 
         this.body = {

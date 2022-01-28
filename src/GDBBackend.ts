@@ -20,6 +20,7 @@ export interface MIExecNextRequest {
     reverse?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface MIExecNextResponse extends MIResponse {
 }
 
@@ -87,7 +88,7 @@ export class GDBBackend extends events.EventEmitter {
 
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
         const gdb = gdbPath || 'gdb';
-        return new Promise<boolean>((resolve, reject) => {
+        return new Promise<boolean>((resolve) => {
             execFile(gdb, ['-nx', '-batch', '-ex', 'new-ui'], (error, stdout, stderr) => {
                 // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
                 // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'

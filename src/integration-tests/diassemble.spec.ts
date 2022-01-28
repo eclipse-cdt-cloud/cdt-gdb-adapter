@@ -15,8 +15,6 @@ import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { gdbPath, openGdbConsole, standardBeforeEach, testProgramsDir } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
 describe('Disassembly Test Suite', function() {
 
     let dc: CdtDebugClient;

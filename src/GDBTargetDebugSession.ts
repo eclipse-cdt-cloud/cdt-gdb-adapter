@@ -120,7 +120,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
             let gdbserverStartupResolved = false;
             let accumulatedStderr = '';
-            let checkTargetPort = (data: any) => {
+            let checkTargetPort = (_data: any) => {
                 // do nothing by default
             };
             if (target.port && target.serverParameters) {

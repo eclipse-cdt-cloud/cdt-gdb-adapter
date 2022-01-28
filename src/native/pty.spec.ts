@@ -13,9 +13,6 @@ import { Readable, Writable } from 'stream';
 import { Pty } from '../native/pty';
 import { ForkedFile } from '../native/forked-file';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions no-console no-bitwise
-
 if (process.platform !== 'win32') {
     describe('pty creation', function() {
 
@@ -56,31 +53,32 @@ if (process.platform !== 'win32') {
         }));
     });
 
-    /**
-     * What goes in should come out. Useful to test PTYs since what we write on `master` should come out of `slave` and vice-versa.
-     *
-     * @param str payload
-     * @param writeTo where to write into
-     * @param readFrom where to wait for it to come out
-     */
-    function sendAndAwait(str: string, writeTo: Writable, readFrom: Readable): Promise<void> {
-        return new Promise<void>((resolve) => {
-            readFrom.once('data', () => resolve());
-            writeTo.write(str);
-        });
-    }
+}
 
-    /**
-     * Allows an async function to reject early.
-     */
-    function failFast<T>(callback: (this: T, fail: (error: Error) => void) => Promise<void>): (this: T) => Promise<void> {
-        let fail!: (error: Error) => void;
-        const abortPromise = new Promise<never>((_, reject) => { fail = reject; })
-        return function (this: T) {
-            return Promise.race([
-                abortPromise,
-                callback.call(this, fail),
-            ]);
-        }
+/**
+ * What goes in should come out. Useful to test PTYs since what we write on `master` should come out of `slave` and vice-versa.
+ *
+ * @param str payload
+ * @param writeTo where to write into
+ * @param readFrom where to wait for it to come out
+ */
+function sendAndAwait(str: string, writeTo: Writable, readFrom: Readable): Promise<void> {
+    return new Promise<void>((resolve) => {
+        readFrom.once('data', () => resolve());
+        writeTo.write(str);
+    });
+}
+
+/**
+ * Allows an async function to reject early.
+ */
+function failFast<T>(callback: (this: T, fail: (error: Error) => void) => Promise<void>): (this: T) => Promise<void> {
+    let fail!: (error: Error) => void;
+    const abortPromise = new Promise<never>((_, reject) => { fail = reject; })
+    return function (this: T) {
+        return Promise.race([
+            abortPromise,
+            callback.call(this, fail),
+        ]);
     }
 }

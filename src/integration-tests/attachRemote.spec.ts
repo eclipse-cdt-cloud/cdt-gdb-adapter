@@ -15,8 +15,6 @@ import { CdtDebugClient } from './debugClient';
 import { standardBeforeEach, testProgramsDir, gdbServerPath } from './utils';
 import { gdbPath, openGdbConsole } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
 describe('attach remote', function() {
 
     let dc: CdtDebugClient;

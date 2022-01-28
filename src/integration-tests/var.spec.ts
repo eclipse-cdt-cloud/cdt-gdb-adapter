@@ -17,8 +17,6 @@ import {
     testProgramsDir, verifyVariable,
 } from './utils';
 
-// Allow non-arrow functions: https://mochajs.org/#arrow-functions
-// tslint:disable:only-arrow-functions
 describe('Variables Test Suite', function() {
 
     let dc: CdtDebugClient;

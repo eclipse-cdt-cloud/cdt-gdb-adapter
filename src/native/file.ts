@@ -26,6 +26,7 @@ export class File {
     constructor(
         public fd: number,
     ) {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
         const _this = this;
         this._duplex = new Duplex({
             read(size) {
@@ -40,7 +41,7 @@ export class File {
             },
             write(chunk, encoding, callback) {
                 const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
-                fs.write(fd, buffer, (err, written, _buffer) => {
+                fs.write(fd, buffer, (err, _written, _buffer) => {
                     callback(err);
                 });
             },
