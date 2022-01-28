@@ -177,7 +177,7 @@ export class CdtDebugClient extends DebugClient {
                 response.body = await handler(request.arguments);
             } catch (error) {
                 response.success = false;
-                response.message = error instanceof Error ? error.message : error;
+                response.message = error instanceof Error ? error.message : String(error);
             }
         }
         const json = JSON.stringify(response);

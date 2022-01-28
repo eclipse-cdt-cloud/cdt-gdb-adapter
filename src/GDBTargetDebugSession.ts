@@ -80,7 +80,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.startGDBServer(args);
             await this.startGDBAndAttachToTarget(response, args);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -90,7 +90,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.setupCommonLoggerAndHandlers(args);
             await this.startGDBAndAttachToTarget(response, args);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -233,7 +233,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 }

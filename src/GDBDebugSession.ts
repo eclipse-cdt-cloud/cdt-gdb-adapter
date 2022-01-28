@@ -204,7 +204,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -235,7 +235,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err));
         }
     }
 
@@ -401,7 +401,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 } catch (err) {
                     actual.push({
                         verified: false,
-                        message: err.message,
+                        message: err instanceof Error ? err.message : String(err)
                     } as DebugProtocol.Breakpoint);
                 }
             }
@@ -412,7 +412,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
 
         if (neededPause) {
@@ -483,7 +483,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 } catch (err) {
                     actual.push({
                         verified: false,
-                        message: err.message,
+                        message: err instanceof Error ? err.message : String(err)
                     } as DebugProtocol.Breakpoint);
                 }
             }
@@ -494,7 +494,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
 
         if (neededPause) {
@@ -546,7 +546,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 100, err.message);
+            this.sendErrorResponse(response, 100, err instanceof Error ? err.message : String(err));
         }
     }
 
@@ -573,7 +573,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -614,7 +614,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -624,7 +624,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await mi.sendExecNext(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -634,7 +634,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await mi.sendExecStep(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -644,7 +644,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await mi.sendExecFinish(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -654,7 +654,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await mi.sendExecContinue(this.gdb, args.threadId);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -702,7 +702,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -771,7 +771,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                     : 0,
             };
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
         this.sendResponse(response);
     }
@@ -840,7 +840,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -871,7 +871,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -945,7 +945,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         const badDisInsn = {
                             // TODO this should start at byte after last retrieved address
                             address: `0x${startOffset.toString(16)}`,
-                            instruction: err.message,
+                            instruction: err instanceof Error ? err.message : String(err)
                         } as DebugProtocol.DisassembledInstruction;
                         instructions.push(badDisInsn);
                         startOffset += 2;
@@ -969,7 +969,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body = { instructions };
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -984,7 +984,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -1006,7 +1006,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await sendDataWriteMemoryBytes(this.gdb, memoryReference, hexContent);
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
@@ -1016,7 +1016,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             await this.gdb.sendGDBExit();
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(response, 1, err.message);
+            this.sendErrorResponse(response, 1, err instanceof Error ? err.message : String(err))
         }
     }
 
