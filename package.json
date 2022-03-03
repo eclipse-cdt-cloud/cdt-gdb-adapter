@@ -11,6 +11,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "format-check": "prettier --check .",
     "clean": "git clean -dfx",
     "docker:build": "docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-eclipse-full:latest yarn",
     "docker:test": "docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-eclipse-full:latest yarn test",
