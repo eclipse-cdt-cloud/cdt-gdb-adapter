@@ -116,6 +116,31 @@ describe('Memory Test Suite', function () {
         });
 
         verifyReadMemoryResponse(mem, 'f1efd4fd7248450c2d13', addrOfArray);
+
+        mem = await dc.readMemoryRequest({
+            memoryReference: 'parray',
+            count: 10,
+            offset: 5,
+        });
+
+        verifyReadMemoryResponse(mem, '48450c2d1374d6f612dc', addrOfArray + 5);
+
+        mem = await dc.readMemoryRequest({
+            memoryReference: 'parray',
+            count: 0,
+        });
+
+        // the spec isn't clear on what exactly can be retruned if count == 0
+        // so the following works with VSCode - simply having no body
+        expect(mem.body).is.undefined;
+
+        mem = await dc.readMemoryRequest({
+            memoryReference: 'parray',
+            count: 0,
+            offset: 5,
+        });
+
+        expect(mem.body).is.undefined;
     });
 
     it('handles unable to read memory', async function () {

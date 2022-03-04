@@ -1289,17 +1289,21 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<void> {
         try {
-            const result = await sendDataReadMemoryBytes(
-                this.gdb,
-                args.memoryReference,
-                args.count,
-                args.offset
-            );
-            response.body = {
-                data: hexToBase64(result.memory[0].contents),
-                address: result.memory[0].begin,
-            };
-            this.sendResponse(response);
+            if (args.count) {
+                const result = await sendDataReadMemoryBytes(
+                    this.gdb,
+                    args.memoryReference,
+                    args.count,
+                    args.offset
+                );
+                response.body = {
+                    data: hexToBase64(result.memory[0].contents),
+                    address: result.memory[0].begin,
+                };
+                this.sendResponse(response);
+            } else {
+                this.sendResponse(response);
+            }
         } catch (err) {
             this.sendErrorResponse(
                 response,
