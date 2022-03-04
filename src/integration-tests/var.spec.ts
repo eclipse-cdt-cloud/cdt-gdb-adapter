@@ -140,13 +140,9 @@ describe('Variables Test Suite', function () {
             vars.body.variables.length,
             'There is a different number of variables than expected'
         ).to.equal(numVars);
-        verifyVariable(
-            vars.body.variables[3],
-            'r',
-            'struct foo',
-            '{...}',
-            true
-        );
+        verifyVariable(vars.body.variables[3], 'r', 'struct foo', '{...}', {
+            hasChildren: true,
+        });
         const childVR = vars.body.variables[3].variablesReference;
         let children = await dc.variablesRequest({
             variablesReference: childVR,
@@ -155,15 +151,16 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], 'x', 'int', '1');
-        verifyVariable(children.body.variables[1], 'y', 'int', '2');
-        verifyVariable(
-            children.body.variables[2],
-            'z',
-            'struct bar',
-            '{...}',
-            true
-        );
+        verifyVariable(children.body.variables[0], 'x', 'int', '1', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[1], 'y', 'int', '2', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[2], 'z', 'struct bar', '{...}', {
+            hasChildren: true,
+            hasMemoryReference: false,
+        });
         // set the variables to something different
         await dc.setVariableRequest({
             name: 'x',
@@ -181,8 +178,12 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], 'x', 'int', '25');
-        verifyVariable(children.body.variables[1], 'y', 'int', '10');
+        verifyVariable(children.body.variables[0], 'x', 'int', '25', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[1], 'y', 'int', '10', {
+            hasMemoryReference: false,
+        });
         // step the program and see that the values were passed to the program and evaluated.
         await dc.next(
             { threadId: scope.thread.id },
@@ -224,13 +225,9 @@ describe('Variables Test Suite', function () {
             vars.body.variables.length,
             'There is a different number of variables than expected'
         ).to.equal(numVars);
-        verifyVariable(
-            vars.body.variables[3],
-            'r',
-            'struct foo',
-            '{...}',
-            true
-        );
+        verifyVariable(vars.body.variables[3], 'r', 'struct foo', '{...}', {
+            hasChildren: true,
+        });
         const childVR = vars.body.variables[3].variablesReference;
         const children = await dc.variablesRequest({
             variablesReference: childVR,
@@ -239,13 +236,10 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(
-            children.body.variables[2],
-            'z',
-            'struct bar',
-            '{...}',
-            true
-        );
+        verifyVariable(children.body.variables[2], 'z', 'struct bar', '{...}', {
+            hasChildren: true,
+            hasMemoryReference: false,
+        });
         // assert we can see the elements of z
         const subChildVR = children.body.variables[2].variablesReference;
         let subChildren = await dc.variablesRequest({
@@ -255,8 +249,12 @@ describe('Variables Test Suite', function () {
             subChildren.body.variables.length,
             'There is a different number of grandchild variables than expected'
         ).to.equal(2);
-        verifyVariable(subChildren.body.variables[0], 'a', 'int', '3');
-        verifyVariable(subChildren.body.variables[1], 'b', 'int', '4');
+        verifyVariable(subChildren.body.variables[0], 'a', 'int', '3', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(subChildren.body.variables[1], 'b', 'int', '4', {
+            hasMemoryReference: false,
+        });
         // set the variables to something different
         await dc.setVariableRequest({
             name: 'a',
@@ -276,8 +274,12 @@ describe('Variables Test Suite', function () {
             subChildren.body.variables.length,
             'There is a different number of grandchild variables than expected'
         ).to.equal(2);
-        verifyVariable(subChildren.body.variables[0], 'a', 'int', '25');
-        verifyVariable(subChildren.body.variables[1], 'b', 'int', '10');
+        verifyVariable(subChildren.body.variables[0], 'a', 'int', '25', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(subChildren.body.variables[1], 'b', 'int', '10', {
+            hasMemoryReference: false,
+        });
         // step the program and see that the values were passed to the program and evaluated.
         await dc.next(
             { threadId: scope.thread.id },
@@ -324,7 +326,9 @@ describe('Variables Test Suite', function () {
             vars.body.variables.length,
             'There is a different number of variables than expected'
         ).to.equal(numVars);
-        verifyVariable(vars.body.variables[6], 'f', 'int [3]', undefined, true);
+        verifyVariable(vars.body.variables[6], 'f', 'int [3]', undefined, {
+            hasChildren: true,
+        });
         expect(
             hexValueRegex.test(vars.body.variables[6].value),
             'The display value of the array is not a hexidecimal address'
@@ -337,9 +341,15 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], '[0]', 'int', '1');
-        verifyVariable(children.body.variables[1], '[1]', 'int', '2');
-        verifyVariable(children.body.variables[2], '[2]', 'int', '3');
+        verifyVariable(children.body.variables[0], '[0]', 'int', '1', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[1], '[1]', 'int', '2', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[2], '[2]', 'int', '3', {
+            hasMemoryReference: false,
+        });
         // set the variables to something different
         await dc.setVariableRequest({
             name: '[0]',
@@ -362,9 +372,15 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], '[0]', 'int', '11');
-        verifyVariable(children.body.variables[1], '[1]', 'int', '22');
-        verifyVariable(children.body.variables[2], '[2]', 'int', '33');
+        verifyVariable(children.body.variables[0], '[0]', 'int', '11', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[1], '[1]', 'int', '22', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[2], '[2]', 'int', '33', {
+            hasMemoryReference: false,
+        });
         // step the program and see that the values were passed to the program and evaluated.
         await dc.next(
             { threadId: scope.thread.id },
