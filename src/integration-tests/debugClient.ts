@@ -228,6 +228,18 @@ export class CdtDebugClient extends DebugClient {
             `Content-Length: ${Buffer.byteLength(json, 'utf-8')}\r\n\r\n${json}`
         );
     }
+
+    public readMemoryRequest(
+        args: DebugProtocol.ReadMemoryArguments
+    ): Promise<DebugProtocol.ReadMemoryResponse> {
+        return this.send('readMemory', args);
+    }
+
+    public writeMemoryRequest(
+        args: DebugProtocol.WriteMemoryArguments
+    ): Promise<DebugProtocol.WriteMemoryResponse> {
+        return this.send('writeMemory', args);
+    }
 }
 
 /**

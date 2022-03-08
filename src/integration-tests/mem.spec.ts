@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 Ericsson and others
+ * Copyright (c) 2018, 2022 Ericsson and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -15,7 +15,6 @@ import {
     base64ToHex,
     hexToBase64,
     LaunchRequestArguments,
-    MemoryResponse,
 } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -75,19 +74,20 @@ describe('Memory Test Suite', function () {
      *
      * `expectedAddress` should be an hexadecimal string, with the leading 0x.
      */
-    function verifyMemoryReadResult(
-        resp: MemoryResponse,
+    function verifyReadMemoryResponse(
+        resp: DebugProtocol.ReadMemoryResponse,
         expectedBytes: string,
         expectedAddress: number
     ) {
-        expect(resp.body.data).eq(expectedBytes);
-        expect(resp.body.address).match(/^0x[0-9a-fA-F]+$/);
-
-        const actualAddress = parseInt(resp.body.address, 16);
-        expect(actualAddress).eq(expectedAddress);
+        expect(resp.body?.data).eq(hexToBase64(expectedBytes));
+        expect(resp.body?.address).match(/^0x[0-9a-fA-F]+$/);
+        if (resp.body?.address) {
+            const actualAddress = parseInt(resp.body?.address);
+            expect(actualAddress).eq(expectedAddress);
+        }
     }
 
-    // Test reading memory using cdt-gdb-adapter's extension request.
+    // Test reading memory
     it('can read memory', async function () {
         // Get the address of the array.
         const addrOfArrayResp = await dc.evaluateRequest({
@@ -96,34 +96,34 @@ describe('Memory Test Suite', function () {
         });
         const addrOfArray = parseInt(addrOfArrayResp.body.result, 16);
 
-        let mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: '0x' + addrOfArray.toString(16),
-            length: 10,
-        })) as MemoryResponse;
+        let mem = await dc.readMemoryRequest({
+            memoryReference: '0x' + addrOfArray.toString(16),
+            count: 10,
+        });
 
-        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
+        verifyReadMemoryResponse(mem, 'f1efd4fd7248450c2d13', addrOfArray);
 
-        mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: '&array[3 + 2]',
-            length: 10,
-        })) as MemoryResponse;
+        mem = await dc.readMemoryRequest({
+            memoryReference: '&array[3 + 2]',
+            count: 10,
+        });
 
-        verifyMemoryReadResult(mem, '48450c2d1374d6f612dc', addrOfArray + 5);
+        verifyReadMemoryResponse(mem, '48450c2d1374d6f612dc', addrOfArray + 5);
 
-        mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: 'parray',
-            length: 10,
-        })) as MemoryResponse;
+        mem = await dc.readMemoryRequest({
+            memoryReference: 'parray',
+            count: 10,
+        });
 
-        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
+        verifyReadMemoryResponse(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 
     it('handles unable to read memory', async function () {
         // This test will only work for targets for which address 0 is not readable, which is good enough for now.
         const err = await expectRejection(
-            dc.send('cdt-gdb-adapter/Memory', {
-                address: '0',
-                length: 10,
+            dc.readMemoryRequest({
+                memoryReference: '0',
+                count: 10,
             })
         );
         expect(err.message).contains('Unable to read memory');
@@ -138,23 +138,23 @@ describe('Memory Test Suite', function () {
 
         // Test positive offset
         let offset = 5;
-        let mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: '&array',
-            length: 5,
+        let mem = await dc.readMemoryRequest({
+            memoryReference: '&array',
+            count: 5,
             offset,
-        })) as MemoryResponse;
+        });
 
-        verifyMemoryReadResult(mem, '48450c2d13', addrOfArray + offset);
+        verifyReadMemoryResponse(mem, '48450c2d13', addrOfArray + offset);
 
         // Test negative offset
         offset = -5;
-        mem = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: `array + ${-offset}`,
-            length: 10,
+        mem = await dc.readMemoryRequest({
+            memoryReference: `array + ${-offset}`,
+            count: 10,
             offset,
-        })) as MemoryResponse;
+        });
 
-        verifyMemoryReadResult(mem, 'f1efd4fd7248450c2d13', addrOfArray);
+        verifyReadMemoryResponse(mem, 'f1efd4fd7248450c2d13', addrOfArray);
     });
 
     const newValue = '123456789abcdef01234';
@@ -172,13 +172,13 @@ describe('Memory Test Suite', function () {
                 })
             ).body.result
         );
-        await dc.send('writeMemory', writeArguments);
-        const memory = (await dc.send('cdt-gdb-adapter/Memory', {
-            address: '&array',
-            length: 10,
+        await dc.writeMemoryRequest(writeArguments);
+        const memory = await dc.readMemoryRequest({
+            memoryReference: '&array',
+            count: 10,
             offset: 0,
-        })) as MemoryResponse;
-        verifyMemoryReadResult(memory, newValue, addrOfArray);
+        });
+        verifyReadMemoryResponse(memory, newValue, addrOfArray);
     });
 
     it('fails when trying to write to read-only memory', async function () {
@@ -196,7 +196,7 @@ describe('Memory Test Suite', function () {
             } ro"`,
         });
         const error = await expectRejection(
-            dc.send('writeMemory', writeArguments)
+            dc.writeMemoryRequest(writeArguments)
         );
 
         expect(error.message).contains('Cannot access memory');
