@@ -33,6 +33,7 @@ import {
 } from './mi/data';
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
+import { breakpointFunctionLocation, breakpointLocation } from './mi';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -378,7 +379,10 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
-            const gdbOriginalLocationPrefix = `-source ${file} -line `;
+            const gdbOriginalLocationPrefix = await breakpointLocation(
+                this.gdb,
+                file
+            );
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
                 // Ignore "children" breakpoint of <MULTIPLE> entries
                 if (gdbbp.number.includes('.')) {
@@ -560,9 +564,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
+                    const originalLocation = breakpointFunctionLocation(
+                        this.gdb,
+                        vsbp.name
+                    );
                     return !!(
-                        gdbbp['original-location'] ===
-                            `-function ${vsbp.name}` && vsbpCond === gdbbpCond
+                        gdbbp['original-location'] === originalLocation &&
+                        vsbpCond === gdbbpCond
                     );
                 }
             );

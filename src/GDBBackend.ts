@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { execFile, spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
@@ -18,6 +18,7 @@ import {
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
+import { compareVersions, getGdbVersion } from './util';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -58,18 +59,22 @@ export class GDBBackend extends events.EventEmitter {
     protected out?: Writable;
     protected token = 0;
     protected proc?: ChildProcess;
+    private gdbVersion?: string;
 
     get varManager(): VarManager {
         return this.varMgr;
     }
 
-    public spawn(requestArgs: LaunchRequestArguments | AttachRequestArguments) {
-        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
+    public async spawn(
+        requestArgs: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        const gdbPath = requestArgs.gdb || 'gdb';
+        this.gdbVersion = await getGdbVersion(gdbPath);
         let args = ['--interpreter=mi2'];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
-        this.proc = spawn(gdb, args);
+        this.proc = spawn(gdbPath, args);
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -81,12 +86,13 @@ export class GDBBackend extends events.EventEmitter {
         requestArgs: LaunchRequestArguments | AttachRequestArguments,
         cb: (args: string[]) => Promise<void>
     ) {
-        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
+        const gdbPath = requestArgs.gdb || 'gdb';
+        this.gdbVersion = await getGdbVersion(gdbPath);
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
         const pty = new Pty();
-        let args = [gdb, '-ex', `new-ui mi2 ${pty.slave_name}`];
+        let args = [gdbPath, '-ex', `new-ui mi2 ${pty.slave_name}`];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
@@ -105,20 +111,15 @@ export class GDBBackend extends events.EventEmitter {
     }
 
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
-        const gdb = gdbPath || 'gdb';
-        return new Promise<boolean>((resolve) => {
-            execFile(
-                gdb,
-                ['-nx', '-batch', '-ex', 'new-ui'],
-                (error, stdout, stderr) => {
-                    // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
-                    // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'
-                    // - gdb < 7.12 doesn't support the new-ui command, and outputs
-                    //   'Undefined command: "new-ui".  Try "help".'
-                    resolve(/^usage: new-ui/im.test(stderr));
-                }
-            );
-        });
+        this.gdbVersion = await getGdbVersion(gdbPath || 'gdb');
+        return this.gdbVersionAtLeast('7.12');
+    }
+
+    public gdbVersionAtLeast(targetVersion: string): boolean {
+        if (!this.gdbVersion) {
+            throw new Error('gdbVersion needs to be set first');
+        }
+        return compareVersions(this.gdbVersion, targetVersion) >= 0;
     }
 
     public async sendCommands(commands?: string[]) {
@@ -167,15 +168,20 @@ export class GDBBackend extends events.EventEmitter {
     }
 
     // Rewrite the argument escaping whitespace, quotes and backslash
-    public standardEscape(arg: string): string {
+    public standardEscape(arg: string, needQuotes = true): string {
         let result = '';
         for (const char of arg) {
             if (char === '\\' || char === '"') {
                 result += '\\';
             }
+            if (char == ' ') {
+                needQuotes = true;
+            }
             result += char;
         }
-        result = `"${result}"`;
+        if (needQuotes) {
+            result = `"${result}"`;
+        }
         return result;
     }
 

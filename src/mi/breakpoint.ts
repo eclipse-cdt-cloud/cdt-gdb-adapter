@@ -66,6 +66,44 @@ function cleanupBreakpointResponse(
     };
 }
 
+export function breakpointLocation(
+    gdb: GDBBackend,
+    source: string,
+    line = '',
+    forInsert = false
+): string {
+    const version8 = gdb.gdbVersionAtLeast('8.0');
+    if (forInsert) {
+        if (version8) {
+            return `--source ${gdb.standardEscape(source)} --line ${line}`;
+        } else {
+            let location = `${source}:${line}`;
+            if (location.includes(' ')) {
+                // double-escaping needed for old GDBs
+                location = `"${location}"`;
+            }
+            return `${gdb.standardEscape(location, false)}`;
+        }
+    } else {
+        return version8
+            ? `-source ${source} -line ${line}`
+            : `${source}:${line}`;
+    }
+}
+
+export function breakpointFunctionLocation(
+    gdb: GDBBackend,
+    fn: string,
+    forInsert = false
+): string {
+    const version8 = gdb.gdbVersionAtLeast('8.0');
+    if (forInsert) {
+        return version8 ? `--function ${fn}` : fn;
+    } else {
+        return version8 ? `-function ${fn}` : fn;
+    }
+}
+
 export async function sendBreakInsert(
     gdb: GDBBackend,
     request: {
@@ -84,9 +122,13 @@ export async function sendBreakInsert(
     // Todo: lots of options
     const temp = request.temporary ? '-t ' : '';
     const ignore = request.ignoreCount ? `-i ${request.ignoreCount} ` : '';
-    const source = `--source ${gdb.standardEscape(request.source)}`;
-    const line = `--line ${request.line}`;
-    const command = `-break-insert ${temp}${ignore}${source} ${line}`;
+    const location = await breakpointLocation(
+        gdb,
+        request.source,
+        request.line.toString(),
+        true
+    );
+    const command = `-break-insert ${temp}${ignore} ${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
         command
     );
@@ -117,7 +159,8 @@ export async function sendBreakFunctionInsert(
     gdb: GDBBackend,
     fn: string
 ): Promise<MIBreakInsertResponse> {
-    const command = `-break-insert --function ${fn}`;
+    const location = await breakpointFunctionLocation(gdb, fn, true);
+    const command = `-break-insert ${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
         command
     );

@@ -77,9 +77,10 @@ export async function sendDataDisassemble(
     endAddress: string
 ): Promise<MIDataDisassembleResponse> {
     // -- 5 == mixed source and disassembly with raw opcodes
-    // TODO needs to be -- 3 for GDB < 7.11 -- are we supporting such old versions?
+    // needs to be deprecated mode 3 for GDB < 7.11
+    const mode = gdb.gdbVersionAtLeast('7.11') ? '5' : '3';
     const result: MIDataDisassembleResponse = await gdb.sendCommand(
-        `-data-disassemble -s "${startAddress}" -e "${endAddress}" -- 5`
+        `-data-disassemble -s "${startAddress}" -e "${endAddress}" -- ${mode}`
     );
 
     // cleanup the result data

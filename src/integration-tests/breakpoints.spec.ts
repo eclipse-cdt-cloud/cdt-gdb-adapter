@@ -19,6 +19,7 @@ import {
     openGdbConsole,
     getScopes,
     verifyVariable,
+    gdbVersionAtLeast,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
@@ -172,9 +173,51 @@ describe('breakpoints', async () => {
         );
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('reports back relocated line number', async () => {
+    it('maintains breakpoint order when modifying breakpoints in a file with space', async () => {
+        const bpResp1 = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count space.c',
+                path: path.join(testProgramsDir, 'count space.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 5,
+                },
+            ],
+        });
+        expect(bpResp1.body.breakpoints.length).to.eq(1);
+        expect(bpResp1.body.breakpoints[0].line).eq(5);
+        const bpResp2 = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count space.c',
+                path: path.join(testProgramsDir, 'count space.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                },
+                {
+                    column: 1,
+                    line: 5,
+                },
+            ],
+        });
+        expect(bpResp2.body.breakpoints.length).to.eq(2);
+        expect(bpResp2.body.breakpoints[0].line).eq(2);
+        expect(bpResp2.body.breakpoints[1].line).eq(5);
+        // Make sure the GDB id of the breakpoint on line 5 is unchanged
+        expect(bpResp2.body.breakpoints[1].id).eq(
+            bpResp1.body.breakpoints[0].id
+        );
+    });
+
+    it('reports back relocated line number', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count.c',
@@ -192,9 +235,11 @@ describe('breakpoints', async () => {
         expect(bpResp.body.breakpoints[0].line).eq(6);
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('maintains gdb breakpoint when relocated', async () => {
+    it('maintains gdb breakpoint when relocated', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count.c',
@@ -219,9 +264,11 @@ describe('breakpoints', async () => {
         );
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('maintains gdb breakpoint when relocated - files with spaces', async () => {
+    it('maintains gdb breakpoint when relocated - files with spaces', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count space.c',

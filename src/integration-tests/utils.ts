@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
+import { compareVersions, getGdbVersion } from '../util';
 
 export interface Scope {
     thread: DebugProtocol.Thread;
@@ -229,6 +230,15 @@ function getDefaultAdapterCli(): string {
         return 'debugAdapter.js';
     }
     return 'debugTargetAdapter.js';
+}
+
+export async function gdbVersionAtLeast(
+    targetVersion: string
+): Promise<boolean> {
+    return (
+        compareVersions(await getGdbVersion(gdbPath || 'gdb'), targetVersion) >=
+        0
+    );
 }
 
 export interface LineTags {
