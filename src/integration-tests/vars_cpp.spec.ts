@@ -82,20 +82,12 @@ describe('Variables CPP Test Suite', function () {
             vars.body.variables.length,
             'There is a different number of variables than expected'
         ).to.equal(3);
-        verifyVariable(
-            vars.body.variables[0],
-            'fooA',
-            'Foo *',
-            undefined,
-            true
-        );
-        verifyVariable(
-            vars.body.variables[1],
-            'fooB',
-            'Foo *',
-            undefined,
-            true
-        );
+        verifyVariable(vars.body.variables[0], 'fooA', 'Foo *', undefined, {
+            hasChildren: true,
+        });
+        verifyVariable(vars.body.variables[1], 'fooB', 'Foo *', undefined, {
+            hasChildren: true,
+        });
         expect(
             vars.body.variables[0].value,
             'Value of fooA matches fooB'
@@ -189,13 +181,9 @@ describe('Variables CPP Test Suite', function () {
             vars.body.variables.length,
             'There is a different number of variables than expected'
         ).to.equal(3);
-        verifyVariable(
-            vars.body.variables[0],
-            'fooA',
-            'Foo *',
-            undefined,
-            true
-        );
+        verifyVariable(vars.body.variables[0], 'fooA', 'Foo *', undefined, {
+            hasChildren: true,
+        });
         expect(
             vars.body.variables[0].variablesReference,
             `${vars.body.variables[0].name} has no children`
@@ -208,9 +196,15 @@ describe('Variables CPP Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], 'a', 'int', '1');
-        verifyVariable(children.body.variables[1], 'c', 'char', "97 'a'");
-        verifyVariable(children.body.variables[2], 'b', 'int', '2');
+        verifyVariable(children.body.variables[0], 'a', 'int', '1', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[1], 'c', 'char', "97 'a'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[2], 'b', 'int', '2', {
+            hasMemoryReference: false,
+        });
         // set child value
         await dc.setVariableRequest({
             name: children.body.variables[0].name,
@@ -225,9 +219,15 @@ describe('Variables CPP Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], 'a', 'int', '55');
+        verifyVariable(children.body.variables[0], 'a', 'int', '55', {
+            hasMemoryReference: false,
+        });
         // these two values should be unchanged.
-        verifyVariable(children.body.variables[1], 'c', 'char', "97 'a'");
-        verifyVariable(children.body.variables[2], 'b', 'int', '2');
+        verifyVariable(children.body.variables[1], 'c', 'char', "97 'a'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(children.body.variables[2], 'b', 'int', '2', {
+            hasMemoryReference: false,
+        });
     });
 });

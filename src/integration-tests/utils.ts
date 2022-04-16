@@ -65,7 +65,10 @@ export function verifyVariable(
     expectedName: string,
     expectedType?: string,
     expectedValue?: string,
-    hasChildren = false
+    flags?: {
+        hasChildren?: boolean; // default false
+        hasMemoryReference?: boolean; // default true
+    }
 ) {
     expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(
         expectedName
@@ -81,7 +84,7 @@ export function verifyVariable(
             `The value of ${expectedName} is wrong`
         ).to.equal(expectedValue);
     }
-    if (hasChildren) {
+    if (flags?.hasChildren) {
         expect(
             variable.variablesReference,
             `${expectedName} has no children`
@@ -91,6 +94,16 @@ export function verifyVariable(
             variable.variablesReference,
             `${expectedName} has children`
         ).to.equal(0);
+    }
+    if (flags?.hasMemoryReference || flags?.hasMemoryReference === undefined) {
+        // Rather than actual read the memory, just verify that the memory
+        // reference is to what is expected
+        expect(variable.memoryReference).eq(`&(${expectedName})`);
+    } else {
+        // For now we only support memory references for top-level
+        // variables (e.g. no struct members). A possible
+        // TODO is to support memoryReferences in these cases
+        expect(variable.memoryReference).is.undefined;
     }
 }
 
