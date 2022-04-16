@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { execFile, spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
@@ -111,20 +111,8 @@ export class GDBBackend extends events.EventEmitter {
     }
 
     public async supportsNewUi(gdbPath?: string): Promise<boolean> {
-        const gdb = gdbPath || 'gdb';
-        return new Promise<boolean>((resolve) => {
-            execFile(
-                gdb,
-                ['-nx', '-batch', '-ex', 'new-ui'],
-                (error, stdout, stderr) => {
-                    // - gdb > 8.2 outputs 'Usage: new-ui INTERPRETER TTY'
-                    // - gdb 7.12 to 8.2 outputs 'usage: new-ui <interpreter> <tty>'
-                    // - gdb < 7.12 doesn't support the new-ui command, and outputs
-                    //   'Undefined command: "new-ui".  Try "help".'
-                    resolve(/^usage: new-ui/im.test(stderr));
-                }
-            );
-        });
+        this.gdbVersion = await getGdbVersion(gdbPath || 'gdb');
+        return this.gdbVersionAtLeast('7.12');
     }
 
     public gdbVersionAtLeast(targetVersion: string): boolean {
