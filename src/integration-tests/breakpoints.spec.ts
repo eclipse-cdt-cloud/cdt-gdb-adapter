@@ -19,6 +19,7 @@ import {
     openGdbConsole,
     getScopes,
     verifyVariable,
+    gdbVersionAtLeast,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
@@ -212,9 +213,11 @@ describe('breakpoints', async () => {
         );
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('reports back relocated line number', async () => {
+    it('reports back relocated line number', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count.c',
@@ -232,9 +235,11 @@ describe('breakpoints', async () => {
         expect(bpResp.body.breakpoints[0].line).eq(6);
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('maintains gdb breakpoint when relocated', async () => {
+    it('maintains gdb breakpoint when relocated', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count.c',
@@ -259,9 +264,11 @@ describe('breakpoints', async () => {
         );
     });
 
-    // Pending support for testing multiple GDB versions - test requires
-    // GDB >= 8.2
-    it.skip('maintains gdb breakpoint when relocated - files with spaces', async () => {
+    it('maintains gdb breakpoint when relocated - files with spaces', async function () {
+        if (!(await gdbVersionAtLeast('8.2'))) {
+            this.skip();
+        }
+
         const args = {
             source: {
                 name: 'count space.c',
