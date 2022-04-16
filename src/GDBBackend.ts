@@ -168,15 +168,20 @@ export class GDBBackend extends events.EventEmitter {
     }
 
     // Rewrite the argument escaping whitespace, quotes and backslash
-    public standardEscape(arg: string): string {
+    public standardEscape(arg: string, needQuotes = true): string {
         let result = '';
         for (const char of arg) {
             if (char === '\\' || char === '"') {
                 result += '\\';
             }
+            if (char == ' ') {
+                needQuotes = true;
+            }
             result += char;
         }
-        result = `"${result}"`;
+        if (needQuotes) {
+            result = `"${result}"`;
+        }
         return result;
     }
 
