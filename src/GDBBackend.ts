@@ -18,6 +18,7 @@ import {
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
+import { compareVersions, getGdbVersion } from './util';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -58,18 +59,22 @@ export class GDBBackend extends events.EventEmitter {
     protected out?: Writable;
     protected token = 0;
     protected proc?: ChildProcess;
+    private gdbVersion?: string;
 
     get varManager(): VarManager {
         return this.varMgr;
     }
 
-    public spawn(requestArgs: LaunchRequestArguments | AttachRequestArguments) {
-        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
+    public async spawn(
+        requestArgs: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        const gdbPath = requestArgs.gdb || 'gdb';
+        this.gdbVersion = await getGdbVersion(gdbPath);
         let args = ['--interpreter=mi2'];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
-        this.proc = spawn(gdb, args);
+        this.proc = spawn(gdbPath, args);
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -81,12 +86,13 @@ export class GDBBackend extends events.EventEmitter {
         requestArgs: LaunchRequestArguments | AttachRequestArguments,
         cb: (args: string[]) => Promise<void>
     ) {
-        const gdb = requestArgs.gdb ? requestArgs.gdb : 'gdb';
+        const gdbPath = requestArgs.gdb || 'gdb';
+        this.gdbVersion = await getGdbVersion(gdbPath);
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
         const pty = new Pty();
-        let args = [gdb, '-ex', `new-ui mi2 ${pty.slave_name}`];
+        let args = [gdbPath, '-ex', `new-ui mi2 ${pty.slave_name}`];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
@@ -119,6 +125,13 @@ export class GDBBackend extends events.EventEmitter {
                 }
             );
         });
+    }
+
+    public gdbVersionAtLeast(targetVersion: string): boolean {
+        if (!this.gdbVersion) {
+            throw new Error('gdbVersion needs to be set first');
+        }
+        return compareVersions(this.gdbVersion, targetVersion) >= 0;
     }
 
     public async sendCommands(commands?: string[]) {

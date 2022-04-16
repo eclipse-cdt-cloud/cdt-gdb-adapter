@@ -15,12 +15,12 @@ import { GDBBackend } from '..';
 describe('GDB Backend Test Suite', function () {
     let gdb: GDBBackend;
 
-    beforeEach(function () {
+    beforeEach(async function () {
         gdb = new GDBBackend();
         const args: LaunchRequestArguments = {
             program: 'foo',
         };
-        gdb.spawn(args);
+        await gdb.spawn(args);
     });
 
     afterEach(function () {
