@@ -77,12 +77,9 @@ export function breakpointLocation(
         if (version8) {
             return `--source ${gdb.standardEscape(source)} --line ${line}`;
         } else {
-            let location = `${source}:${line}`;
-            if (location.includes(' ')) {
-                // double-escaping needed for old GDBs
-                location = `"${location}"`;
-            }
-            return `${gdb.standardEscape(location, false)}`;
+            // double-escaping/quoting needed for old GDBs
+            const location = `"${source}:${line}"`;
+            return `${gdb.standardEscape(location, true)}`;
         }
     } else {
         return version8
