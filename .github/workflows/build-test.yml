@@ -1,0 +1,21 @@
+name: Build and test
+on: [push]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Install GCC & GDB & other build essentials
+        run: |
+          sudo apt-get -y install build-essential gcc g++ gdb gdbserver
+          gdb --version
+          gcc --version
+          gdbserver --version
+      - name: Build
+        run: yarn
+      - name: Test
+        run: yarn test
+
