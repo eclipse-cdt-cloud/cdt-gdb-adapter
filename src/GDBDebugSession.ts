@@ -1861,7 +1861,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                     throw new Error('Unable to parse response for reg. values');
                 }
             }
-            //this.sendErrorResponse(response, 115, `List of register values: ${reg_values.toString()}`);
         }
         catch (error) {
             throw new Error('Unable to parse response for reg. names');
