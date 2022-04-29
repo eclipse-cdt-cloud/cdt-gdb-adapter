@@ -1817,14 +1817,13 @@ export class GDBDebugSession extends LoggingDebugSession {
         if (!frame) {
             return Promise.resolve(variables);
         }
-        //result:;
+        
         try {
             if (this.registerMap.size === 0) {
                 ////// Refer to e2s plugin to port request code
                 const result_names = await mi.sendDataListRegisterNames(this.gdb, {});
                 let idx = 0;
                 const registerNames = result_names['register-names'];
-                //const registerNames = result_cv[0];
                 for (const regs of registerNames){
                     if(regs !== ''){
                         this.registerMap.set(regs, idx);
@@ -1842,11 +1841,8 @@ export class GDBDebugSession extends LoggingDebugSession {
         try {
             const result_values = await mi.sendDataListRegisterValues(this.gdb, {fmt:' x'});
             const reg_values = result_values['register-values'];
-            //const rv_1 = Object.values(reg_values_cv[0]);
-            //const rv_2 = Object.values(rv_1);
             for (const n of reg_values){
                 const id = Object.values(n)[0];
-                //const id = n_values[0];
                 const reg = this.registerMapReverse.get(parseInt(id));
                 if (reg) {
                     const val = n.value;
