@@ -70,9 +70,16 @@ export interface ObjectVariableReference {
     varobjName: string;
 }
 
+export interface RegisterVariableReference {
+    type: 'registers';
+    frameHandle: number;
+    regname?: string;
+}
+
 export type VariableReference =
     | FrameVariableReference
-    | ObjectVariableReference;
+    | ObjectVariableReference
+    | RegisterVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
@@ -874,9 +881,15 @@ export class GDBDebugSession extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
+        const registers: RegisterVariableReference = {
+            type: 'registers',
+            frameHandle: args.frameId
+        };
+
         response.body = {
             scopes: [
                 new Scope('Local', this.variableHandles.create(frame), false),
+                new Scope('Registers', this.variableHandles.create(registers), true),
             ],
         };
 
@@ -897,13 +910,14 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
-            if (ref.type === 'frame') {
-                response.body.variables = await this.handleVariableRequestFrame(
-                    ref
-                );
+            if (ref.type === 'registers') {
+                response.body.variables = await this.handleVariableRequestRegister(ref);
+            }
+            else if (ref.type === 'frame') {
+                response.body.variables = await this.handleVariableRequestFrame(ref);
+
             } else if (ref.type === 'object') {
-                response.body.variables =
-                    await this.handleVariableRequestObject(ref);
+                response.body.variables = await this.handleVariableRequestObject(ref);
             }
             this.sendResponse(response);
         } catch (err) {
@@ -1789,6 +1803,70 @@ export class GDBDebugSession extends LoggingDebugSession {
                 });
             }
         }
+        return Promise.resolve(variables);
+    }
+
+    // Register view
+
+    private registerMap = new Map<string, number>();
+    private registerMapReverse = new Map<number, string>();
+    protected async handleVariableRequestRegister(ref: RegisterVariableReference): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array and dereference the frame handle
+        const variables: DebugProtocol.Variable[] = [];
+        const frame = this.frameHandles.get(ref.frameHandle);
+        if (!frame) {
+            return Promise.resolve(variables);
+        }
+        //result:;
+        try {
+            if (this.registerMap.size === 0) {
+                ////// Refer to e2s plugin to port request code
+                const result_names = await mi.sendDataListRegisterNames(this.gdb, {});
+                let idx = 0;
+                const registerNames = result_names['register-names'];
+                //const registerNames = result_cv[0];
+                for (const regs of registerNames){
+                    if(regs !== ''){
+                        this.registerMap.set(regs, idx);
+                        this.registerMapReverse.set(idx, regs);
+                    }
+                    idx++;
+                }      
+            }            
+        }
+        catch {
+
+           throw new Error('Unable to parse response for reg. names ');
+        }
+
+        try {
+            const result_values = await mi.sendDataListRegisterValues(this.gdb, {fmt:' x'});
+            const reg_values = result_values['register-values'];
+            //const rv_1 = Object.values(reg_values_cv[0]);
+            //const rv_2 = Object.values(rv_1);
+            for (const n of reg_values){
+                const id = Object.values(n)[0];
+                //const id = n_values[0];
+                const reg = this.registerMapReverse.get(parseInt(id));
+                if (reg) {
+                    const val = n.value;
+                    const res: DebugProtocol.Variable = {
+                        name: reg,
+                        evaluateName: '$' + reg,
+                        value: val,
+                        variablesReference: 0
+                    };
+                    variables.push(res);
+                } else {
+                    throw new Error('Unable to parse response for reg. values');
+                }
+            }
+            //this.sendErrorResponse(response, 115, `List of register values: ${reg_values.toString()}`);
+        }
+        catch (error) {
+            throw new Error('Unable to parse response for reg. names');
+        }
+        
         return Promise.resolve(variables);
     }
 
