@@ -883,13 +883,17 @@ export class GDBDebugSession extends LoggingDebugSession {
 
         const registers: RegisterVariableReference = {
             type: 'registers',
-            frameHandle: args.frameId
+            frameHandle: args.frameId,
         };
 
         response.body = {
             scopes: [
                 new Scope('Local', this.variableHandles.create(frame), false),
-                new Scope('Registers', this.variableHandles.create(registers), true),
+                new Scope(
+                    'Registers',
+                    this.variableHandles.create(registers),
+                    true
+                ),
             ],
         };
 
@@ -911,13 +915,15 @@ export class GDBDebugSession extends LoggingDebugSession {
                 return;
             }
             if (ref.type === 'registers') {
-                response.body.variables = await this.handleVariableRequestRegister(ref);
-            }
-            else if (ref.type === 'frame') {
-                response.body.variables = await this.handleVariableRequestFrame(ref);
-
+                response.body.variables =
+                    await this.handleVariableRequestRegister(ref);
+            } else if (ref.type === 'frame') {
+                response.body.variables = await this.handleVariableRequestFrame(
+                    ref
+                );
             } else if (ref.type === 'object') {
-                response.body.variables = await this.handleVariableRequestObject(ref);
+                response.body.variables =
+                    await this.handleVariableRequestObject(ref);
             }
             this.sendResponse(response);
         } catch (err) {
@@ -1807,42 +1813,47 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     // Register view
-
+    // Assume that the register name are unchanging over time, and the same across all threadsf
     private registerMap = new Map<string, number>();
     private registerMapReverse = new Map<number, string>();
-    protected async handleVariableRequestRegister(ref: RegisterVariableReference): Promise<DebugProtocol.Variable[]> {
+    protected async handleVariableRequestRegister(
+        ref: RegisterVariableReference
+    ): Promise<DebugProtocol.Variable[]> {
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
         if (!frame) {
             return Promise.resolve(variables);
         }
-        
+
         try {
             if (this.registerMap.size === 0) {
-                ////// Refer to e2s plugin to port request code
-                const result_names = await mi.sendDataListRegisterNames(this.gdb, {});
+                const result_names = await mi.sendDataListRegisterNames(
+                    this.gdb,
+                    {frameId: frame.frameId, threadId: frame.threadId}
+                );
                 let idx = 0;
                 const registerNames = result_names['register-names'];
-                for (const regs of registerNames){
-                    if(regs !== ''){
+                for (const regs of registerNames) {
+                    if (regs !== '') {
                         this.registerMap.set(regs, idx);
                         this.registerMapReverse.set(idx, regs);
                     }
                     idx++;
-                }      
-            }            
-        }
-        catch {
-
-           throw new Error('Unable to parse response for reg. names ');
+                }
+            }
+        } catch {
+            throw new Error('Unable to parse response for reg. names ');
         }
 
         try {
-            const result_values = await mi.sendDataListRegisterValues(this.gdb, {fmt:' x'});
+            const result_values = await mi.sendDataListRegisterValues(
+                this.gdb,
+                { fmt: ' x' }
+            );
             const reg_values = result_values['register-values'];
-            for (const n of reg_values){
-                const id = Object.values(n)[0];
+            for (const n of reg_values) {
+                const id = n.number;
                 const reg = this.registerMapReverse.get(parseInt(id));
                 if (reg) {
                     const val = n.value;
@@ -1850,18 +1861,17 @@ export class GDBDebugSession extends LoggingDebugSession {
                         name: reg,
                         evaluateName: '$' + reg,
                         value: val,
-                        variablesReference: 0
+                        variablesReference: 0,
                     };
                     variables.push(res);
                 } else {
                     throw new Error('Unable to parse response for reg. values');
                 }
             }
-        }
-        catch (error) {
+        } catch (error) {
             throw new Error('Unable to parse response for reg. names');
         }
-        
+
         return Promise.resolve(variables);
     }
 
