@@ -1826,50 +1826,41 @@ export class GDBDebugSession extends LoggingDebugSession {
             return Promise.resolve(variables);
         }
 
-        try {
-            if (this.registerMap.size === 0) {
-                const result_names = await mi.sendDataListRegisterNames(
-                    this.gdb,
-                    { frameId: frame.frameId, threadId: frame.threadId }
-                );
-                let idx = 0;
-                const registerNames = result_names['register-names'];
-                for (const regs of registerNames) {
-                    if (regs !== '') {
-                        this.registerMap.set(regs, idx);
-                        this.registerMapReverse.set(idx, regs);
-                    }
-                    idx++;
+        if (this.registerMap.size === 0) {
+            const result_names = await mi.sendDataListRegisterNames(this.gdb, {
+                frameId: frame.frameId,
+                threadId: frame.threadId,
+            });
+            let idx = 0;
+            const registerNames = result_names['register-names'];
+            for (const regs of registerNames) {
+                if (regs !== '') {
+                    this.registerMap.set(regs, idx);
+                    this.registerMapReverse.set(idx, regs);
                 }
+                idx++;
             }
-        } catch {
-            throw new Error('Unable to parse response for reg. names ');
         }
 
-        try {
-            const result_values = await mi.sendDataListRegisterValues(
-                this.gdb,
-                { fmt: ' x' }
-            );
-            const reg_values = result_values['register-values'];
-            for (const n of reg_values) {
-                const id = n.number;
-                const reg = this.registerMapReverse.get(parseInt(id));
-                if (reg) {
-                    const val = n.value;
-                    const res: DebugProtocol.Variable = {
-                        name: reg,
-                        evaluateName: '$' + reg,
-                        value: val,
-                        variablesReference: 0,
-                    };
-                    variables.push(res);
-                } else {
-                    throw new Error('Unable to parse response for reg. values');
-                }
+        const result_values = await mi.sendDataListRegisterValues(this.gdb, {
+            fmt: ' x',
+        });
+        const reg_values = result_values['register-values'];
+        for (const n of reg_values) {
+            const id = n.number;
+            const reg = this.registerMapReverse.get(parseInt(id));
+            if (reg) {
+                const val = n.value;
+                const res: DebugProtocol.Variable = {
+                    name: reg,
+                    evaluateName: '$' + reg,
+                    value: val,
+                    variablesReference: 0,
+                };
+                variables.push(res);
+            } else {
+                throw new Error('Unable to parse response for reg. values');
             }
-        } catch (error) {
-            throw new Error('Unable to parse response for reg. names');
         }
 
         return Promise.resolve(variables);
