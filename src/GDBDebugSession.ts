@@ -1830,7 +1830,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             if (this.registerMap.size === 0) {
                 const result_names = await mi.sendDataListRegisterNames(
                     this.gdb,
-                    {frameId: frame.frameId, threadId: frame.threadId}
+                    { frameId: frame.frameId, threadId: frame.threadId }
                 );
                 let idx = 0;
                 const registerNames = result_names['register-names'];
