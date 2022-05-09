@@ -127,11 +127,7 @@ export function sendDataListRegisterNames(
         threadId: number;
     }
 ): Promise<MIListRegisterNamesResponse> {
-    let command = '-data-list-register-names';
-
-    command += ` --frame ${params.frameId}`;
-
-    command += ` --thread ${params.threadId}`;
+    let command = `-data-list-register-names --frame ${params.frameId} --thread ${params.threadId}`;
 
     if (params.regno) {
         command += params.regno.join(' ');
@@ -149,13 +145,7 @@ export function sendDataListRegisterValues(
         threadId: number;
     }
 ): Promise<MIListRegisterValuesResponse> {
-    let command = '-data-list-register-values';
-
-    command += ` --frame ${params.frameId}`;
-
-    command += ` --thread ${params.threadId}`;
-
-    command += `${params.fmt}`;
+    let command = `-data-list-register-values --frame ${params.frameId} --thread ${params.threadId} ${params.fmt}`;
 
     if (params.regno) {
         command += params.regno.join(' ');

@@ -1843,7 +1843,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
 
         const result_values = await mi.sendDataListRegisterValues(this.gdb, {
-            fmt: ' x',
+            fmt: 'x',
             frameId: frame.frameId,
             threadId: frame.threadId,
         });
