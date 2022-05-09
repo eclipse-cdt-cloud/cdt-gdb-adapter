@@ -331,7 +331,7 @@ describe('Variables Test Suite', function () {
         });
         expect(
             hexValueRegex.test(vars.body.variables[6].value),
-            'The display value of the array is not a hexidecimal address'
+            'The display value of the array is not a hexadecimal address'
         ).to.equal(true);
         const childVR = vars.body.variables[6].variablesReference;
         let children = await dc.variablesRequest({
