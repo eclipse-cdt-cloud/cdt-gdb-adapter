@@ -21,6 +21,6 @@ int main()
     int d = r.x + r.y;
     int e = r.z.a + r.z.b;
     int f[] = {1, 2, 3};
-    int g = f[0] + f[1] + f[2];
+    int g = f[0] + f[1] + f[2]; // After array init
     return 0;
 }

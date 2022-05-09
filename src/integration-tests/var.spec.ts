@@ -32,6 +32,7 @@ describe('Variables Test Suite', function () {
 
     const lineTags = {
         'STOP HERE': 0,
+        'After array init': 0,
     };
 
     const hexValueRegex = /0x[\d]+/;
@@ -307,7 +308,7 @@ describe('Variables Test Suite', function () {
         // skip ahead to array initialization
         const br = await dc.setBreakpointsRequest({
             source: { path: varsSrc },
-            breakpoints: [{ line: 24 }],
+            breakpoints: [{ line: lineTags['After array init'] }],
         });
         expect(br.success).to.equal(true);
         await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
