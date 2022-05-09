@@ -11,9 +11,6 @@
 import { File } from './file';
 export { File };
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pty = require('../../build/Release/pty.node');
-
 interface PtyHandles {
     master_fd: number;
     slave_name: string;
@@ -26,6 +23,8 @@ export class Pty extends File {
     public readonly slave_name: string;
 
     constructor() {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pty = require('../../build/Release/pty.node');
         const handles = pty.create_pty() as PtyHandles;
         super(handles.master_fd);
         this.slave_name = handles.slave_name;
