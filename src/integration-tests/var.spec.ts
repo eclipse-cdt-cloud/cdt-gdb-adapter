@@ -35,7 +35,7 @@ describe('Variables Test Suite', function () {
         'After array init': 0,
     };
 
-    const hexValueRegex = /0x[\d]+/;
+    const hexValueRegex = /^0x[\da-fA-F]+$/;
 
     before(function () {
         resolveLineTagLocations(varsSrc, lineTags);
