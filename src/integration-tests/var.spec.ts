@@ -32,9 +32,10 @@ describe('Variables Test Suite', function () {
 
     const lineTags = {
         'STOP HERE': 0,
+        'After array init': 0,
     };
 
-    const hexValueRegex = /0x[\d]+/;
+    const hexValueRegex = /^0x[\da-fA-F]+$/;
 
     before(function () {
         resolveLineTagLocations(varsSrc, lineTags);
@@ -307,7 +308,7 @@ describe('Variables Test Suite', function () {
         // skip ahead to array initialization
         const br = await dc.setBreakpointsRequest({
             source: { path: varsSrc },
-            breakpoints: [{ line: 24 }],
+            breakpoints: [{ line: lineTags['After array init'] }],
         });
         expect(br.success).to.equal(true);
         await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
@@ -330,9 +331,9 @@ describe('Variables Test Suite', function () {
             hasChildren: true,
         });
         expect(
-            hexValueRegex.test(vars.body.variables[6].value),
-            'The display value of the array is not a hexidecimal address'
-        ).to.equal(true);
+            vars.body.variables[6].value,
+            'The display value of the array is not a hexadecimal address'
+        ).to.match(hexValueRegex);
         const childVR = vars.body.variables[6].variablesReference;
         let children = await dc.variablesRequest({
             variablesReference: childVR,
