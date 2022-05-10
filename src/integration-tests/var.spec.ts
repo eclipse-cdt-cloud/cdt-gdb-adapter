@@ -22,6 +22,9 @@ import {
     testProgramsDir,
     verifyVariable,
 } from './utils';
+import * as chai from 'chai';
+import * as chaistring from 'chai-string';
+chai.use(chaistring);
 
 describe('Variables Test Suite', function () {
     let dc: CdtDebugClient;
@@ -60,7 +63,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
     });
 
     afterEach(async function () {
@@ -117,6 +120,25 @@ describe('Variables Test Suite', function () {
             'There is a different number of variables than expected'
         ).to.equal(numVars);
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
+    });
+
+    it('can read registers in a program', async function () {
+        // read the registers
+        const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.be.greaterThanOrEqual(5); // 5 is a good bet to make sure that code has probably worked
+        const r0 = vars.body.variables[0];
+        const r1 = vars.body.variables[1];
+        const rn = vars.body.variables.at(-1);
+        // can't check specific names or register values easily as that
+        // is not cross platform
+        expect(r0.evaluateName).to.startWith('$');
+        expect(r0.name).to.not.equal(r1.name);
+        // add other useful tests here, especially ones that test boundary conditions
+        expect(rn?.evaluateName).to.startWith('$'); // check last registers
     });
 
     it('can read and set struct variables in a program', async function () {
