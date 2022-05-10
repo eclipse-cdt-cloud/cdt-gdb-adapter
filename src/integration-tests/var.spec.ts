@@ -112,7 +112,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -155,7 +155,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         // assert we can see the struct and its elements
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
@@ -216,7 +216,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -240,7 +240,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         // assert we can see the 'foo' struct and its child 'bar' struct
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
@@ -316,7 +316,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -341,7 +341,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         // assert we can see the array and its elements
         let vr = scope.scopes.body.scopes[0].variablesReference;
         let vars = await dc.variablesRequest({ variablesReference: vr });
@@ -413,7 +413,7 @@ describe('Variables Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
         vr = scope.scopes.body.scopes[0].variablesReference;
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
