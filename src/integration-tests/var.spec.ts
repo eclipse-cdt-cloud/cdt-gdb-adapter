@@ -132,7 +132,7 @@ describe('Variables Test Suite', function () {
         ).to.be.greaterThanOrEqual(5); // 5 is a good bet to make sure that code has probably worked
         const r0 = vars.body.variables[0];
         const r1 = vars.body.variables[1];
-        const rn = vars.body.variables.at(-1);
+        const rn = vars.body.variables[vars.body.variables.length - 1];
         // can't check specific names or register values easily as that
         // is not cross platform
         expect(r0.evaluateName).to.startWith('$');
