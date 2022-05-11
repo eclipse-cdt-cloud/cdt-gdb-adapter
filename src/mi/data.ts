@@ -9,7 +9,7 @@
  *********************************************************************/
 
 import { GDBBackend } from '../GDBBackend';
-import { MIResponse } from './base';
+import { MIResponse, MIRegisterValueInfo } from './base';
 
 interface MIDataReadMemoryBytesResponse {
     memory: Array<{
@@ -36,6 +36,14 @@ interface MIDataDisassembleSrcAndAsmLine {
 }
 interface MIDataDisassembleResponse {
     asm_insns: MIDataDisassembleSrcAndAsmLine[];
+}
+
+export interface MIListRegisterNamesResponse extends MIResponse {
+    'register-names': string[];
+}
+
+export interface MIListRegisterValuesResponse extends MIResponse {
+    'register-values': MIRegisterValueInfo[];
 }
 
 export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
@@ -109,4 +117,39 @@ export async function sendDataDisassemble(
         }
     }
     return Promise.resolve(result);
+}
+
+export function sendDataListRegisterNames(
+    gdb: GDBBackend,
+    params: {
+        regno?: number[];
+        frameId: number;
+        threadId: number;
+    }
+): Promise<MIListRegisterNamesResponse> {
+    let command = `-data-list-register-names --frame ${params.frameId} --thread ${params.threadId}`;
+
+    if (params.regno) {
+        command += params.regno.join(' ');
+    }
+
+    return gdb.sendCommand(command);
+}
+
+export function sendDataListRegisterValues(
+    gdb: GDBBackend,
+    params: {
+        fmt: string;
+        regno?: number[];
+        frameId: number;
+        threadId: number;
+    }
+): Promise<MIListRegisterValuesResponse> {
+    let command = `-data-list-register-values --frame ${params.frameId} --thread ${params.threadId} ${params.fmt}`;
+
+    if (params.regno) {
+        command += params.regno.join(' ');
+    }
+
+    return gdb.sendCommand(command);
 }

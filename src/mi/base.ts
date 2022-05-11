@@ -50,3 +50,8 @@ export interface MIVariableInfo {
     value?: string;
     type?: string;
 }
+
+export interface MIRegisterValueInfo {
+    number: string;
+    value: string;
+}

@@ -67,7 +67,7 @@ describe('Variables CPP Test Suite', function () {
         expect(
             scope.scopes.body.scopes.length,
             'Unexpected number of scopes returned'
-        ).to.equal(1);
+        ).to.equal(2);
     });
 
     afterEach(async function () {

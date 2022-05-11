@@ -70,9 +70,16 @@ export interface ObjectVariableReference {
     varobjName: string;
 }
 
+export interface RegisterVariableReference {
+    type: 'registers';
+    frameHandle: number;
+    regname?: string;
+}
+
 export type VariableReference =
     | FrameVariableReference
-    | ObjectVariableReference;
+    | ObjectVariableReference
+    | RegisterVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
@@ -874,9 +881,19 @@ export class GDBDebugSession extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
+        const registers: RegisterVariableReference = {
+            type: 'registers',
+            frameHandle: args.frameId,
+        };
+
         response.body = {
             scopes: [
                 new Scope('Local', this.variableHandles.create(frame), false),
+                new Scope(
+                    'Registers',
+                    this.variableHandles.create(registers),
+                    true
+                ),
             ],
         };
 
@@ -897,7 +914,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
-            if (ref.type === 'frame') {
+            if (ref.type === 'registers') {
+                response.body.variables =
+                    await this.handleVariableRequestRegister(ref);
+            } else if (ref.type === 'frame') {
                 response.body.variables = await this.handleVariableRequestFrame(
                     ref
                 );
@@ -1789,6 +1809,62 @@ export class GDBDebugSession extends LoggingDebugSession {
                 });
             }
         }
+        return Promise.resolve(variables);
+    }
+
+    // Register view
+    // Assume that the register name are unchanging over time, and the same across all threadsf
+    private registerMap = new Map<string, number>();
+    private registerMapReverse = new Map<number, string>();
+    protected async handleVariableRequestRegister(
+        ref: RegisterVariableReference
+    ): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array and dereference the frame handle
+        const variables: DebugProtocol.Variable[] = [];
+        const frame = this.frameHandles.get(ref.frameHandle);
+        if (!frame) {
+            return Promise.resolve(variables);
+        }
+
+        if (this.registerMap.size === 0) {
+            const result_names = await mi.sendDataListRegisterNames(this.gdb, {
+                frameId: frame.frameId,
+                threadId: frame.threadId,
+            });
+            let idx = 0;
+            const registerNames = result_names['register-names'];
+            for (const regs of registerNames) {
+                if (regs !== '') {
+                    this.registerMap.set(regs, idx);
+                    this.registerMapReverse.set(idx, regs);
+                }
+                idx++;
+            }
+        }
+
+        const result_values = await mi.sendDataListRegisterValues(this.gdb, {
+            fmt: 'x',
+            frameId: frame.frameId,
+            threadId: frame.threadId,
+        });
+        const reg_values = result_values['register-values'];
+        for (const n of reg_values) {
+            const id = n.number;
+            const reg = this.registerMapReverse.get(parseInt(id));
+            if (reg) {
+                const val = n.value;
+                const res: DebugProtocol.Variable = {
+                    name: reg,
+                    evaluateName: '$' + reg,
+                    value: val,
+                    variablesReference: 0,
+                };
+                variables.push(res);
+            } else {
+                throw new Error('Unable to parse response for reg. values');
+            }
+        }
+
         return Promise.resolve(variables);
     }
 
