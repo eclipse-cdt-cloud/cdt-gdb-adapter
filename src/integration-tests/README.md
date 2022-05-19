@@ -52,3 +52,53 @@ do so by changing the test declaration:
 to
 
     it.only('should do something', ...)
+
+## Setting up test environmnt on Windows host
+
+When using Windows to test the adapter the flow is somewhat complicated by the myriad of choices of
+gcc/gdb/make distributions. Some like Mingw are rarely updated, including old versions of GDB and GCC,
+others like Cygwin have their own environment they work in to provide a Posix like environment. Below
+is a recommended development flow that can be followed based on the popular msys2 distribution.
+
+1. Get Msys2 from http://www.msys2.org/) and follow short install instructions on that page. The brief instructions are:
+
+-   Run `pacman -Syu` twice
+-   Install the development packages `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
+
+2. Start _MSYS2 MinGW 64-bit_ (from start menu) -- this is the shell to build from
+
+```sh
+gcc --version # show details about compiler being used
+gdb --version # show details about gdb being used
+```
+
+3. The _MSYS2 MinGW 64-bit_ terminal does [not include your normal tools](https://www.msys2.org/wiki/MSYS2-introduction/#path)
+   on the `PATH`. To start the shell with the normal tools, add `-use-full-path` to the command line.
+   e.g. press Start+R and use command `C:\msys64\msys2_shell.cmd -mingw64 -use-full-path`
+
+### Integrate Shell into VS Code
+
+The _MSYS2 MinGW 64-bit_ shell can be integrated into VSCode.
+
+1. In VS Code: Ctrl+Shift+P then select `Preferences: Open Settings (JSON)`
+2. In the `"terminal.integrated.profiles.windows"` section add:
+
+```json
+    "terminal.integrated.profiles.windows": {
+        "MSYS2 MinGW 64-bit": {
+            "path": "C:\\msys64\\usr\\bin\\bash.exe",
+            "args": ["--login", "-i"],
+            "env": {
+                "MSYSTEM": "MINGW64",
+                "CHERE_INVOKING": "1",
+                "MSYS2_PATH_TYPE": "inherit"
+            }
+        }
+    }
+```
+
+3. (Optional) Make the above the defualt with this setting:
+
+```json
+"terminal.integrated.defaultProfile.windows": "MSYS2 MinGW 64-bit",
+```
