@@ -19,7 +19,8 @@ and `out/debugTargetAdapter.js` for target (remote) debugging.g
 
 ## Testing
 
-Testing of the adapter can be run with `yarn test`.
+Testing of the adapter can be run with `yarn test`. See [Integration Tests readme](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/main/src/integration-tests/README.md)
+for more details, including how to setup a Windows machine with msys2 to run the tests.
 
 ## Debugging
 
