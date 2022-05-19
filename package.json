@@ -19,8 +19,8 @@
     "test": "yarn test:integration && yarn test:pty && yarn test:integration-run-in-terminal && yarn test:integration-remote-target && yarn test:integration-remote-target-run-in-terminal",
     "test:integration": "cross-env JUNIT_REPORT_PATH=test-reports/integration.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
     "test:integration-run-in-terminal": "cross-env JUNIT_REPORT_PATH=test-reports/integration-run-in-terminal.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --run-in-terminal --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
-    "test:integration-remote-target": "cross-env JUNIT_REPORT_PATH=test-reports/integration-remote-target.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --test-remote --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
-    "test:integration-remote-target-run-in-terminal": "cross-env JUNIT_REPORT_PATH=test-reports/integration-remote-target-run-in-terminal.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --test-remote --run-in-terminal --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
+    "test:integration-remote-target": "cross-env JUNIT_REPORT_PATH=test-reports/integration-remote-target.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --test-remote --timeout 5000 --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
+    "test:integration-remote-target-run-in-terminal": "cross-env JUNIT_REPORT_PATH=test-reports/integration-remote-target-run-in-terminal.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --test-remote --timeout 5000 --run-in-terminal --reporter mocha-jenkins-reporter dist/integration-tests/*.spec.js",
     "test:pty": "cross-env JUNIT_REPORT_PATH=test-reports/native.xml JUNIT_REPORT_STACK=1 JUNIT_REPORT_PACKAGES=1 mocha --reporter mocha-jenkins-reporter dist/native/*.spec.js"
   },
   "repository": {
