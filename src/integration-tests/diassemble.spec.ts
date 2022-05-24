@@ -16,6 +16,7 @@ import { CdtDebugClient } from './debugClient';
 import {
     gdbPath,
     openGdbConsole,
+    gdbAsync,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -34,6 +35,7 @@ describe('Disassembly Test Suite', function () {
                 gdb: gdbPath,
                 program: disProgram,
                 openGdbConsole,
+                gdbAsync,
             } as LaunchRequestArguments,
             {
                 path: disSrc,

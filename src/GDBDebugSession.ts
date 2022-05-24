@@ -38,6 +38,7 @@ import { breakpointFunctionLocation, breakpointLocation } from './mi';
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
+    gdbAsync?: boolean;
     program: string;
     cwd?: string; // TODO not implemented
     verbose?: boolean;
@@ -866,10 +867,16 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.PauseResponse,
         _args: DebugProtocol.PauseArguments
     ): Promise<void> {
-        if (!this.gdb.pause()) {
-            response.success = false;
+        try {
+            this.gdb.pause();
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
         }
-        this.sendResponse(response);
     }
 
     protected scopesRequest(

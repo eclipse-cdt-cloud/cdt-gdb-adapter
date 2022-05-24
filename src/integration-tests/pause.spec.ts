@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 QNX Software Systems and others
+ * Copyright (c) 2022 Kichwa Coders Canada Inc. and others.
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -14,12 +14,13 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    isRemoteTest,
 } from './utils';
 import { LaunchRequestArguments } from '../GDBDebugSession';
-import { expect } from 'chai';
 import * as path from 'path';
+import * as os from 'os';
 
-describe('stop', async () => {
+describe('pause', async () => {
     let dc: CdtDebugClient;
 
     beforeEach(async () => {
@@ -30,16 +31,23 @@ describe('stop', async () => {
         await dc.stop();
     });
 
-    it('handles segv', async () => {
+    it('can be paused', async function () {
+        if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
+            // win32 host can only pause remote + mi-async targets
+            this.skip();
+        }
         await dc.launchRequest({
             verbose: true,
             gdb: gdbPath,
-            program: path.join(testProgramsDir, 'segv'),
+            program: path.join(testProgramsDir, 'loopforever'),
             openGdbConsole,
             gdbAsync,
+            logFile: '/tmp/log',
         } as LaunchRequestArguments);
         await dc.configurationDoneRequest();
-        const stoppedEvent = await dc.waitForEvent('stopped');
-        expect(stoppedEvent.body.reason).to.eq('SIGSEGV');
+        const waitForStopped = dc.waitForEvent('stopped');
+        const threads = await dc.threadsRequest();
+        const pr = dc.pauseRequest({ threadId: threads.body.threads[0].id });
+        await Promise.all([pr, waitForStopped]);
     });
 });

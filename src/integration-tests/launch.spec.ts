@@ -13,7 +13,7 @@ import * as path from 'path';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { standardBeforeEach, testProgramsDir } from './utils';
-import { gdbPath, openGdbConsole } from './utils';
+import { gdbPath, openGdbConsole, gdbAsync } from './utils';
 
 describe('launch', function () {
     let dc: CdtDebugClient;
@@ -42,6 +42,7 @@ describe('launch', function () {
                 gdb: gdbPath,
                 program: emptyProgram,
                 openGdbConsole,
+                gdbAsync,
             } as LaunchRequestArguments,
             {
                 path: emptySrc,
@@ -57,6 +58,7 @@ describe('launch', function () {
                 gdb: gdbPath,
                 program: '/does/not/exist',
                 openGdbConsole,
+                gdbAsync,
             } as LaunchRequestArguments)
                 .then(reject)
                 .catch(resolve);
@@ -80,6 +82,7 @@ describe('launch', function () {
                 gdb: gdbPath,
                 program: emptySpaceProgram,
                 openGdbConsole,
+                gdbAsync,
             } as LaunchRequestArguments,
             {
                 path: emptySpaceSrc,

@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever
 
 .PHONY: all
 all: $(BINS)
@@ -36,6 +36,9 @@ vars_cpp: vars_cpp.o
 	$(LINK_CXX)
 
 segv: segv.o
+	$(LINK)
+
+loopforever: loopforever.o
 	$(LINK)
 
 %.o: %.c

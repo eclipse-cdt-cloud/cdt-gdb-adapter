@@ -16,6 +16,7 @@ import {
     gdbPath,
     getScopes,
     openGdbConsole,
+    gdbAsync,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
@@ -53,6 +54,7 @@ describe('Variables Test Suite', function () {
                 gdb: gdbPath,
                 program: varsProgram,
                 openGdbConsole,
+                gdbAsync,
             } as LaunchRequestArguments,
             {
                 path: varsSrc,
