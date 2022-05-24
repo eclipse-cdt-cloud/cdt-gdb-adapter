@@ -17,6 +17,7 @@ import {
     gdbPath,
     testProgramsDir,
     openGdbConsole,
+    gdbAsync,
 } from './utils';
 
 describe('logpoints', async () => {
@@ -30,6 +31,7 @@ describe('logpoints', async () => {
             gdb: gdbPath,
             program: join(testProgramsDir, 'count'),
             openGdbConsole,
+            gdbAsync,
         } as LaunchRequestArguments);
     });
 

@@ -17,6 +17,7 @@ import {
     gdbPath,
     testProgramsDir,
     openGdbConsole,
+    gdbAsync,
     getScopes,
     verifyVariable,
     gdbVersionAtLeast,
@@ -34,6 +35,7 @@ describe('breakpoints', async () => {
             gdb: gdbPath,
             program: path.join(testProgramsDir, 'count'),
             openGdbConsole,
+            gdbAsync,
             logFile: '/tmp/log',
         } as LaunchRequestArguments);
     });
@@ -59,6 +61,7 @@ describe('breakpoints', async () => {
         expect(bpResp.body.breakpoints[0].verified).eq(true);
         expect(bpResp.body.breakpoints[0].message).eq(undefined);
         await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
@@ -91,6 +94,7 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
@@ -308,6 +312,7 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
@@ -329,6 +334,7 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
@@ -350,6 +356,7 @@ describe('breakpoints', async () => {
             ],
         });
         await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });

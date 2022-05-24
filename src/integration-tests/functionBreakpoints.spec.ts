@@ -18,6 +18,7 @@ import {
     gdbPath,
     testProgramsDir,
     openGdbConsole,
+    gdbAsync,
     getScopes,
 } from './utils';
 
@@ -32,6 +33,7 @@ describe('function breakpoints', async () => {
             gdb: gdbPath,
             program: join(testProgramsDir, 'functions'),
             openGdbConsole,
+            gdbAsync,
         } as LaunchRequestArguments);
     });
 

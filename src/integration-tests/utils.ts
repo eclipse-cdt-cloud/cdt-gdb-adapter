@@ -196,6 +196,8 @@ export const openGdbConsole: boolean =
     process.argv.indexOf('--run-in-terminal') !== -1;
 export const isRemoteTest: boolean =
     process.argv.indexOf('--test-remote') !== -1;
+export const gdbAsync: boolean =
+    process.argv.indexOf('--test-gdb-async-off') === -1;
 export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();

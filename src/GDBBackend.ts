@@ -15,6 +15,7 @@ import {
     AttachRequestArguments,
     LaunchRequestArguments,
 } from './GDBDebugSession';
+import * as mi from './mi';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
@@ -60,6 +61,7 @@ export class GDBBackend extends events.EventEmitter {
     protected token = 0;
     protected proc?: ChildProcess;
     private gdbVersion?: string;
+    protected gdbAsync = false;
 
     get varManager(): VarManager {
         return this.varMgr;
@@ -79,7 +81,8 @@ export class GDBBackend extends events.EventEmitter {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
         this.out = this.proc.stdin;
-        return this.parser.parse(this.proc.stdout);
+        await this.parser.parse(this.proc.stdout);
+        await this.setAsyncMode(requestArgs.gdbAsync);
     }
 
     public async spawnInClientTerminal(
@@ -98,15 +101,40 @@ export class GDBBackend extends events.EventEmitter {
         }
         await cb(args);
         this.out = pty.writer;
-        return this.parser.parse(pty.reader);
+        await this.parser.parse(pty.reader);
+        await this.setAsyncMode(requestArgs.gdbAsync);
+    }
+
+    public async setAsyncMode(isSet?: boolean) {
+        const command = this.gdbVersionAtLeast('7.8')
+            ? 'mi-async'
+            : 'target-async';
+        if (isSet === undefined) {
+            isSet = true;
+        }
+        const onoff = isSet ? 'on' : 'off';
+        try {
+            await this.sendCommand(`-gdb-set ${command} ${onoff}`);
+            this.gdbAsync = isSet;
+        } catch {
+            // no async support - normally this only happens on Windows
+            // when doing host debugging. We explicitly set this
+            // to off here so that we get the error propogate if the -gdb-set
+            // failed and to make it easier to read the log
+            await this.sendCommand(`-gdb-set ${command} off`);
+            this.gdbAsync = false;
+        }
     }
 
     public pause() {
-        if (this.proc) {
-            this.proc.kill('SIGINT');
-            return true;
+        if (this.gdbAsync) {
+            mi.sendExecInterrupt(this);
         } else {
-            return false;
+            if (!this.proc) {
+                throw new Error('GDB is not running, nothing to interrupt');
+            }
+            logger.verbose(`GDB signal: SIGINT to pid ${this.proc.pid}`);
+            this.proc.kill('SIGINT');
         }
     }
 
