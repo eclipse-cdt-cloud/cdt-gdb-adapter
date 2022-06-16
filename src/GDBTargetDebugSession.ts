@@ -301,6 +301,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
+            this.isInitialized = true;
         } catch (err) {
             this.sendErrorResponse(
                 response,

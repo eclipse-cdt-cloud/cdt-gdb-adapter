@@ -8,8 +8,13 @@ mem
 vars
 segv
 loopforever
+MultiThread
+MultiThreadRunControl
 *.o
 *.exe
 .vscode
+.project
+.cproject
+.settings/
 /vars_cpp
 /log

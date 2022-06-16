@@ -62,6 +62,7 @@ export class GDBBackend extends events.EventEmitter {
     protected proc?: ChildProcess;
     private gdbVersion?: string;
     protected gdbAsync = false;
+    protected gdbNonStop = false;
 
     get varManager(): VarManager {
         return this.varMgr;
@@ -82,6 +83,7 @@ export class GDBBackend extends events.EventEmitter {
         }
         this.out = this.proc.stdin;
         await this.parser.parse(this.proc.stdout);
+        await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
 
@@ -102,6 +104,7 @@ export class GDBBackend extends events.EventEmitter {
         await cb(args);
         this.out = pty.writer;
         await this.parser.parse(pty.reader);
+        await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
 
@@ -110,6 +113,9 @@ export class GDBBackend extends events.EventEmitter {
             ? 'mi-async'
             : 'target-async';
         if (isSet === undefined) {
+            isSet = true;
+        }
+        if (this.gdbNonStop) {
             isSet = true;
         }
         const onoff = isSet ? 'on' : 'off';
@@ -126,9 +132,34 @@ export class GDBBackend extends events.EventEmitter {
         }
     }
 
-    public pause() {
+    public async setNonStopMode(isSet?: boolean) {
+        if (isSet === undefined) {
+            isSet = false;
+        }
+        if (isSet) {
+            await this.sendCommand('-gdb-set pagination off');
+        }
+        const onoff = isSet ? 'on' : 'off';
+        try {
+            await this.sendCommand(`-gdb-set non-stop ${onoff}`);
+            this.gdbNonStop = isSet;
+        } catch {
+            // no non-stop support - normally this only happens on Windows.
+            // We explicitly set this to off here so that we get the error
+            // propogate if the -gdb-set failed and to make it easier to
+            // read the log
+            await this.sendCommand(`-gdb-set non-stop off`);
+            this.gdbNonStop = false;
+        }
+    }
+
+    public isNonStopMode() {
+        return this.gdbNonStop;
+    }
+
+    public pause(threadId?: number) {
         if (this.gdbAsync) {
-            mi.sendExecInterrupt(this);
+            mi.sendExecInterrupt(this, threadId);
         } else {
             if (!this.proc) {
                 throw new Error('GDB is not running, nothing to interrupt');
