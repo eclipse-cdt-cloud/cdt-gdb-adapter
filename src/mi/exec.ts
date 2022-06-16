@@ -55,7 +55,14 @@ export function sendExecFinish(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecInterrupt(gdb: GDBBackend) {
-    const command = '-exec-interrupt';
+export function sendExecInterrupt(gdb: GDBBackend, threadId?: number) {
+    let command = '-exec-interrupt';
+
+    if (threadId !== undefined) {
+        command += ` --thread ${threadId}`;
+    } else {
+        command += ' --all';
+    }
+
     return gdb.sendCommand(command);
 }

@@ -21,7 +21,6 @@ import {
     Source,
     StackFrame,
     TerminatedEvent,
-    Thread,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBBackend } from './GDBBackend';
@@ -39,6 +38,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
     gdbAsync?: boolean;
+    gdbNonStop?: boolean;
     program: string;
     cwd?: string; // TODO not implemented
     verbose?: boolean;
@@ -111,6 +111,17 @@ export interface CDTDisassembleArguments
     endMemoryReference: string;
 }
 
+class ThreadWithStatus implements DebugProtocol.Thread {
+    id: number;
+    name: string;
+    running: boolean;
+    constructor(id: number, name: string, running: boolean) {
+        this.id = id;
+        this.name = name;
+        this.running = running;
+    }
+}
+
 // Allow a single number for ignore count or the form '> [number]'
 const ignoreCountRegex = /\s|>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
@@ -142,6 +153,7 @@ export function base64ToHex(base64: string): string {
 export class GDBDebugSession extends LoggingDebugSession {
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
+    // isRunning === true means there are no threads stopped.
     protected isRunning = false;
 
     protected supportsRunInTerminalRequest = false;
@@ -155,9 +167,10 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected functionBreakpoints: string[] = [];
     protected logPointMessages: { [key: string]: string } = {};
 
-    protected threads: Thread[] = [];
+    protected threads: ThreadWithStatus[] = [];
 
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
+    protected isInitialized = false;
 
     constructor() {
         super();
@@ -255,6 +268,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
+            this.isInitialized = true;
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -302,6 +316,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
+            this.isInitialized = true;
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -705,7 +720,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             name += ` (${thread.details})`;
         }
 
-        return new Thread(parseInt(thread.id, 10), name);
+        const running = thread.state === 'running';
+
+        return new ThreadWithStatus(parseInt(thread.id, 10), name, running);
     }
 
     protected async threadsRequest(
@@ -865,10 +882,10 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async pauseRequest(
         response: DebugProtocol.PauseResponse,
-        _args: DebugProtocol.PauseArguments
+        args: DebugProtocol.PauseArguments
     ): Promise<void> {
         try {
-            this.gdb.pause();
+            this.gdb.pause(args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -1476,16 +1493,55 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected handleGDBAsync(resultClass: string, resultData: any) {
+        const updateIsRunning = () => {
+            this.isRunning = true;
+            for (const thread of this.threads) {
+                if (!thread.running) {
+                    this.isRunning = false;
+                }
+            }
+        };
         switch (resultClass) {
             case 'running':
-                this.isRunning = true;
+                if (this.gdb.isNonStopMode()) {
+                    const id = parseInt(resultData.thread_id, 10);
+                    for (const thread of this.threads) {
+                        if (thread.id === id) {
+                            thread.running = true;
+                        }
+                    }
+                } else {
+                    for (const thread of this.threads) {
+                        thread.running = true;
+                    }
+                }
+                updateIsRunning();
                 break;
-            case 'stopped':
-                if (this.isRunning) {
-                    this.isRunning = false;
-                    this.handleGDBStopped(resultData);
+            case 'stopped': {
+                if (this.gdb.isNonStopMode()) {
+                    const id = parseInt(resultData.thread_id, 10);
+                    for (const thread of this.threads) {
+                        if (thread.id === id) {
+                            thread.running = false;
+                        }
+                    }
+                } else {
+                    for (const thread of this.threads) {
+                        thread.running = false;
+                    }
+                }
+                const wasRunning = this.isRunning;
+                updateIsRunning();
+                if (
+                    this.gdb.isNonStopMode() ||
+                    (wasRunning && !this.isRunning)
+                ) {
+                    if (this.isInitialized) {
+                        this.handleGDBStopped(resultData);
+                    }
                 }
                 break;
+            }
             default:
                 logger.warn(
                     `GDB unhandled async: ${resultClass}: ${JSON.stringify(
@@ -1500,8 +1556,13 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'thread-created':
                 this.threads.push(this.convertThread(notifyData));
                 break;
+            case 'thread-exited': {
+                const thread: mi.MIThreadInfo = notifyData;
+                const exitId = parseInt(thread.id, 10);
+                this.threads = this.threads.filter((t) => t.id !== exitId);
+                break;
+            }
             case 'thread-selected':
-            case 'thread-exited':
             case 'thread-group-added':
             case 'thread-group-started':
             case 'thread-group-exited':

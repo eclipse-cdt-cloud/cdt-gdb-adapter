@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl
 
 .PHONY: all
 all: $(BINS)
@@ -7,6 +7,15 @@ CC = gcc
 CXX = g++
 LINK = $(CC) -o $@ $^
 LINK_CXX = $(CXX) -o $@ $^
+
+# Don't try to use pthread on Windows
+# The OS environment variable exists on Windows
+ifneq ($(OS),Windows_NT)
+	CC += -pthread
+	CXX += -pthread
+	LINK += -pthread
+	LINK_CXX += -pthread
+endif
 
 functions: functions.o functions_other.o
 	$(LINK)
@@ -41,10 +50,19 @@ segv: segv.o
 loopforever: loopforever.o
 	$(LINK)
 
+MultiThread: MultiThread.o
+	$(LINK_CXX)
+
+MultiThreadRunControl: MultiThreadRunControl.o
+	$(LINK_CXX)
+
 %.o: %.c
 	$(CC) -c $< -g3 -O0
 
 %.o: %.cpp
+	$(CXX) -c $< -g3 -O0
+
+%.o: %.cc
 	$(CXX) -c $< -g3 -O0
 
 empty\ space: empty\ space.o
