@@ -1098,7 +1098,8 @@ export class GDBDebugSession extends LoggingDebugSession {
             if (!varobj) {
                 const varCreateResponse = await mi.sendVarCreate(this.gdb, {
                     expression: args.expression,
-                    frame: 'current',
+                    frameId: frame.frameId,
+                    threadId: frame.threadId,
                 });
                 varobj = this.gdb.varManager.addVar(
                     frame.frameId,
@@ -1131,7 +1132,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                         });
                         const varCreateResponse = await mi.sendVarCreate(
                             this.gdb,
-                            { expression: args.expression, frame: 'current' }
+                            {
+                                expression: args.expression,
+                                frameId: frame.frameId,
+                                threadId: frame.threadId,
+                            }
                         );
                         varobj = this.gdb.varManager.addVar(
                             frame.frameId,
@@ -1688,8 +1693,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                 if (!varobj) {
                     // create var in GDB and store it in the varMgr
                     const varCreateResponse = await mi.sendVarCreate(this.gdb, {
-                        frame: 'current',
                         expression: variable.name,
+                        frameId: frame.frameId,
+                        threadId: frame.threadId,
                     });
                     varobj = this.gdb.varManager.addVar(
                         frame.frameId,
@@ -1833,8 +1839,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                         const varCreateResponse = await mi.sendVarCreate(
                             this.gdb,
                             {
-                                frame: 'current',
                                 expression: exprResponse.path_expr,
+                                frameId: frame.frameId,
+                                threadId: frame.threadId,
                             }
                         );
                         arrobj = this.gdb.varManager.addVar(
