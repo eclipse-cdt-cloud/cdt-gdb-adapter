@@ -25,7 +25,7 @@ export function sendExecRun(gdb: GDBBackend) {
 
 export function sendExecContinue(gdb: GDBBackend, threadId?: number) {
     let command = '-exec-continue';
-    if (threadId) {
+    if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
     }
     return gdb.sendCommand(command);
@@ -33,7 +33,7 @@ export function sendExecContinue(gdb: GDBBackend, threadId?: number) {
 
 export function sendExecNext(gdb: GDBBackend, threadId?: number) {
     let command = '-exec-next';
-    if (threadId) {
+    if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
     }
     return gdb.sendCommand(command);
@@ -41,7 +41,7 @@ export function sendExecNext(gdb: GDBBackend, threadId?: number) {
 
 export function sendExecStep(gdb: GDBBackend, threadId?: number) {
     let command = '-exec-step';
-    if (threadId) {
+    if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
     }
     return gdb.sendCommand(command);
@@ -49,7 +49,7 @@ export function sendExecStep(gdb: GDBBackend, threadId?: number) {
 
 export function sendExecFinish(gdb: GDBBackend, threadId?: number) {
     let command = '-exec-finish';
-    if (threadId) {
+    if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
     }
     return gdb.sendCommand(command);
