@@ -106,7 +106,18 @@ static int ThreadSemaphoreDestroy(ThreadSemaphore *sem)
 
 static int ThreadSetName(const char *name)
 {
-	/* Not supported> */
+// This code sends a special exception that GDB traps to add a name to the
+// thread. It is mostly undocumented, but can be referenced in GDB
+// code here: https://github.com/bminor/binutils-gdb/blob/a2e7f81e382d641780ce5ae0fe72a309c8a4964d/gdb/nat/windows-nat.h#L255-L261
+// Note: when running under gdbserver nothing catches this exception
+#define MS_VC_EXCEPTION 0x406d1388
+	ULONG_PTR args[3]; // number of entries in the exception information (https://github.com/bminor/binutils-gdb/blob/a2e7f81e382d641780ce5ae0fe72a309c8a4964d/gdb/nat/windows-nat.c#L312)
+	args[0] = 0x1000; // magic number that matches what GDB checks (https://github.com/bminor/binutils-gdb/blob/a2e7f81e382d641780ce5ae0fe72a309c8a4964d/gdb/nat/windows-nat.c#L313)
+	args[1] = (ULONG_PTR)name; // thread name (https://github.com/bminor/binutils-gdb/blob/a2e7f81e382d641780ce5ae0fe72a309c8a4964d/gdb/nat/windows-nat.c#L319)
+	args[2] = -1; // thread id, or -1 for current thread (https://github.com/bminor/binutils-gdb/blob/a2e7f81e382d641780ce5ae0fe72a309c8a4964d/gdb/nat/windows-nat.c#L322)
+
+	RaiseException(MS_VC_EXCEPTION, 0, sizeof(args) / sizeof(ULONG_PTR), args);
+
 	return 0;
 }
 
