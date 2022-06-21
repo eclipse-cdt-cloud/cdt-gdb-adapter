@@ -77,14 +77,24 @@ export function sendVarCreate(
         frameAddr?: string;
         frame?: 'current' | 'floating';
         expression: string;
+        threadId?: number;
+        frameId?: number;
     }
 ): Promise<MIVarCreateResponse> {
     let command = '-var-create';
+    if (params.threadId !== undefined) {
+        command += ` --thread ${params.threadId}`;
+    }
+    if (params.frameId !== undefined) {
+        command += ` --frame ${params.frameId}`;
+    }
+
     command += ` ${params.name ? params.name : '-'}`;
     if (params.frameAddr) {
         command += ` ${params.frameAddr}`;
     } else if (params.frame) {
         switch (params.frame) {
+            default:
             case 'current':
                 command += ' *';
                 break;
@@ -92,6 +102,8 @@ export function sendVarCreate(
                 command += ' @';
                 break;
         }
+    } else {
+        command += ' *';
     }
     command += ` ${quote(params.expression)}`;
 

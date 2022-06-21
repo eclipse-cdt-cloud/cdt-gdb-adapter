@@ -150,6 +150,8 @@ export class VarManager {
                 const createResponse = await sendVarCreate(this.gdb, {
                     frame: 'current',
                     expression: varobj.expression,
+                    frameId: frameId,
+                    threadId: threadId,
                 });
                 returnVar = this.addVar(
                     frameId,
