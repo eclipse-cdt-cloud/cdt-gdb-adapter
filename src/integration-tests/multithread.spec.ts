@@ -15,13 +15,17 @@ import {
     openGdbConsole,
     gdbAsync,
     resolveLineTagLocations,
+    isRemoteTest,
 } from './utils';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { expect } from 'chai';
 import * as path from 'path';
 import { fail } from 'assert';
+import * as os from 'os';
 
-describe('multithread', async () => {
+describe('multithread', async function () {
+    this.timeout(5000);
+
     let dc: CdtDebugClient;
     const program = path.join(testProgramsDir, 'MultiThread');
     const source = path.join(testProgramsDir, 'MultiThread.cc');
@@ -123,11 +127,19 @@ describe('multithread', async () => {
         }
     };
 
-    it('sees all threads (all-stop)', async () => {
+    it('sees all threads (all-stop)', async function () {
+        if (os.platform() === 'win32' && isRemoteTest) {
+            // The way thread names are set in remote tests on windows is unsupported
+            this.skip();
+        }
         await testCommon(false);
     });
 
-    it('sees all threads (non-stop)', async () => {
+    it('sees all threads (non-stop)', async function () {
+        if (os.platform() === 'win32') {
+            // non-stop unsupported on Windows
+            this.skip();
+        }
         await testCommon(true);
     });
 });
