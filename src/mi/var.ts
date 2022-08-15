@@ -175,8 +175,16 @@ export function sendVarAssign(
         expression: string;
     }
 ): Promise<MIVarAssignResponse> {
-    const command = `-var-assign ${params.varname} ${params.expression}`;
-    return gdb.sendCommand(command);
+    let command;
+    if (!params.varname.indexOf('var')){
+         command = `-var-assign ${params.varname} ${params.expression}`;
+         return  gdb.sendCommand(command);
+
+    } else {
+         command = `set $${params.varname} = ${params.expression}`;
+         gdb.sendCommand(command);
+         return  gdb.sendCommand(command);
+    }
 }
 
 export function sendVarEvaluateExpression(
