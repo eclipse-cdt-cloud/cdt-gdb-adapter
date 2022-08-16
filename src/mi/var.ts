@@ -182,7 +182,6 @@ export function sendVarAssign(
 
     } else {
          command = `set $${params.varname} = ${params.expression}`;
-         gdb.sendCommand(command);
          return  gdb.sendCommand(command);
     }
 }
