@@ -109,7 +109,7 @@ export function verifyVariable(
 }
 
 /**
- * Test a given registers variable returned from a variablesRequest against an expected name and/or value.
+ * Test a given register variable returned from a variablesRequest against an expected name and/or value.
  */
  export function verifyRegister(
     variable: DebugProtocol.Variable,
