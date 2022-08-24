@@ -22,7 +22,6 @@ import {
     standardBeforeEach,
     testProgramsDir,
     verifyVariable,
-    verifyRegister,
 } from './utils';
 import * as chai from 'chai';
 import * as chaistring from 'chai-string';
@@ -88,16 +87,24 @@ describe('Variables Test Suite', function () {
         verifyVariable(vars.body.variables[0], 'a', 'int', '1');
         verifyVariable(vars.body.variables[1], 'b', 'int', '2');
         // set the variables to something different
-        await dc.setVariableRequest({
+        const setAinHex = await dc.setVariableRequest({
+            name: 'a',
+            value: '0x25',
+            variablesReference: vr,
+        });
+        expect(setAinHex.body.value).to.equal('37');
+        const setA = await dc.setVariableRequest({
             name: 'a',
             value: '25',
             variablesReference: vr,
         });
-        await dc.setVariableRequest({
+        expect(setA.body.value).to.equal('25');
+        const setB = await dc.setVariableRequest({
             name: 'b',
             value: '10',
             variablesReference: vr,
         });
+        expect(setB.body.value).to.equal('10');
         // assert that the variables have been updated to the new values
         vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -125,10 +132,10 @@ describe('Variables Test Suite', function () {
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
     });
 
-    it('can read and set simple registers in a program', async function () {
+    it('can read registers in a program', async function () {
         // read the registers
         const vr = scope.scopes.body.scopes[1].variablesReference;
-        let vars = await dc.variablesRequest({ variablesReference: vr });
+        const vars = await dc.variablesRequest({ variablesReference: vr });
         expect(
             vars.body.variables.length,
             'There is a different number of variables than expected'
@@ -142,28 +149,6 @@ describe('Variables Test Suite', function () {
         expect(r0.name).to.not.equal(r1.name);
         // add other useful tests here, especially ones that test boundary conditions
         expect(rn?.evaluateName).to.startWith('$'); // check last registers
-         // set the registers value to something different
-         await dc.setVariableRequest({
-            name: r0.name,
-            value: '0x2',
-            variablesReference: vr,
-        });
-        await dc.setVariableRequest({
-            name: r1.name,
-            value: '0x3',
-            variablesReference: vr,
-        });
-        await dc.setVariableRequest({
-            name: rn.name,
-            value: '0x4',
-            variablesReference: vr,
-        });
-        // assert that the registers value have been updated to the new values
-        vars = await dc.variablesRequest({ variablesReference: vr });
-        // (0, chai_1.expect)(vars.body.variables.length, 'There is a different number of registers than expected').to.equal(vars.body.variables.length);
-        verifyRegister(vars.body.variables[0], r0.name, '0x2');
-        verifyRegister(vars.body.variables[1], r1.name, '0x3');
-        verifyRegister(vars.body.variables[vars.body.variables.length - 1], rn.name, '0x4');
     });
 
     it('can read and set struct variables in a program', async function () {
@@ -210,16 +195,24 @@ describe('Variables Test Suite', function () {
             hasMemoryReference: false,
         });
         // set the variables to something different
-        await dc.setVariableRequest({
+        const setXinHex = await dc.setVariableRequest({
+            name: 'x',
+            value: '0x25',
+            variablesReference: childVR,
+        });
+        expect(setXinHex.body.value).to.equal('37');
+        const setX = await dc.setVariableRequest({
             name: 'x',
             value: '25',
             variablesReference: childVR,
         });
-        await dc.setVariableRequest({
+        expect(setX.body.value).to.equal('25');
+        const setY = await dc.setVariableRequest({
             name: 'y',
             value: '10',
             variablesReference: childVR,
         });
+        expect(setY.body.value).to.equal('10');
         // assert that the variables have been updated to the new values
         children = await dc.variablesRequest({ variablesReference: childVR });
         expect(
@@ -304,16 +297,24 @@ describe('Variables Test Suite', function () {
             hasMemoryReference: false,
         });
         // set the variables to something different
-        await dc.setVariableRequest({
+        const setAinHex = await dc.setVariableRequest({
+            name: 'a',
+            value: '0x25',
+            variablesReference: subChildVR,
+        });
+        expect(setAinHex.body.value).to.equal('37');
+        const setA = await dc.setVariableRequest({
             name: 'a',
             value: '25',
             variablesReference: subChildVR,
         });
-        await dc.setVariableRequest({
+        expect(setA.body.value).to.equal('25');
+        const setB = await dc.setVariableRequest({
             name: 'b',
             value: '10',
             variablesReference: subChildVR,
         });
+        expect(setB.body.value).to.equal('10');
         // assert that the variables have been updated to the new values
         subChildren = await dc.variablesRequest({
             variablesReference: subChildVR,
@@ -399,21 +400,30 @@ describe('Variables Test Suite', function () {
             hasMemoryReference: false,
         });
         // set the variables to something different
-        await dc.setVariableRequest({
+        const set0inHex = await dc.setVariableRequest({
+            name: '[0]',
+            value: '0x11',
+            variablesReference: childVR,
+        });
+        expect(set0inHex.body.value).to.equal('17');
+        const set0 = await dc.setVariableRequest({
             name: '[0]',
             value: '11',
             variablesReference: childVR,
         });
-        await dc.setVariableRequest({
+        expect(set0.body.value).to.equal('11');
+        const set1 = await dc.setVariableRequest({
             name: '[1]',
             value: '22',
             variablesReference: childVR,
         });
-        await dc.setVariableRequest({
+        expect(set1.body.value).to.equal('22');
+        const set2 = await dc.setVariableRequest({
             name: '[2]',
             value: '33',
             variablesReference: childVR,
         });
+        expect(set2.body.value).to.equal('33');
         // assert that the variables have been updated to the new values
         children = await dc.variablesRequest({ variablesReference: childVR });
         expect(
