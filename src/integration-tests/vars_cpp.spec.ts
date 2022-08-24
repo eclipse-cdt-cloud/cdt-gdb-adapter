@@ -127,11 +127,12 @@ describe('Variables CPP Test Suite', function () {
             false
         );
         // set fooA to be equal to fooB.
-        await dc.setVariableRequest({
+        const setFooA = await dc.setVariableRequest({
             name: 'fooA',
             value: vars.body.variables[1].value,
             variablesReference: vr,
         });
+        expect(setFooA.body.value).to.equal(vars.body.variables[1].value);
         // check types and value after the set
         const vars2 = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -208,11 +209,12 @@ describe('Variables CPP Test Suite', function () {
             hasMemoryReference: false,
         });
         // set child value
-        await dc.setVariableRequest({
+        const setChild0 = await dc.setVariableRequest({
             name: children.body.variables[0].name,
             value: '55',
             variablesReference: vars.body.variables[0].variablesReference,
         });
+        expect(setChild0.body.value).to.equal('55');
         // check the new values
         children = await dc.variablesRequest({
             variablesReference: vars.body.variables[0].variablesReference,
