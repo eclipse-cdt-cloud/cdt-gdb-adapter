@@ -175,15 +175,8 @@ export function sendVarAssign(
         expression: string;
     }
 ): Promise<MIVarAssignResponse> {
-    let command;
-    if (!params.varname.indexOf('var')){
-         command = `-var-assign ${params.varname} ${params.expression}`;
-         return  gdb.sendCommand(command);
-
-    } else {
-         command = `set $${params.varname} = ${params.expression}`;
-         return  gdb.sendCommand(command);
-    }
+    const command = `-var-assign ${params.varname} ${params.expression}`;
+    return gdb.sendCommand(command);
 }
 
 export function sendVarEvaluateExpression(
@@ -201,5 +194,13 @@ export function sendVarInfoPathExpression(
     name: string
 ): Promise<MIVarPathInfoResponse> {
     const command = `-var-info-path-expression ${name}`;
+    return gdb.sendCommand(command);
+}
+
+export function sendVarSetFormatToHex(
+    gdb: GDBBackend,
+    name: string
+): Promise<void> {
+    const command = `-var-set-format ${name} hexadecimal`;
     return gdb.sendCommand(command);
 }
