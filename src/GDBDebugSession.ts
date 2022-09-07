@@ -386,12 +386,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
         const neededPause = this.isRunning;
+        const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+        const threadId = parseInt(threadInfo['current-thread-id'], 10);
         if (neededPause) {
             // Need to pause first
             const waitPromise = new Promise<void>((resolve) => {
                 this.waitPaused = resolve;
             });
-            this.gdb.pause();
+            this.gdb.pause(threadId);
             await waitPromise;
         }
 
@@ -549,7 +551,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
 
         if (neededPause) {
-            mi.sendExecContinue(this.gdb);
+            mi.sendExecContinue(this.gdb, threadId);
         }
     }
 
@@ -1509,7 +1511,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         switch (resultClass) {
             case 'running':
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = true;
@@ -1524,7 +1526,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 break;
             case 'stopped': {
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = false;
