@@ -161,11 +161,6 @@ describe('Variables Test Suite', function () {
             value: '0x3',
             variablesReference: vr,
         });
-        await dc.setVariableRequest({
-            name: rn.name,
-            value: '0x4',
-            variablesReference: vr,
-        });
         // assert that the registers value have been updated to the new values
         const vars2 = await dc.variablesRequest({ variablesReference: vr });
         expect(
@@ -174,11 +169,6 @@ describe('Variables Test Suite', function () {
         ).to.equal(vars.body.variables.length);
         verifyRegister(vars2.body.variables[0], r0.name, '0x2');
         verifyRegister(vars2.body.variables[1], r1.name, '0x3');
-        verifyRegister(
-            vars2.body.variables[vars2.body.variables.length - 1],
-            rn.name,
-            '0x4'
-        );
     });
 
     it('can read and set struct variables in a program', async function () {
