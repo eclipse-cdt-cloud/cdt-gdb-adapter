@@ -990,30 +990,39 @@ export class GDBDebugSession extends LoggingDebugSession {
                 depth,
                 varname
             );
-            if (varobj) {
+            if (varobj == null && ref.type === 'registers') {
+                const varCreateResponse = await mi.sendVarCreate(this.gdb, {
+                    expression: '$' + args.name,
+                    frameId: frame.frameId,
+                    threadId: frame.threadId,
+                });
+                varobj = this.gdb.varManager.addVar(
+                    frame.frameId,
+                    frame.threadId,
+                    depth,
+                    args.name,
+                    false,
+                    false,
+                    varCreateResponse
+                );
+            }
+            if (varobj && ref.type === 'registers') {
+                await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
+                assign = await mi.sendVarAssign(this.gdb, {
+                    varname: varobj.varname,
+                    expression: args.value,
+                });
+            } else if (varobj && ref.type !== 'registers') {
                 assign = await mi.sendVarAssign(this.gdb, {
                     varname: varobj.varname,
                     expression: args.value,
                 });
             } else {
                 try {
-                    if (ref.type === 'registers') {
-                        let varobj = await mi.sendVarCreate(this.gdb, {
-                            expression: '$' + args.name,
-                            frameId: frame.frameId,
-                            threadId: frame.threadId,
-                        });
-                        await mi.sendVarSetFormatToHex(this.gdb, varobj.name);
-                        assign = await mi.sendVarAssign(this.gdb, {
-                            varname: varobj.name,
-                            expression: args.value,
-                        });
-                    } else {
-                        assign = await mi.sendVarAssign(this.gdb, {
-                            varname,
-                            expression: args.value,
-                        });
-                    }
+                    assign = await mi.sendVarAssign(this.gdb, {
+                        varname,
+                        expression: args.value,
+                    });
                 } catch (err) {
                     if (parentVarname === '') {
                         throw err; // no recovery possible
@@ -1050,40 +1059,18 @@ export class GDBDebugSession extends LoggingDebugSession {
                     }
                 }
             }
-            if (ref.type === 'registers') {
-                const result_values = await mi.sendDataListRegisterValues(
-                    this.gdb,
-                    {
-                        fmt: 'x',
-                        frameId: frame.frameId,
-                        threadId: frame.threadId,
-                    }
-                );
-                const reg_values = result_values['register-values'];
-                for (const n of reg_values) {
-                    const id = n.number;
-                    const reg = this.registerMapReverse.get(parseInt(id));
-                    if (reg === varname) {
-                        response.body = {
-                            value: n.value,
-                        };
-                        break;
-                    }
-                }
-            } else {
-                response.body = {
-                    value: assign.value,
-                    type: varobj ? varobj.type : undefined,
-                    variablesReference:
-                        varobj && parseInt(varobj.numchild, 10) > 0
-                            ? this.variableHandles.create({
-                                  type: 'object',
-                                  frameHandle: ref.frameHandle,
-                                  varobjName: varobj.varname,
-                              })
-                            : 0,
-                };
-            }
+            response.body = {
+                value: assign.value,
+                type: varobj ? varobj.type : undefined,
+                variablesReference:
+                    varobj && parseInt(varobj.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                              type: 'object',
+                              frameHandle: ref.frameHandle,
+                              varobjName: varobj.varname,
+                          })
+                        : 0,
+            };
         } catch (err) {
             this.sendErrorResponse(
                 response,
