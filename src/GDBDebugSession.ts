@@ -983,7 +983,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 maxDepth: 100,
             });
             const depth = parseInt(stackDepth.depth, 10);
-            let assign;
             let varobj = this.gdb.varManager.getVar(
                 frame.frameId,
                 frame.threadId,
@@ -1007,6 +1006,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 );
                 await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
             }
+            let assign;
             if (varobj) {
                 assign = await mi.sendVarAssign(this.gdb, {
                     varname: varobj.varname,
