@@ -151,24 +151,38 @@ describe('Variables Test Suite', function () {
         // add other useful tests here, especially ones that test boundary conditions
         expect(rn?.evaluateName).to.startWith('$'); // check last registers
         // set the registers value to something different
-        await dc.setVariableRequest({
+        const setR0 = await dc.setVariableRequest({
             name: r0.name,
-            value: '0x2',
+            value: '55',
             variablesReference: vr,
         });
-        await dc.setVariableRequest({
+        expect(setR0.body.value).to.equal('0x37');
+        const setR0inHex = await dc.setVariableRequest({
+            name: r0.name,
+            value: '0x55',
+            variablesReference: vr,
+        });
+        expect(setR0inHex.body.value).to.equal('0x55');
+        const setR1inHex = await dc.setVariableRequest({
             name: r1.name,
-            value: '0x3',
+            value: '0x45',
             variablesReference: vr,
         });
+        expect(setR1inHex.body.value).to.equal('0x45');
+        const setR1 = await dc.setVariableRequest({
+            name: r1.name,
+            value: '45',
+            variablesReference: vr,
+        });
+        expect(setR1.body.value).to.equal('0x2d');
         // assert that the registers value have been updated to the new values
         const vars2 = await dc.variablesRequest({ variablesReference: vr });
         expect(
             vars2.body.variables.length,
             'There is a different number of registers than expected'
         ).to.equal(vars.body.variables.length);
-        verifyRegister(vars2.body.variables[0], r0.name, '0x2');
-        verifyRegister(vars2.body.variables[1], r1.name, '0x3');
+        verifyRegister(vars2.body.variables[0], r0.name, '0x55');
+        verifyRegister(vars2.body.variables[1], r1.name, '0x2d');
     });
 
     it('can read and set struct variables in a program', async function () {
