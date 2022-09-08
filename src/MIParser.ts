@@ -22,19 +22,21 @@ export class MIParser {
     public parse(stream: Readable): Promise<void> {
         return new Promise((resolve) => {
             this.waitReady = resolve;
-            const lineRegex = /(.*)(\r?\n)/;
+            const lineBreakRegex = /\r?\n/;
             let buff = '';
             stream.on('data', (chunk) => {
-                buff += chunk.toString();
-                let regexArray = lineRegex.exec(buff);
+                const newChunk = chunk.toString();
+                let regexArray = lineBreakRegex.exec(newChunk);
+                if (regexArray) {
+                    regexArray.index += buff.length;
+                }
+                buff += newChunk;
                 while (regexArray) {
-                    this.line = regexArray[1];
+                    this.line = buff.slice(0, regexArray.index);
                     this.pos = 0;
                     this.handleLine();
-                    buff = buff.substring(
-                        regexArray[1].length + regexArray[2].length
-                    );
-                    regexArray = lineRegex.exec(buff);
+                    buff = buff.slice(regexArray.index + regexArray[0].length);
+                    regexArray = lineBreakRegex.exec(buff);
                 }
             });
         });
