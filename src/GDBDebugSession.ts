@@ -45,6 +45,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     logFile?: string;
     openGdbConsole?: boolean;
     initCommands?: string[];
+    needPauseForSetBP?: boolean;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -155,6 +156,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
     protected isRunning = false;
+    protected needPauseForSetBP = false;
 
     protected supportsRunInTerminalRequest = false;
     protected supportsGdbConsole = false;
@@ -385,14 +387,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.needPauseForSetBP = this.isRunning;
+        const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+        const threadId = parseInt(threadInfo['current-thread-id'], 10);
+        if (this.needPauseForSetBP) {
             // Need to pause first
-            const waitPromise = new Promise<void>((resolve) => {
-                this.waitPaused = resolve;
-            });
-            this.gdb.pause();
-            await waitPromise;
+            await mi.sendExecInterrupt(this.gdb, threadId);
         }
 
         try {
@@ -548,8 +548,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
-            mi.sendExecContinue(this.gdb);
+        if (this.needPauseForSetBP) {
+            mi.sendExecContinue(this.gdb, threadId);
+            this.needPauseForSetBP = false;
         }
     }
 
@@ -557,14 +558,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.needPauseForSetBP = this.isRunning;
+        const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+        const threadId = parseInt(threadInfo['current-thread-id'], 10);
+        if (this.needPauseForSetBP) {
             // Need to pause first
-            const waitPromise = new Promise<void>((resolve) => {
-                this.waitPaused = resolve;
-            });
-            this.gdb.pause();
-            await waitPromise;
+            await mi.sendExecInterrupt(this.gdb, threadId);
         }
 
         try {
@@ -651,8 +650,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
-            mi.sendExecContinue(this.gdb);
+        if (this.needPauseForSetBP) {
+            mi.sendExecContinue(this.gdb, threadId);
+            this.needPauseForSetBP = false;
         }
     }
 
@@ -1509,7 +1509,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         switch (resultClass) {
             case 'running':
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = true;
@@ -1524,7 +1524,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 break;
             case 'stopped': {
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = false;
@@ -1537,6 +1537,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
                 const wasRunning = this.isRunning;
                 updateIsRunning();
+                if (this.needPauseForSetBP) {
+                    // Do not send event stop when pause for set breakpoint
+                    break;
+                }
                 if (
                     this.gdb.isNonStopMode() ||
                     (wasRunning && !this.isRunning)
