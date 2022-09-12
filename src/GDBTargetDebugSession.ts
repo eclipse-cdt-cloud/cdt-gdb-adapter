@@ -234,9 +234,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         try {
             this.isAttach = true;
             await this.spawn(args);
-            if(args.program){
-                await this.gdb.sendFileExecAndSymbols(args.program);
-            }
+            await this.gdb.sendFileExecAndSymbols(args.program);
             await this.gdb.sendEnablePrettyPrint();
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.symbolFileName) {
@@ -302,9 +300,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
-            if(args.program){
-                this.sendResponse(response);
-            }
+            this.sendResponse(response);
             this.isInitialized = true;
         } catch (err) {
             this.sendErrorResponse(
