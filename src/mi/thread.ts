@@ -22,7 +22,7 @@ export interface MIThreadInfo {
 
 export interface MIThreadInfoResponse extends MIResponse {
     threads: MIThreadInfo[];
-    'current-thread-id': string;
+    currentThreadId: string;
 }
 
 export function sendThreadInfoRequest(
