@@ -18,6 +18,7 @@ import {
     gdbPath,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -37,6 +38,7 @@ describe('Memory Test Suite for cdt-gdb-adapter/Memory custom request', function
                 program: memProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: memSrc,

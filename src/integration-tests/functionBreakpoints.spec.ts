@@ -19,6 +19,7 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     getScopes,
 } from './utils';
 
@@ -34,6 +35,7 @@ describe('function breakpoints', async () => {
             program: join(testProgramsDir, 'functions'),
             openGdbConsole,
             gdbAsync,
+            gdbNonStop,
         } as LaunchRequestArguments);
     });
 
