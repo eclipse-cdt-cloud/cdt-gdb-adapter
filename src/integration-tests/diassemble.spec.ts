@@ -17,6 +17,7 @@ import {
     gdbPath,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -36,6 +37,7 @@ describe('Disassembly Test Suite', function () {
                 program: disProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: disSrc,
