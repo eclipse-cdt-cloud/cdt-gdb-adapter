@@ -33,7 +33,7 @@ describe('Variables Test Suite', function () {
     let scope: Scope;
     const varsProgram = path.join(testProgramsDir, 'vars');
     const varsSrc = path.join(testProgramsDir, 'vars.c');
-    const numVars = 8; // number of variables in the main() scope of vars.c
+    const numVars = 9; // number of variables in the main() scope of vars.c
 
     const lineTags = {
         'STOP HERE': 0,
@@ -136,7 +136,10 @@ describe('Variables Test Suite', function () {
     it('can read and set simple registers in a program', async function () {
         // read the registers
         const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vr1 = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
+        const vars1 = await dc.variablesRequest({ variablesReference: vr1 });
+
         expect(
             vars.body.variables.length,
             'There is a different number of variables than expected'
@@ -177,12 +180,18 @@ describe('Variables Test Suite', function () {
         expect(setR1.body.value).to.equal('0x2d');
         // assert that the registers value have been updated to the new values
         const vars2 = await dc.variablesRequest({ variablesReference: vr });
+        const vars3 = await dc.variablesRequest({ variablesReference: vr1 });
         expect(
             vars2.body.variables.length,
             'There is a different number of registers than expected'
         ).to.equal(vars.body.variables.length);
         verifyRegister(vars2.body.variables[0], r0.name, '0x55');
         verifyRegister(vars2.body.variables[1], r1.name, '0x2d');
+        verifyRegister(
+            vars3.body.variables[8],
+            r0.name,
+            vars1.body.variables[8].value
+        );
     });
 
     it('can read and set struct variables in a program', async function () {
