@@ -987,7 +987,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                 frame.frameId,
                 frame.threadId,
                 depth,
-                varname
+                varname,
+                ref.type
             );
             if (!varobj && ref.type === 'registers') {
                 const varCreateResponse = await mi.sendVarCreate(this.gdb, {
@@ -1002,7 +1003,8 @@ export class GDBDebugSession extends LoggingDebugSession {
                     args.name,
                     false,
                     false,
-                    varCreateResponse
+                    varCreateResponse,
+                    ref.type
                 );
                 await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
             }
