@@ -987,8 +987,27 @@ export class GDBDebugSession extends LoggingDebugSession {
                 frame.frameId,
                 frame.threadId,
                 depth,
-                varname
+                varname,
+                ref.type
             );
+            if (!varobj && ref.type === 'registers') {
+                const varCreateResponse = await mi.sendVarCreate(this.gdb, {
+                    expression: '$' + args.name,
+                    frameId: frame.frameId,
+                    threadId: frame.threadId,
+                });
+                varobj = this.gdb.varManager.addVar(
+                    frame.frameId,
+                    frame.threadId,
+                    depth,
+                    args.name,
+                    false,
+                    false,
+                    varCreateResponse,
+                    ref.type
+                );
+                await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
+            }
             let assign;
             if (varobj) {
                 assign = await mi.sendVarAssign(this.gdb, {

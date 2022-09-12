@@ -196,3 +196,11 @@ export function sendVarInfoPathExpression(
     const command = `-var-info-path-expression ${name}`;
     return gdb.sendCommand(command);
 }
+
+export function sendVarSetFormatToHex(
+    gdb: GDBBackend,
+    name: string
+): Promise<void> {
+    const command = `-var-set-format ${name} hexadecimal`;
+    return gdb.sendCommand(command);
+}

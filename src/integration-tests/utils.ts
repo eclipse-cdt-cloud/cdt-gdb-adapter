@@ -109,6 +109,25 @@ export function verifyVariable(
     }
 }
 
+/**
+ * Test a given register variable returned from a variablesRequest against an expected name and/or value.
+ */
+export function verifyRegister(
+    variable: DebugProtocol.Variable,
+    expectedName: string,
+    expectedValue?: string
+) {
+    expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(
+        expectedName
+    );
+    if (expectedValue) {
+        expect(
+            variable.value,
+            `The value of ${expectedName} is wrong`
+        ).to.equal(expectedValue);
+    }
+}
+
 export function compareVariable(
     varA: DebugProtocol.Variable,
     varB: DebugProtocol.Variable,
