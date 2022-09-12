@@ -12,6 +12,7 @@ import { expect } from 'chai';
 import * as cp from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
 import { compareVersions, getGdbVersion } from '../util';
@@ -204,6 +205,13 @@ export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
 export const defaultAdapter: string = getDefaultAdapterCli();
+
+before(function () {
+    if (gdbNonStop && os.platform() === 'win32') {
+        // non-stop unsupported on Windows
+        this.skip();
+    }
+});
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');
