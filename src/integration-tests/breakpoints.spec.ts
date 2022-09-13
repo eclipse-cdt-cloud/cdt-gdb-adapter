@@ -18,6 +18,7 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     getScopes,
     verifyVariable,
     gdbVersionAtLeast,
@@ -36,6 +37,7 @@ describe('breakpoints', async () => {
             program: path.join(testProgramsDir, 'count'),
             openGdbConsole,
             gdbAsync,
+            gdbNonStop,
             logFile: '/tmp/log',
         } as LaunchRequestArguments);
     });
@@ -66,6 +68,40 @@ describe('breakpoints', async () => {
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
         verifyVariable(vars.body.variables[0], 'count', 'int', '0');
+    });
+
+    it.only('can set breakpoints while program is running', async () => {
+        let response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        await dc.continueRequest({ threadId: scope.thread.id });
+        response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
+        await dc.assertStoppedLocation('breakpoint', { line: 4 });
     });
 
     it('handles breakpoints in multiple files', async () => {
