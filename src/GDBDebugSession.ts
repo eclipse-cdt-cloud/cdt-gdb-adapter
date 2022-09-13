@@ -39,6 +39,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdbArguments?: string[];
     gdbAsync?: boolean;
     gdbNonStop?: boolean;
+    CVEngine?: boolean;
     program: string;
     cwd?: string; // TODO not implemented
     verbose?: boolean;
@@ -171,6 +172,8 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
     protected isInitialized = false;
+    
+    protected isCVEngine = false;
 
     constructor() {
         super();
@@ -699,7 +702,9 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             if (this.isAttach) {
-                await mi.sendExecContinue(this.gdb);
+                if(!this.isCVEngine){
+                    await mi.sendExecContinue(this.gdb);
+                }
             } else {
                 await mi.sendExecRun(this.gdb);
             }
