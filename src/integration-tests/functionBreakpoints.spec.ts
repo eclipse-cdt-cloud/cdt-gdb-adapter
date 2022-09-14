@@ -70,6 +70,33 @@ describe('function breakpoints', async () => {
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
     });
 
+    it('can set and hit the sub function breakpoint while program is running', async () => {
+        const bpResp1 = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'main',
+                },
+            ],
+        });
+        expect(bpResp1.body.breakpoints.length).to.eq(1);
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        await dc.continueRequest({ threadId: scope.thread.id });
+        const bpResp2 = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'sub',
+                },
+            ],
+        });
+        expect(bpResp2.body.breakpoints.length).to.eq(1);
+        await dc.assertStoppedLocation('function breakpoint', {
+            line: 10,
+            path: /functions.c$/,
+        });
+    });
+
     it('handles <MULTIPLE> responses (e.g. multiple static functions with same name)', async () => {
         await dc.setFunctionBreakpointsRequest({
             breakpoints: [
