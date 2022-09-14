@@ -70,7 +70,7 @@ describe('breakpoints', async () => {
         verifyVariable(vars.body.variables[0], 'count', 'int', '0');
     });
 
-    it.only('can set breakpoints while program is running', async () => {
+    it('can set breakpoints while program is running', async () => {
         let response = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
