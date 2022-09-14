@@ -18,6 +18,7 @@ import {
     getScopes,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
@@ -59,6 +60,7 @@ describe('Variables CPP Test Suite', function () {
                 program: varsCppProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: varsCppSrc,

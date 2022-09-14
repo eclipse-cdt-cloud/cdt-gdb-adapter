@@ -17,6 +17,7 @@ import {
     getScopes,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
@@ -56,6 +57,7 @@ describe('Variables Test Suite', function () {
                 program: varsProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: varsSrc,

@@ -22,6 +22,7 @@ import {
     gdbPath,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -41,6 +42,7 @@ describe('Memory Test Suite', function () {
                 program: memProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: memSrc,

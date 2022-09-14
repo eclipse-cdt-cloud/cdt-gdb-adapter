@@ -18,6 +18,7 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     getScopes,
     verifyVariable,
     gdbVersionAtLeast,
@@ -36,6 +37,7 @@ describe('breakpoints', async () => {
             program: path.join(testProgramsDir, 'count'),
             openGdbConsole,
             gdbAsync,
+            gdbNonStop,
             logFile: '/tmp/log',
         } as LaunchRequestArguments);
     });

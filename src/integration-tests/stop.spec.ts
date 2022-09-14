@@ -14,6 +14,7 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
 } from './utils';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { expect } from 'chai';
@@ -37,6 +38,7 @@ describe('stop', async () => {
             program: path.join(testProgramsDir, 'segv'),
             openGdbConsole,
             gdbAsync,
+            gdbNonStop,
         } as LaunchRequestArguments);
         await dc.configurationDoneRequest();
         const stoppedEvent = await dc.waitForEvent('stopped');

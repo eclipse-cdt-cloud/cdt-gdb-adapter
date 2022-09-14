@@ -14,6 +14,7 @@ import {
     testProgramsDir,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     isRemoteTest,
 } from './utils';
 import { LaunchRequestArguments } from '../GDBDebugSession';
@@ -42,6 +43,7 @@ describe('pause', async () => {
             program: path.join(testProgramsDir, 'loopforever'),
             openGdbConsole,
             gdbAsync,
+            gdbNonStop,
             logFile: '/tmp/log',
         } as LaunchRequestArguments);
         await dc.configurationDoneRequest();
