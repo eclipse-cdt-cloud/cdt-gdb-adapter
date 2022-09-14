@@ -11,6 +11,7 @@ export interface VarObjType {
     type: string;
     isVar: boolean;
     isChild: boolean;
+    varType: string;
 }
 
 export class VarManager {
@@ -39,13 +40,19 @@ export class VarManager {
         frameId: number,
         threadId: number,
         depth: number,
-        expression: string
+        expression: string,
+        type?: string
     ): VarObjType | undefined {
         const vars = this.getVars(frameId, threadId, depth);
         if (vars) {
             for (const varobj of vars) {
                 if (varobj.expression === expression) {
-                    return varobj;
+                    if (type !== 'registers') {
+                        type = 'local';
+                    }
+                    if (type === varobj.varType) {
+                        return varobj;
+                    }
                 }
             }
         }
@@ -76,7 +83,8 @@ export class VarManager {
         expression: string,
         isVar: boolean,
         isChild: boolean,
-        varCreateResponse: MIVarCreateResponse
+        varCreateResponse: MIVarCreateResponse,
+        type?: string
     ): VarObjType {
         let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
         if (!vars) {
@@ -92,6 +100,7 @@ export class VarManager {
             type: varCreateResponse.type,
             isVar,
             isChild,
+            varType: type ? type : 'local',
         };
         vars.push(varobj);
         return varobj;

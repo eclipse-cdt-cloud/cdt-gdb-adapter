@@ -17,11 +17,13 @@ import {
     getScopes,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
     testProgramsDir,
     verifyVariable,
+    verifyRegister,
 } from './utils';
 import * as chai from 'chai';
 import * as chaistring from 'chai-string';
@@ -32,7 +34,7 @@ describe('Variables Test Suite', function () {
     let scope: Scope;
     const varsProgram = path.join(testProgramsDir, 'vars');
     const varsSrc = path.join(testProgramsDir, 'vars.c');
-    const numVars = 8; // number of variables in the main() scope of vars.c
+    const numVars = 9; // number of variables in the main() scope of vars.c
 
     const lineTags = {
         'STOP HERE': 0,
@@ -55,6 +57,7 @@ describe('Variables Test Suite', function () {
                 program: varsProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             } as LaunchRequestArguments,
             {
                 path: varsSrc,
@@ -132,10 +135,13 @@ describe('Variables Test Suite', function () {
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
     });
 
-    it('can read registers in a program', async function () {
+    it('can read and set simple registers in a program', async function () {
         // read the registers
         const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vr1 = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
+        const vars1 = await dc.variablesRequest({ variablesReference: vr1 });
+
         expect(
             vars.body.variables.length,
             'There is a different number of variables than expected'
@@ -149,6 +155,45 @@ describe('Variables Test Suite', function () {
         expect(r0.name).to.not.equal(r1.name);
         // add other useful tests here, especially ones that test boundary conditions
         expect(rn?.evaluateName).to.startWith('$'); // check last registers
+        // set the registers value to something different
+        const setR0 = await dc.setVariableRequest({
+            name: r0.name,
+            value: '55',
+            variablesReference: vr,
+        });
+        expect(setR0.body.value).to.equal('0x37');
+        const setR0inHex = await dc.setVariableRequest({
+            name: r0.name,
+            value: '0x55',
+            variablesReference: vr,
+        });
+        expect(setR0inHex.body.value).to.equal('0x55');
+        const setR1inHex = await dc.setVariableRequest({
+            name: r1.name,
+            value: '0x45',
+            variablesReference: vr,
+        });
+        expect(setR1inHex.body.value).to.equal('0x45');
+        const setR1 = await dc.setVariableRequest({
+            name: r1.name,
+            value: '45',
+            variablesReference: vr,
+        });
+        expect(setR1.body.value).to.equal('0x2d');
+        // assert that the registers value have been updated to the new values
+        const vars2 = await dc.variablesRequest({ variablesReference: vr });
+        const vars3 = await dc.variablesRequest({ variablesReference: vr1 });
+        expect(
+            vars2.body.variables.length,
+            'There is a different number of registers than expected'
+        ).to.equal(vars.body.variables.length);
+        verifyRegister(vars2.body.variables[0], r0.name, '0x55');
+        verifyRegister(vars2.body.variables[1], r1.name, '0x2d');
+        verifyRegister(
+            vars3.body.variables[8],
+            r0.name,
+            vars1.body.variables[8].value
+        );
     });
 
     it('can read and set struct variables in a program', async function () {

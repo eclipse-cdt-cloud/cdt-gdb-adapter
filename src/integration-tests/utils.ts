@@ -12,6 +12,7 @@ import { expect } from 'chai';
 import * as cp from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
 import { compareVersions, getGdbVersion } from '../util';
@@ -108,6 +109,25 @@ export function verifyVariable(
     }
 }
 
+/**
+ * Test a given register variable returned from a variablesRequest against an expected name and/or value.
+ */
+export function verifyRegister(
+    variable: DebugProtocol.Variable,
+    expectedName: string,
+    expectedValue?: string
+) {
+    expect(variable.name, `The name of ${expectedName} is wrong`).to.equal(
+        expectedName
+    );
+    if (expectedValue) {
+        expect(
+            variable.value,
+            `The value of ${expectedName} is wrong`
+        ).to.equal(expectedValue);
+    }
+}
+
 export function compareVariable(
     varA: DebugProtocol.Variable,
     varB: DebugProtocol.Variable,
@@ -198,10 +218,19 @@ export const isRemoteTest: boolean =
     process.argv.indexOf('--test-remote') !== -1;
 export const gdbAsync: boolean =
     process.argv.indexOf('--test-gdb-async-off') === -1;
+export const gdbNonStop: boolean =
+    process.argv.indexOf('--test-gdb-non-stop') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
 export const defaultAdapter: string = getDefaultAdapterCli();
+
+before(function () {
+    if (gdbNonStop && os.platform() === 'win32') {
+        // non-stop unsupported on Windows
+        this.skip();
+    }
+});
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');

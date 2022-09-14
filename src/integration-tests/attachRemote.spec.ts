@@ -16,7 +16,7 @@ import {
 } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { standardBeforeEach, testProgramsDir, gdbServerPath } from './utils';
-import { gdbPath, openGdbConsole, gdbAsync } from './utils';
+import { gdbPath, openGdbConsole, gdbAsync, gdbNonStop } from './utils';
 
 describe('attach remote', function () {
     let dc: CdtDebugClient;
@@ -67,6 +67,7 @@ describe('attach remote', function () {
                 program: emptyProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
                 target: {
                     type: 'remote',
                     parameters: [`localhost:${port}`],

@@ -17,6 +17,7 @@ import {
     getScopes,
     openGdbConsole,
     gdbAsync,
+    gdbNonStop,
     Scope,
     standardBeforeEach,
     testProgramsDir,
@@ -42,6 +43,7 @@ describe('evaluate request', function () {
                 program: evaluateProgram,
                 openGdbConsole,
                 gdbAsync,
+                gdbNonStop,
             },
             {
                 path: evaluateSrc,
