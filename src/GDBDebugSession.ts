@@ -386,8 +386,8 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
-        const needPause = this.isRunning;
-        if (needPause) {
+        const neededPause = this.isRunning;
+        if (neededPause) {
             // Need to pause first
             const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
             this.currentThreadId = parseInt(
@@ -550,7 +550,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (needPause) {
+        if (neededPause) {
             mi.sendExecContinue(this.gdb, this.currentThreadId);
             this.currentThreadId = 0;
         }
@@ -560,8 +560,8 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
-        const needPause = this.isRunning;
-        if (needPause) {
+        const neededPause = this.isRunning;
+        if (neededPause) {
             // Need to pause first
             const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
             this.currentThreadId = parseInt(
@@ -654,7 +654,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (needPause) {
+        if (neededPause) {
             mi.sendExecContinue(this.gdb, this.currentThreadId);
             this.currentThreadId = 0;
         }
