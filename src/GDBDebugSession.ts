@@ -395,6 +395,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 10
             );
             await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+            const waitStopped = new Promise((resolve) => {
+                this.gdb.on('execAsync', event =>{
+                    resolve(event);
+                });
+            });
+            await waitStopped; 
         }
 
         try {
@@ -569,6 +575,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 10
             );
             await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+            const waitStopped = new Promise((resolve) => {
+                this.gdb.on('execAsync', event =>{
+                    resolve(event);
+                });
+            });
+            await waitStopped;
         }
         try {
             const result = await mi.sendBreakList(this.gdb);
@@ -661,7 +673,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     /**
-     * Resolved which VS breakpoints needs to be installed, which
+     * Resolved which VS breakpoints needs to be installed, whichs
      * GDB breakpoints need to be deleted and which VS breakpoints
      * are already installed with which matching GDB breakpoint.
      * @param vsbps VS DAP breakpoints
