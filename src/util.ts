@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-//import { execFile } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
 /**
