@@ -1,4 +1,5 @@
 {
+xxx
   "name": "cdt-gdb-adapter",
   "version": "0.0.16-next",
   "description": "gdb adapter implementing the debug adapter protocol",
