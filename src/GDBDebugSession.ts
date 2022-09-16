@@ -389,18 +389,24 @@ export class GDBDebugSession extends LoggingDebugSession {
         const neededPause = this.isRunning;
         if (neededPause) {
             // Need to pause first
-            const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
-            this.currentThreadId = parseInt(
-                threadInfo['current-thread-id'],
-                10
-            );
-            await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+            if (this.gdb.isNonStopMode()) {
+                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+
+                this.currentThreadId = parseInt(
+                    threadInfo['current-thread-id'],
+                    10
+                );
+                await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+            } else {
+                await mi.sendExecInterrupt(this.gdb);
+            }
+
             const waitStopped = new Promise((resolve) => {
-                this.gdb.on('execAsync', event =>{
+                this.gdb.on('execAsync', (event) => {
                     resolve(event);
                 });
             });
-            await waitStopped; 
+            await waitStopped;
         }
 
         try {
@@ -557,8 +563,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
 
         if (neededPause) {
-            mi.sendExecContinue(this.gdb, this.currentThreadId);
-            this.currentThreadId = 0;
+            if (this.gdb.isNonStopMode()) {
+                mi.sendExecContinue(this.gdb, this.currentThreadId);
+            } else {
+                mi.sendExecContinue(this.gdb);
+            }
         }
     }
 
@@ -569,14 +578,19 @@ export class GDBDebugSession extends LoggingDebugSession {
         const neededPause = this.isRunning;
         if (neededPause) {
             // Need to pause first
-            const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
-            this.currentThreadId = parseInt(
-                threadInfo['current-thread-id'],
-                10
-            );
-            await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+
+            if (this.gdb.isNonStopMode()) {
+                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+                this.currentThreadId = parseInt(
+                    threadInfo['current-thread-id'],
+                    10
+                );
+                await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+            } else {
+                await mi.sendExecInterrupt(this.gdb);
+            }
             const waitStopped = new Promise((resolve) => {
-                this.gdb.on('execAsync', event =>{
+                this.gdb.on('execAsync', (event) => {
                     resolve(event);
                 });
             });
@@ -667,8 +681,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
 
         if (neededPause) {
-            mi.sendExecContinue(this.gdb, this.currentThreadId);
-            this.currentThreadId = 0;
+            if (this.gdb.isNonStopMode()) {
+                mi.sendExecContinue(this.gdb, this.currentThreadId);
+            } else {
+                mi.sendExecContinue(this.gdb);
+            }
         }
     }
 
