@@ -17,8 +17,18 @@ jobs:
       - name: Build
         run: yarn
       - name: Test
-        run: yarn test
-      - uses: actions/upload-artifact@v3
+        run: yarn test-ci
+      - name: Log file artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: test-logs
           path: test-logs/
+      - name: Test Reporter
+        uses: dorny/test-reporter@v1.5.0
+        if: success() || failure()
+        with:
+          name: Integration Tests
+          path: test-reports/*.xml
+          reporter: java-junit
+          max-annotations: '0'
+          fail-on-error: 'true'
