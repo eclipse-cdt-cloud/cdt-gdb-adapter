@@ -225,6 +225,7 @@ export function fillDefaults(
     }
     const args = argsIn !== undefined ? argsIn : ({} as RequestArguments);
     args.verbose = true;
+    args.logFile = logFileName(test);
     args.gdb = gdbPath;
     args.openGdbConsole = openGdbConsole;
     args.gdbAsync = gdbAsync;
@@ -275,6 +276,12 @@ beforeEach(function () {
         this.currentTest.title = prefix + this.currentTest.title;
     }
 });
+
+export function logFileName(test: Runnable): string {
+    // Clean up characters that GitHub actions doesn't like in filenames
+    const cleaned = test.fullTitle().replace('>', '&gt;').replace('<', '&lt;');
+    return `${process.cwd()}/test-logs/${cleaned}.log`;
+}
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');
