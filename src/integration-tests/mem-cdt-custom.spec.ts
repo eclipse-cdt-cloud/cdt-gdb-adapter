@@ -11,14 +11,11 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
-import { LaunchRequestArguments, MemoryResponse } from '../GDBDebugSession';
+import { MemoryResponse } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
-    gdbPath,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
+    fillDefaults,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -33,13 +30,9 @@ describe('Memory Test Suite for cdt-gdb-adapter/Memory custom request', function
         dc = await standardBeforeEach();
 
         await dc.hitBreakpoint(
-            {
-                gdb: gdbPath,
+            fillDefaults(this.currentTest, {
                 program: memProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            }),
             {
                 path: memSrc,
                 line: 12,

@@ -14,8 +14,7 @@ import {
     TargetLaunchArguments,
 } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { standardBeforeEach, testProgramsDir } from './utils';
-import { gdbPath, openGdbConsole, gdbAsync, gdbNonStop } from './utils';
+import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('launch remote', function () {
     let dc: CdtDebugClient;
@@ -37,17 +36,12 @@ describe('launch remote', function () {
 
     it('can launch remote and hit a breakpoint', async function () {
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.test, {
                 program: emptyProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
                 target: {
                     type: 'remote',
                 } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments,
+            } as TargetLaunchRequestArguments),
             {
                 path: emptySrc,
                 line: 3,

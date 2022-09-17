@@ -16,6 +16,8 @@ import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
 import { compareVersions, getGdbVersion } from '../util';
+import { Runnable } from 'mocha';
+import { RequestArguments } from '../GDBDebugSession';
 
 export interface Scope {
     thread: DebugProtocol.Thread;
@@ -210,6 +212,24 @@ export async function standardBeforeEach(
     await dc.initializeRequest();
 
     return dc;
+}
+
+export function fillDefaults(
+    test?: Runnable,
+    argsIn?: RequestArguments
+): RequestArguments {
+    if (!test) {
+        throw new Error(
+            'A Test object is required (this.test in test body or this.currentTest in beforeEach'
+        );
+    }
+    const args = argsIn !== undefined ? argsIn : ({} as RequestArguments);
+    args.verbose = true;
+    args.gdb = gdbPath;
+    args.openGdbConsole = openGdbConsole;
+    args.gdbAsync = gdbAsync;
+    args.gdbNonStop = gdbNonStop;
+    return args;
 }
 
 export const openGdbConsole: boolean =
