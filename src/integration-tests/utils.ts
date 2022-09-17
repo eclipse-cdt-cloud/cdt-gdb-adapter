@@ -16,6 +16,8 @@ import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
 import { compareVersions, getGdbVersion } from '../util';
+import { Runnable } from 'mocha';
+import { RequestArguments } from '../GDBDebugSession';
 
 export interface Scope {
     thread: DebugProtocol.Thread;
@@ -212,6 +214,25 @@ export async function standardBeforeEach(
     return dc;
 }
 
+export function fillDefaults(
+    test?: Runnable,
+    argsIn?: RequestArguments
+): RequestArguments {
+    if (!test) {
+        throw new Error(
+            'A Test object is required (this.test in test body or this.currentTest in beforeEach'
+        );
+    }
+    const args = argsIn !== undefined ? argsIn : ({} as RequestArguments);
+    args.verbose = true;
+    args.logFile = logFileName(test);
+    args.gdb = gdbPath;
+    args.openGdbConsole = openGdbConsole;
+    args.gdbAsync = gdbAsync;
+    args.gdbNonStop = gdbNonStop;
+    return args;
+}
+
 export const openGdbConsole: boolean =
     process.argv.indexOf('--run-in-terminal') !== -1;
 export const isRemoteTest: boolean =
@@ -231,6 +252,36 @@ before(function () {
         this.skip();
     }
 });
+
+beforeEach(function () {
+    if (this.currentTest) {
+        let prefix = '';
+        if (openGdbConsole) {
+            prefix += 'run-in-terminal ';
+        }
+        if (isRemoteTest) {
+            prefix += 'remote ';
+        }
+        if (!gdbAsync) {
+            prefix += 'gdb-async-off ';
+        }
+        if (gdbNonStop) {
+            prefix += 'gdb-non-stop ';
+        }
+        if (prefix) {
+            prefix = '/' + prefix.trim() + '/';
+        } else {
+            prefix = '/defaults/';
+        }
+        this.currentTest.title = prefix + this.currentTest.title;
+    }
+});
+
+export function logFileName(test: Runnable): string {
+    // Clean up characters that GitHub actions doesn't like in filenames
+    const cleaned = test.fullTitle().replace('>', '&gt;').replace('<', '&lt;');
+    return `${process.cwd()}/test-logs/${cleaned}.log`;
+}
 
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');

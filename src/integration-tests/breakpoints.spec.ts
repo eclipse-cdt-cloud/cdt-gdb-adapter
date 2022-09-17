@@ -10,36 +10,27 @@
 
 import * as path from 'path';
 import { expect } from 'chai';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
 import {
     standardBeforeEach,
-    gdbPath,
     testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     getScopes,
     verifyVariable,
     gdbVersionAtLeast,
+    fillDefaults,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
-describe('breakpoints', async () => {
+describe('breakpoints', async function () {
     let dc: CdtDebugClient;
 
-    beforeEach(async () => {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
-
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: path.join(testProgramsDir, 'count'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-            logFile: '/tmp/log',
-        } as LaunchRequestArguments);
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: path.join(testProgramsDir, 'count'),
+            })
+        );
     });
 
     afterEach(async () => {

@@ -12,8 +12,7 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { standardBeforeEach, testProgramsDir } from './utils';
-import { gdbPath, openGdbConsole, gdbAsync, gdbNonStop } from './utils';
+import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('launch', function () {
     let dc: CdtDebugClient;
@@ -37,14 +36,9 @@ describe('launch', function () {
 
     it('can launch and hit a breakpoint', async function () {
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.test, {
                 program: emptyProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            } as LaunchRequestArguments),
             {
                 path: emptySrc,
                 line: 3,
@@ -54,14 +48,11 @@ describe('launch', function () {
 
     it('reports an error when specifying a non-existent binary', async function () {
         const errorMessage = await new Promise<Error>((resolve, reject) => {
-            dc.launchRequest({
-                verbose: true,
-                gdb: gdbPath,
-                program: '/does/not/exist',
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments)
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: '/does/not/exist',
+                } as LaunchRequestArguments)
+            )
                 .then(reject)
                 .catch(resolve);
         });
@@ -79,14 +70,9 @@ describe('launch', function () {
 
     it('works with a space in file names', async function () {
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.test, {
                 program: emptySpaceProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            } as LaunchRequestArguments),
             {
                 path: emptySpaceSrc,
                 line: 3,
