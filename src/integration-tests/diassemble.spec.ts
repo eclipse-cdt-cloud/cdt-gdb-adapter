@@ -11,16 +11,8 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import { CdtDebugClient } from './debugClient';
-import {
-    gdbPath,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
-    standardBeforeEach,
-    testProgramsDir,
-} from './utils';
+import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('Disassembly Test Suite', function () {
     let dc: CdtDebugClient;
@@ -32,13 +24,9 @@ describe('Disassembly Test Suite', function () {
         dc = await standardBeforeEach();
 
         await dc.hitBreakpoint(
-            {
-                gdb: gdbPath,
+            fillDefaults(this.currentTest, {
                 program: disProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            }),
             {
                 path: disSrc,
                 line: 2,

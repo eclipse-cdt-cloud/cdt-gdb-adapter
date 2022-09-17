@@ -13,11 +13,8 @@ import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
-    gdbPath,
+    fillDefaults,
     getScopes,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     Scope,
     standardBeforeEach,
     testProgramsDir,
@@ -37,14 +34,9 @@ describe('evaluate request', function () {
         }
         dc = await standardBeforeEach();
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.currentTest, {
                 program: evaluateProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            },
+            }),
             {
                 path: evaluateSrc,
                 line: 2,

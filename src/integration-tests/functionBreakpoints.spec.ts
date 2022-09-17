@@ -12,31 +12,24 @@ import * as path from 'path';
 import { expect } from 'chai';
 import { join } from 'path';
 import { CdtDebugClient } from './debugClient';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import {
     standardBeforeEach,
-    gdbPath,
     testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     getScopes,
+    fillDefaults,
 } from './utils';
 
-describe('function breakpoints', async () => {
+describe('function breakpoints', async function () {
     let dc: CdtDebugClient;
 
-    beforeEach(async () => {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: join(testProgramsDir, 'functions'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-        } as LaunchRequestArguments);
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: join(testProgramsDir, 'functions'),
+            })
+        );
     });
 
     afterEach(async () => {

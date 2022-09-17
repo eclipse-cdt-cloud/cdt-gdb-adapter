@@ -11,30 +11,19 @@
 import { join } from 'path';
 import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
-import { LaunchRequestArguments } from '../GDBDebugSession';
-import {
-    standardBeforeEach,
-    gdbPath,
-    testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
-} from './utils';
+import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('logpoints', async () => {
     let dc: CdtDebugClient;
 
-    beforeEach(async () => {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: join(testProgramsDir, 'count'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-        } as LaunchRequestArguments);
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: join(testProgramsDir, 'count'),
+            })
+        );
     });
 
     afterEach(async () => {

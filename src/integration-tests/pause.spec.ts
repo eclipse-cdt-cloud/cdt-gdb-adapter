@@ -10,14 +10,11 @@
 import { CdtDebugClient } from './debugClient';
 import {
     standardBeforeEach,
-    gdbPath,
     testProgramsDir,
-    openGdbConsole,
     gdbAsync,
-    gdbNonStop,
     isRemoteTest,
+    fillDefaults,
 } from './utils';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -37,15 +34,11 @@ describe('pause', async () => {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: path.join(testProgramsDir, 'loopforever'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-            logFile: '/tmp/log',
-        } as LaunchRequestArguments);
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: path.join(testProgramsDir, 'loopforever'),
+            })
+        );
         await dc.configurationDoneRequest();
         const waitForStopped = dc.waitForEvent('stopped');
         const threads = await dc.threadsRequest();

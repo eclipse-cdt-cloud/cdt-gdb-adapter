@@ -15,8 +15,12 @@ import {
     TargetAttachArguments,
 } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
-import { standardBeforeEach, testProgramsDir, gdbServerPath } from './utils';
-import { gdbPath, openGdbConsole, gdbAsync, gdbNonStop } from './utils';
+import {
+    standardBeforeEach,
+    testProgramsDir,
+    gdbServerPath,
+    fillDefaults,
+} from './utils';
 
 describe('attach remote', function () {
     let dc: CdtDebugClient;
@@ -61,18 +65,13 @@ describe('attach remote', function () {
 
     it('can attach remote and hit a breakpoint', async function () {
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.test, {
                 program: emptyProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
                 target: {
                     type: 'remote',
                     parameters: [`localhost:${port}`],
                 } as TargetAttachArguments,
-            } as TargetAttachRequestArguments,
+            } as TargetAttachRequestArguments),
             {
                 path: emptySrc,
                 line: 3,
