@@ -252,6 +252,30 @@ before(function () {
     }
 });
 
+beforeEach(function () {
+    if (this.currentTest) {
+        let prefix = '';
+        if (openGdbConsole) {
+            prefix += 'run-in-terminal ';
+        }
+        if (isRemoteTest) {
+            prefix += 'remote ';
+        }
+        if (!gdbAsync) {
+            prefix += 'gdb-async-off ';
+        }
+        if (gdbNonStop) {
+            prefix += 'gdb-non-stop ';
+        }
+        if (prefix) {
+            prefix = '/' + prefix.trim() + '/';
+        } else {
+            prefix = '/defaults/';
+        }
+        this.currentTest.title = prefix + this.currentTest.title;
+    }
+});
+
 function getGdbPathCli(): string | undefined {
     const keyIndex = process.argv.indexOf('--gdb-path');
     if (keyIndex === -1) {
