@@ -1,0 +1,73 @@
+# This workflow runs on pull requests - it is similar to what happens
+# in push workflow, but needs to be split across multiple workflows
+# see report.yml for more details
+name: build-pr
+on: [pull_request]
+jobs:
+  Build-on-Ubuntu:
+    name: Build & Test on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Install GCC & GDB & other build essentials
+        run: |
+          sudo apt-get -y install build-essential gcc g++ gdb gdbserver
+          gdb --version
+          gcc --version
+          gdbserver --version
+      - name: Build
+        run: yarn
+      - name: Build Test Programs
+        run: make -C src/integration-tests/test-programs
+      - name: Test
+        run: yarn test-ci
+      - name: Log file artifacts
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-logs-ubuntu
+          path: test-logs/
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-results-ubuntu
+          path: 'test-reports/*.xml'
+          retention-days: 1
+  Build-on-Windows:
+    name: Build & Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Install GCC & GDB & other build essentials
+        run: |
+          choco install mingw
+          gdb --version
+          gcc --version
+          gdbserver --version
+          make --version
+      - name: Build
+        run: yarn
+      - name: Build Test Programs
+        run: make -C src/integration-tests/test-programs
+      - name: Test
+        run: yarn test-ci
+      - name: Log file artifacts
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-logs-windows
+          path: test-logs/
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-results-windows
+          path: 'test-reports/*.xml'
+          retention-days: 1
