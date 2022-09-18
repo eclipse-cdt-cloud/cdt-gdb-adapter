@@ -169,7 +169,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected threads: ThreadWithStatus[] = [];
 
-    // promise the resolves once the target stops so breakpoints can be inserted
+    // promise that resolves once the target stops so breakpoints can be inserted
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
     // the thread id that we were waiting for
     protected waitPausedThreadId = 0;
@@ -1601,13 +1601,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 if (this.waitPaused) {
-                    this.waitPaused();
                     if (!suppressHandleGDBStopped) {
                         // if we aren't suppressing the stopped event going
                         // to the client, then we also musn't resume the
                         // target after inserting the breakpoints
                         this.waitPausedNeeded = false;
                     }
+                    this.waitPaused();
                     this.waitPaused = undefined;
                 }
 
