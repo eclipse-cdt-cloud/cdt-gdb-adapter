@@ -1,4 +1,7 @@
 name: Build and test
+permissions:
+  contents: read
+  checks: write
 on: [push]
 jobs:
   Build-on-Ubuntu:
