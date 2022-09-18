@@ -181,13 +181,6 @@ export const testProgramsDir = path.join(
     'test-programs'
 );
 
-// Run make once per mocha execution by having root-level before
-before(function (done) {
-    this.timeout(20000);
-    cp.execSync('make', { cwd: testProgramsDir });
-    done();
-});
-
 function getAdapterAndArgs(adapter?: string): string {
     const chosenAdapter = adapter !== undefined ? adapter : defaultAdapter;
     let args: string = path.join(__dirname, '../../dist', chosenAdapter);
@@ -241,12 +234,20 @@ export const gdbAsync: boolean =
     process.argv.indexOf('--test-gdb-async-off') === -1;
 export const gdbNonStop: boolean =
     process.argv.indexOf('--test-gdb-non-stop') !== -1;
+export const skipMake: boolean = process.argv.indexOf('--skip-make') !== -1;
 export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
 export const defaultAdapter: string = getDefaultAdapterCli();
 
 before(function () {
+    // Run make once per mocha execution, unless --skip-make
+    // is specified. On the CI we run with --skip-make and the
+    // make is its own explicit build step
+    if (!skipMake) {
+        cp.execSync('make', { cwd: testProgramsDir });
+    }
+
     if (gdbNonStop && os.platform() === 'win32') {
         // non-stop unsupported on Windows
         this.skip();
@@ -279,7 +280,13 @@ beforeEach(function () {
 
 export function logFileName(test: Runnable): string {
     // Clean up characters that GitHub actions doesn't like in filenames
-    const cleaned = test.fullTitle().replace('>', '&gt;').replace('<', '&lt;');
+    const cleaned = test
+        .fullTitle()
+        .replace('>', '&gt;')
+        .replace('<', '&lt;')
+        .split('/')
+        .map((segment) => segment.trim())
+        .join('/');
     return `${process.cwd()}/test-logs/${cleaned}.log`;
 }
 

@@ -52,13 +52,9 @@ describe('multithread', async function () {
         await dc.stop();
     });
 
-    it('sees all threads (all-stop)', async function () {
+    it('sees all threads', async function () {
         if (!gdbNonStop && os.platform() === 'win32' && isRemoteTest) {
             // The way thread names are set in remote tests on windows is unsupported
-            this.skip();
-        }
-        if (gdbNonStop && os.platform() === 'win32') {
-            // non-stop unsupported on Windows
             this.skip();
         }
 

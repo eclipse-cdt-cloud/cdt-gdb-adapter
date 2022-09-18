@@ -1,7 +1,8 @@
 name: Build and test
 on: [push]
 jobs:
-  build-and-test:
+  Build-on-Ubuntu:
+    name: Build & Test on Ubuntu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -16,18 +17,57 @@ jobs:
           gdbserver --version
       - name: Build
         run: yarn
+      - name: Build Test Programs
+        run: make -C src/integration-tests/test-programs
       - name: Test
         run: yarn test-ci
       - name: Log file artifacts
         uses: actions/upload-artifact@v3
+        if: success() || failure()
         with:
-          name: test-logs
+          name: test-logs-ubuntu
           path: test-logs/
       - name: Test Reporter
         uses: dorny/test-reporter@v1.5.0
         if: success() || failure()
         with:
-          name: Integration Tests
+          name: Integration Tests on Ubuntu
+          path: test-reports/*.xml
+          reporter: java-junit
+          max-annotations: '0'
+          fail-on-error: 'true'
+  Build-on-Windows:
+    name: Build & Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+      - name: Install GCC & GDB & other build essentials
+        run: |
+          choco install mingw
+          gdb --version
+          gcc --version
+          gdbserver --version
+          make --version
+      - name: Build
+        run: yarn
+      - name: Build Test Programs
+        run: make -C src/integration-tests/test-programs
+      - name: Test
+        run: yarn test-ci
+      - name: Log file artifacts
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-logs-windows
+          path: test-logs/
+      - name: Test Reporter
+        uses: dorny/test-reporter@v1.5.0
+        if: success() || failure()
+        with:
+          name: Integration Tests on Windows
           path: test-reports/*.xml
           reporter: java-junit
           max-annotations: '0'
