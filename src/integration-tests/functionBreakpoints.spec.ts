@@ -17,7 +17,10 @@ import {
     testProgramsDir,
     getScopes,
     fillDefaults,
+    gdbAsync,
+    isRemoteTest,
 } from './utils';
+import * as os from 'os';
 
 describe('function breakpoints', async function () {
     let dc: CdtDebugClient;
@@ -63,7 +66,11 @@ describe('function breakpoints', async function () {
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
     });
 
-    it('can set and hit the sub function breakpoint while program is running', async () => {
+    it('can set and hit the sub function breakpoint while program is running', async function () {
+        if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
+            // win32 host can only pause remote + mi-async targets
+            this.skip();
+        }
         const bpResp1 = await dc.setFunctionBreakpointsRequest({
             breakpoints: [
                 {
