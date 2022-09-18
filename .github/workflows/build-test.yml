@@ -3,6 +3,7 @@ permissions:
   contents: read
   statuses: write
   checks: write
+  pull-requests: write
 on:
   push:
     branches: ['main']
