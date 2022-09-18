@@ -1,6 +1,7 @@
 name: Build and test
 permissions:
   contents: read
+  statuses: write
   checks: write
 on:
   push:
