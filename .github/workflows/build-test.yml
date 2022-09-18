@@ -1,5 +1,12 @@
 name: Build and test
-on: [push]
+permissions:
+  contents: read
+  checks: write
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
 jobs:
   Build-on-Ubuntu:
     name: Build & Test on Ubuntu
