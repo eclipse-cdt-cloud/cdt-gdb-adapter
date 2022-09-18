@@ -79,6 +79,12 @@ describe('breakpoints', async function () {
         await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         await dc.continueRequest({ threadId: scope.thread.id });
+
+        // start listening for stopped events before we issue the
+        // setBreakpointsRequest to ensure we don't get extra
+        // stopped events
+        const stoppedEventWaitor = dc.waitForEvent('stopped');
+
         response = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -93,6 +99,9 @@ describe('breakpoints', async function () {
         });
         expect(response.body.breakpoints.length).to.eq(1);
         await dc.assertStoppedLocation('breakpoint', { line: 4 });
+        const stoppedEvent = await stoppedEventWaitor;
+        expect(stoppedEvent).to.have.property('body');
+        expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
     it('handles breakpoints in multiple files', async () => {

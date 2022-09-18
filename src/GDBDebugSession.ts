@@ -155,7 +155,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
     protected isRunning = false;
-    protected currentThreadId = 0;
 
     protected supportsRunInTerminalRequest = false;
     protected supportsGdbConsole = false;
@@ -170,7 +169,13 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected threads: ThreadWithStatus[] = [];
 
+    // promise the resolves once the target stops so breakpoints can be inserted
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
+    // the thread id that we were waiting for
+    protected waitPausedThreadId = 0;
+    // set to true if the target was interrupted where inteneded, and should
+    // therefore be resumed after breakpoints are inserted.
+    protected waitPausedNeeded = false;
     protected isInitialized = false;
 
     constructor() {
@@ -386,27 +391,24 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.waitPausedNeeded = this.isRunning;
+        if (this.waitPausedNeeded) {
             // Need to pause first
+            const waitPromise = new Promise<void>((resolve) => {
+                this.waitPaused = resolve;
+            });
             if (this.gdb.isNonStopMode()) {
                 const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
 
-                this.currentThreadId = parseInt(
+                this.waitPausedThreadId = parseInt(
                     threadInfo['current-thread-id'],
                     10
                 );
-                await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+                this.gdb.pause(this.waitPausedThreadId);
             } else {
-                await mi.sendExecInterrupt(this.gdb);
+                this.gdb.pause();
             }
-
-            const waitStopped = new Promise((resolve) => {
-                this.gdb.on('execAsync', (event) => {
-                    resolve(event);
-                });
-            });
-            await waitStopped;
+            await waitPromise;
         }
 
         try {
@@ -562,9 +564,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
+        if (this.waitPausedNeeded) {
             if (this.gdb.isNonStopMode()) {
-                mi.sendExecContinue(this.gdb, this.currentThreadId);
+                mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
             } else {
                 mi.sendExecContinue(this.gdb);
             }
@@ -575,27 +577,26 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.waitPausedNeeded = this.isRunning;
+        if (this.waitPausedNeeded) {
             // Need to pause first
-
+            const waitPromise = new Promise<void>((resolve) => {
+                this.waitPaused = resolve;
+            });
             if (this.gdb.isNonStopMode()) {
                 const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
-                this.currentThreadId = parseInt(
+
+                this.waitPausedThreadId = parseInt(
                     threadInfo['current-thread-id'],
                     10
                 );
-                await mi.sendExecInterrupt(this.gdb, this.currentThreadId);
+                this.gdb.pause(this.waitPausedThreadId);
             } else {
-                await mi.sendExecInterrupt(this.gdb);
+                this.gdb.pause();
             }
-            const waitStopped = new Promise((resolve) => {
-                this.gdb.on('execAsync', (event) => {
-                    resolve(event);
-                });
-            });
-            await waitStopped;
+            await waitPromise;
         }
+
         try {
             const result = await mi.sendBreakList(this.gdb);
             const gdbbps = result.BreakpointTable.body.filter((gdbbp) => {
@@ -680,9 +681,9 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
+        if (this.waitPausedNeeded) {
             if (this.gdb.isNonStopMode()) {
-                mi.sendExecContinue(this.gdb, this.currentThreadId);
+                mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
             } else {
                 mi.sendExecContinue(this.gdb);
             }
@@ -690,7 +691,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     /**
-     * Resolved which VS breakpoints needs to be installed, whichs
+     * Resolved which VS breakpoints needs to be installed, which
      * GDB breakpoints need to be deleted and which VS breakpoints
      * are already installed with which matching GDB breakpoint.
      * @param vsbps VS DAP breakpoints
@@ -1535,9 +1536,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                     getThreadId(result),
                     getAllThreadsStopped(result)
                 );
-                if (this.waitPaused) {
-                    this.waitPaused();
-                }
                 break;
             }
             default:
@@ -1575,6 +1573,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 updateIsRunning();
                 break;
             case 'stopped': {
+                let suppressHandleGDBStopped = false;
                 if (this.gdb.isNonStopMode()) {
                     const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
@@ -1582,24 +1581,42 @@ export class GDBDebugSession extends LoggingDebugSession {
                             thread.running = false;
                         }
                     }
+                    if (
+                        this.waitPaused &&
+                        resultData.reason === 'signal-received' &&
+                        this.waitPausedThreadId === id
+                    ) {
+                        suppressHandleGDBStopped = true;
+                    }
                 } else {
                     for (const thread of this.threads) {
                         thread.running = false;
                     }
+                    if (
+                        this.waitPaused &&
+                        resultData.reason === 'signal-received'
+                    ) {
+                        suppressHandleGDBStopped = true;
+                    }
                 }
-                const id = parseInt(resultData['thread-id'], 10);
-                if (
-                    this.currentThreadId == id &&
-                    resultData.reason == 'signal-received'
-                ) {
-                    // Do not send event stop when pause for set breakpoint
-                    break;
+
+                if (this.waitPaused) {
+                    this.waitPaused();
+                    if (!suppressHandleGDBStopped) {
+                        // if we aren't suppressing the stopped event going
+                        // to the client, then we also musn't resume the
+                        // target after inserting the breakpoints
+                        this.waitPausedNeeded = false;
+                    }
+                    this.waitPaused = undefined;
                 }
+
                 const wasRunning = this.isRunning;
                 updateIsRunning();
                 if (
-                    this.gdb.isNonStopMode() ||
-                    (wasRunning && !this.isRunning)
+                    !suppressHandleGDBStopped &&
+                    (this.gdb.isNonStopMode() ||
+                        (wasRunning && !this.isRunning))
                 ) {
                     if (this.isInitialized) {
                         this.handleGDBStopped(resultData);

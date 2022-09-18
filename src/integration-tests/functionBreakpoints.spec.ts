@@ -76,6 +76,12 @@ describe('function breakpoints', async function () {
         await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         await dc.continueRequest({ threadId: scope.thread.id });
+
+        // start listening for stopped events before we issue the
+        // setBreakpointsRequest to ensure we don't get extra
+        // stopped events
+        const stoppedEventWaitor = dc.waitForEvent('stopped');
+
         const bpResp2 = await dc.setFunctionBreakpointsRequest({
             breakpoints: [
                 {
@@ -88,6 +94,12 @@ describe('function breakpoints', async function () {
             line: 10,
             path: /functions.c$/,
         });
+        const stoppedEvent = await stoppedEventWaitor;
+        expect(stoppedEvent).to.have.property('body');
+        expect(stoppedEvent.body).to.have.property(
+            'reason',
+            'function breakpoint'
+        );
     });
 
     it('handles <MULTIPLE> responses (e.g. multiple static functions with same name)', async () => {
