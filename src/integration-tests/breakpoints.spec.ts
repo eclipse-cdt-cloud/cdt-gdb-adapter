@@ -21,7 +21,7 @@ import {
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
-describe('breakpoints', async function () {
+describe.only('breakpoints', async function () {
     let dc: CdtDebugClient;
 
     beforeEach(async function () {
@@ -62,6 +62,7 @@ describe('breakpoints', async function () {
     });
 
     it('handles breakpoints in multiple files', async () => {
+        throw new Error('error to check that test reporting works ok');
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
