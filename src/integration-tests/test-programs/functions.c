@@ -15,5 +15,8 @@ int main(void)
     staticfunc2();
     sub();
     other();
+    while (1) {
+        sub();
+    }    
     return 0;
 }

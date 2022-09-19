@@ -18,8 +18,11 @@ import {
     verifyVariable,
     gdbVersionAtLeast,
     fillDefaults,
+    gdbAsync,
+    isRemoteTest,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import * as os from 'os';
 
 describe('breakpoints', async function () {
     let dc: CdtDebugClient;
@@ -59,6 +62,53 @@ describe('breakpoints', async function () {
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
         verifyVariable(vars.body.variables[0], 'count', 'int', '0');
+    });
+
+    it('can set breakpoints while program is running', async function () {
+        if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
+            // win32 host can only pause remote + mi-async targets
+            this.skip();
+        }
+        let response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 2,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        await dc.continueRequest({ threadId: scope.thread.id });
+
+        // start listening for stopped events before we issue the
+        // setBreakpointsRequest to ensure we don't get extra
+        // stopped events
+        const stoppedEventWaitor = dc.waitForEvent('stopped');
+
+        response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        expect(response.body.breakpoints.length).to.eq(1);
+        await dc.assertStoppedLocation('breakpoint', { line: 4 });
+        const stoppedEvent = await stoppedEventWaitor;
+        expect(stoppedEvent).to.have.property('body');
+        expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
     it('handles breakpoints in multiple files', async () => {
