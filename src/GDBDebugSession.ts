@@ -45,6 +45,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     logFile?: string;
     openGdbConsole?: boolean;
     initCommands?: string[];
+    hardwareBreakpoint?: boolean;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -532,7 +533,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         ignoreCount--;
                     }
                 }
-
+                let hardwareBreakpoint = this.gdb.isUseHWBreakpoint();
                 try {
                     const gdbbp = await mi.sendBreakInsert(this.gdb, {
                         source: file,
@@ -540,6 +541,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
+                        hardwareBreakpoint,
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
