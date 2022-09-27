@@ -54,6 +54,7 @@ export declare interface GDBBackend {
         data: any
     ): boolean;
     emit(event: 'attachedRequest'): boolean;
+    
 }
 
 export class GDBBackend extends events.EventEmitter {
