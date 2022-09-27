@@ -22,8 +22,6 @@ import { fail } from 'assert';
 import * as os from 'os';
 
 describe('multithread', async function () {
-    this.timeout(5000);
-
     let dc: CdtDebugClient;
     const program = path.join(testProgramsDir, 'MultiThread');
     const source = path.join(testProgramsDir, 'MultiThread.cc');

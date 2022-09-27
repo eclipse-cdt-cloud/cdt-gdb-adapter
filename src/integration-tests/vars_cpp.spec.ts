@@ -19,7 +19,6 @@ import {
     standardBeforeEach,
     testProgramsDir,
     verifyVariable,
-    isRemoteTest,
     fillDefaults,
 } from './utils';
 
@@ -33,15 +32,6 @@ describe('Variables CPP Test Suite', function () {
     const lineTags = {
         'STOP HERE': 0,
     };
-
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    } else if (isRemoteTest) {
-        // On remote targets it can take quite a while to read all libc/libm
-        // over the remote connection, so increase the timeout
-        this.timeout(5000);
-    }
 
     before(function () {
         resolveLineTagLocations(varsCppSrc, lineTags);
