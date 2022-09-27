@@ -10,21 +10,17 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
     compareVariable,
-    gdbPath,
     getScopes,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
     testProgramsDir,
     verifyVariable,
     isRemoteTest,
+    fillDefaults,
 } from './utils';
 
 describe('Variables CPP Test Suite', function () {
@@ -54,14 +50,9 @@ describe('Variables CPP Test Suite', function () {
     beforeEach(async function () {
         dc = await standardBeforeEach();
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.currentTest, {
                 program: varsCppProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            }),
             {
                 path: varsCppSrc,
                 line: lineTags['STOP HERE'],

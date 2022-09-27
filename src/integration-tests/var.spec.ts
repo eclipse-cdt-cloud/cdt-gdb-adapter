@@ -10,20 +10,16 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '..';
 import { CdtDebugClient } from './debugClient';
 import {
-    gdbPath,
     getScopes,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
     testProgramsDir,
     verifyVariable,
     verifyRegister,
+    fillDefaults,
 } from './utils';
 import * as chai from 'chai';
 import * as chaistring from 'chai-string';
@@ -51,14 +47,9 @@ describe('Variables Test Suite', function () {
         dc = await standardBeforeEach();
 
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.currentTest, {
                 program: varsProgram,
-                openGdbConsole,
-                gdbAsync,
-                gdbNonStop,
-            } as LaunchRequestArguments,
+            }),
             {
                 path: varsSrc,
                 line: lineTags['STOP HERE'],

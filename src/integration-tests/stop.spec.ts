@@ -8,15 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { CdtDebugClient } from './debugClient';
-import {
-    standardBeforeEach,
-    gdbPath,
-    testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
-} from './utils';
-import { LaunchRequestArguments } from '../GDBDebugSession';
+import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 import { expect } from 'chai';
 import * as path from 'path';
 
@@ -31,15 +23,12 @@ describe('stop', async () => {
         await dc.stop();
     });
 
-    it('handles segv', async () => {
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: path.join(testProgramsDir, 'segv'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-        } as LaunchRequestArguments);
+    it('handles segv', async function () {
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: path.join(testProgramsDir, 'segv'),
+            })
+        );
         await dc.configurationDoneRequest();
         const stoppedEvent = await dc.waitForEvent('stopped');
         expect(stoppedEvent.body.reason).to.eq('SIGSEGV');

@@ -1,7 +1,9 @@
 int main() {
-    int count = 0;
-    while (count < 1000) {
-        count ++;
-    }
+    int count = 0, another = 0;
+    while (1) {
+        count ++; 
+        // line with no code
+        another ++;
+    }    
     return 0;
 }

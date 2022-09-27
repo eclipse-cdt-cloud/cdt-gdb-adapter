@@ -169,7 +169,13 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected threads: ThreadWithStatus[] = [];
 
+    // promise that resolves once the target stops so breakpoints can be inserted
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
+    // the thread id that we were waiting for
+    protected waitPausedThreadId = 0;
+    // set to true if the target was interrupted where inteneded, and should
+    // therefore be resumed after breakpoints are inserted.
+    protected waitPausedNeeded = false;
     protected isInitialized = false;
 
     constructor() {
@@ -385,13 +391,23 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.waitPausedNeeded = this.isRunning;
+        if (this.waitPausedNeeded) {
             // Need to pause first
             const waitPromise = new Promise<void>((resolve) => {
                 this.waitPaused = resolve;
             });
-            this.gdb.pause();
+            if (this.gdb.isNonStopMode()) {
+                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+
+                this.waitPausedThreadId = parseInt(
+                    threadInfo['current-thread-id'],
+                    10
+                );
+                this.gdb.pause(this.waitPausedThreadId);
+            } else {
+                this.gdb.pause();
+            }
             await waitPromise;
         }
 
@@ -548,8 +564,12 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
-            mi.sendExecContinue(this.gdb);
+        if (this.waitPausedNeeded) {
+            if (this.gdb.isNonStopMode()) {
+                mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+            } else {
+                mi.sendExecContinue(this.gdb);
+            }
         }
     }
 
@@ -557,13 +577,23 @@ export class GDBDebugSession extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
-        const neededPause = this.isRunning;
-        if (neededPause) {
+        this.waitPausedNeeded = this.isRunning;
+        if (this.waitPausedNeeded) {
             // Need to pause first
             const waitPromise = new Promise<void>((resolve) => {
                 this.waitPaused = resolve;
             });
-            this.gdb.pause();
+            if (this.gdb.isNonStopMode()) {
+                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+
+                this.waitPausedThreadId = parseInt(
+                    threadInfo['current-thread-id'],
+                    10
+                );
+                this.gdb.pause(this.waitPausedThreadId);
+            } else {
+                this.gdb.pause();
+            }
             await waitPromise;
         }
 
@@ -651,8 +681,12 @@ export class GDBDebugSession extends LoggingDebugSession {
             );
         }
 
-        if (neededPause) {
-            mi.sendExecContinue(this.gdb);
+        if (this.waitPausedNeeded) {
+            if (this.gdb.isNonStopMode()) {
+                mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+            } else {
+                mi.sendExecContinue(this.gdb);
+            }
         }
     }
 
@@ -1502,9 +1536,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                     getThreadId(result),
                     getAllThreadsStopped(result)
                 );
-                if (this.waitPaused) {
-                    this.waitPaused();
-                }
                 break;
             }
             default:
@@ -1528,7 +1559,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         switch (resultClass) {
             case 'running':
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = true;
@@ -1542,23 +1573,50 @@ export class GDBDebugSession extends LoggingDebugSession {
                 updateIsRunning();
                 break;
             case 'stopped': {
+                let suppressHandleGDBStopped = false;
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData.thread_id, 10);
+                    const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = false;
                         }
                     }
+                    if (
+                        this.waitPaused &&
+                        resultData.reason === 'signal-received' &&
+                        this.waitPausedThreadId === id
+                    ) {
+                        suppressHandleGDBStopped = true;
+                    }
                 } else {
                     for (const thread of this.threads) {
                         thread.running = false;
                     }
+                    if (
+                        this.waitPaused &&
+                        resultData.reason === 'signal-received'
+                    ) {
+                        suppressHandleGDBStopped = true;
+                    }
                 }
+
+                if (this.waitPaused) {
+                    if (!suppressHandleGDBStopped) {
+                        // if we aren't suppressing the stopped event going
+                        // to the client, then we also musn't resume the
+                        // target after inserting the breakpoints
+                        this.waitPausedNeeded = false;
+                    }
+                    this.waitPaused();
+                    this.waitPaused = undefined;
+                }
+
                 const wasRunning = this.isRunning;
                 updateIsRunning();
                 if (
-                    this.gdb.isNonStopMode() ||
-                    (wasRunning && !this.isRunning)
+                    !suppressHandleGDBStopped &&
+                    (this.gdb.isNonStopMode() ||
+                        (wasRunning && !this.isRunning))
                 ) {
                     if (this.isInitialized) {
                         this.handleGDBStopped(resultData);

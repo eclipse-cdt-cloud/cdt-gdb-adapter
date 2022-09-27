@@ -10,14 +10,12 @@
 import { CdtDebugClient } from './debugClient';
 import {
     standardBeforeEach,
-    gdbPath,
     testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
     resolveLineTagLocations,
     isRemoteTest,
+    gdbNonStop,
+    fillDefaults,
 } from './utils';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import { expect } from 'chai';
 import * as path from 'path';
 import { fail } from 'assert';
@@ -54,17 +52,16 @@ describe('multithread', async function () {
         await dc.stop();
     });
 
-    const testCommon = async (nonStop: boolean) => {
+    it('sees all threads', async function () {
+        if (!gdbNonStop && os.platform() === 'win32' && isRemoteTest) {
+            // The way thread names are set in remote tests on windows is unsupported
+            this.skip();
+        }
+
         await dc.hitBreakpoint(
-            {
-                verbose: true,
-                gdb: gdbPath,
+            fillDefaults(this.test, {
                 program: program,
-                openGdbConsole,
-                gdbAsync,
-                logFile: '/tmp/log',
-                gdbNonStop: nonStop,
-            } as LaunchRequestArguments,
+            }),
             {
                 path: source,
                 line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
@@ -92,7 +89,7 @@ describe('multithread', async function () {
                 fail('unreachable');
             }
 
-            if (nonStop) {
+            if (gdbNonStop) {
                 const waitForStopped = dc.waitForEvent('stopped');
                 const pr = dc.pauseRequest({ threadId });
                 await Promise.all([pr, waitForStopped]);
@@ -125,21 +122,5 @@ describe('multithread', async function () {
             // extracted nul terminated string
             expect(varnameToValue.get('name')).to.contain(name);
         }
-    };
-
-    it('sees all threads (all-stop)', async function () {
-        if (os.platform() === 'win32' && isRemoteTest) {
-            // The way thread names are set in remote tests on windows is unsupported
-            this.skip();
-        }
-        await testCommon(false);
-    });
-
-    it('sees all threads (non-stop)', async function () {
-        if (os.platform() === 'win32') {
-            // non-stop unsupported on Windows
-            this.skip();
-        }
-        await testCommon(true);
     });
 });

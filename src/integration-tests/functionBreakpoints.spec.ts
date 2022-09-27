@@ -12,31 +12,27 @@ import * as path from 'path';
 import { expect } from 'chai';
 import { join } from 'path';
 import { CdtDebugClient } from './debugClient';
-import { LaunchRequestArguments } from '../GDBDebugSession';
 import {
     standardBeforeEach,
-    gdbPath,
     testProgramsDir,
-    openGdbConsole,
-    gdbAsync,
-    gdbNonStop,
     getScopes,
+    fillDefaults,
+    gdbAsync,
+    isRemoteTest,
 } from './utils';
+import * as os from 'os';
 
-describe('function breakpoints', async () => {
+describe('function breakpoints', async function () {
     let dc: CdtDebugClient;
 
-    beforeEach(async () => {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.launchRequest({
-            verbose: true,
-            gdb: gdbPath,
-            program: join(testProgramsDir, 'functions'),
-            openGdbConsole,
-            gdbAsync,
-            gdbNonStop,
-        } as LaunchRequestArguments);
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: join(testProgramsDir, 'functions'),
+            })
+        );
     });
 
     afterEach(async () => {
@@ -68,6 +64,49 @@ describe('function breakpoints', async () => {
         });
         await dc.configurationDoneRequest();
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
+    });
+
+    it('can set and hit the sub function breakpoint while program is running', async function () {
+        if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
+            // win32 host can only pause remote + mi-async targets
+            this.skip();
+        }
+        const bpResp1 = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'main',
+                },
+            ],
+        });
+        expect(bpResp1.body.breakpoints.length).to.eq(1);
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        await dc.continueRequest({ threadId: scope.thread.id });
+
+        // start listening for stopped events before we issue the
+        // setBreakpointsRequest to ensure we don't get extra
+        // stopped events
+        const stoppedEventWaitor = dc.waitForEvent('stopped');
+
+        const bpResp2 = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'sub',
+                },
+            ],
+        });
+        expect(bpResp2.body.breakpoints.length).to.eq(1);
+        await dc.assertStoppedLocation('function breakpoint', {
+            line: 10,
+            path: /functions.c$/,
+        });
+        const stoppedEvent = await stoppedEventWaitor;
+        expect(stoppedEvent).to.have.property('body');
+        expect(stoppedEvent.body).to.have.property(
+            'reason',
+            'function breakpoint'
+        );
     });
 
     it('handles <MULTIPLE> responses (e.g. multiple static functions with same name)', async () => {
