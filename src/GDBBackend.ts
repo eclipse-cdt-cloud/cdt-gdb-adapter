@@ -41,7 +41,10 @@ export declare interface GDBBackend {
         event: 'execAsync' | 'notifyAsync' | 'statusAsync',
         listener: (asyncClass: string, data: any) => void
     ): this;
-    on(event: 'attachedRequest', listener: () => void): this;
+    on(
+        event: 'attachedRequest',
+        listener: () => void
+    ): this;
 
     emit(
         event: 'consoleStreamOutput',
@@ -53,7 +56,9 @@ export declare interface GDBBackend {
         asyncClass: string,
         data: any
     ): boolean;
-    emit(event: 'attachedRequest'): boolean;
+    emit(
+        event: 'attachedRequest'
+    ): boolean;
 }
 
 export class GDBBackend extends events.EventEmitter {
