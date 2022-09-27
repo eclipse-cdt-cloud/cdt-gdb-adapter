@@ -58,12 +58,6 @@ describe('attach remote', function () {
         await dc.stop();
     });
 
-    this.timeout(5000);
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    }
-
     it('can attach remote and hit a breakpoint', async function () {
         await dc.hitBreakpoint(
             fillDefaults(this.test, {

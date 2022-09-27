@@ -66,10 +66,6 @@ describe('Variables Test Suite', function () {
         await dc.stop();
     });
 
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    }
     it('can read and set simple variables in a program', async function () {
         // read the variables
         let vr = scope.scopes.body.scopes[0].variablesReference;

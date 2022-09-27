@@ -26,10 +26,6 @@ describe('GDB Backend Test Suite', function () {
     afterEach(function () {
         gdb.sendGDBExit();
     });
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    }
 
     it('can read a value from -gdb-show', async function () {
         const response = await gdb.sendGDBShow('width');

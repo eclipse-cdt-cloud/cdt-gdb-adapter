@@ -28,10 +28,6 @@ describe('evaluate request', function () {
     const evaluateSrc = path.join(testProgramsDir, 'evaluate.cpp');
 
     beforeEach(async function () {
-        // Move the timeout out of the way if the adapter is going to be debugged.
-        if (process.env.INSPECT_DEBUG_ADAPTER) {
-            this.timeout(9999999);
-        }
         dc = await standardBeforeEach();
         await dc.hitBreakpoint(
             fillDefaults(this.currentTest, {
@@ -48,11 +44,6 @@ describe('evaluate request', function () {
     afterEach(async function () {
         await dc.stop();
     });
-
-    // Move the timeout out of the way if the adapter is going to be debugged.
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        this.timeout(9999999);
-    }
 
     it('should evaluate a simple literal expression', async function () {
         const res = await dc.evaluateRequest({
