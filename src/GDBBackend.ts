@@ -63,6 +63,7 @@ export class GDBBackend extends events.EventEmitter {
     private gdbVersion?: string;
     protected gdbAsync = false;
     protected gdbNonStop = false;
+    protected hardwareBreakpoint = false;
 
     get varManager(): VarManager {
         return this.varMgr;
@@ -82,6 +83,7 @@ export class GDBBackend extends events.EventEmitter {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
         this.out = this.proc.stdin;
+        this.hardwareBreakpoint = requestArgs.hardwareBreakpoint ? true : false;
         await this.parser.parse(this.proc.stdout);
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
@@ -155,6 +157,10 @@ export class GDBBackend extends events.EventEmitter {
 
     public isNonStopMode() {
         return this.gdbNonStop;
+    }
+    
+    public isUseHWBreakpoint() {
+        return this.hardwareBreakpoint;
     }
 
     public pause(threadId?: number) {
