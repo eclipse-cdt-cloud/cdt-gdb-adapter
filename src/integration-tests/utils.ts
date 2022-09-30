@@ -240,7 +240,7 @@ export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
 export const defaultAdapter: string = getDefaultAdapterCli();
-export const hardwareBreakpoint: boolean = 
+export const hardwareBreakpoint: boolean =
     process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
 before(function () {
@@ -252,7 +252,7 @@ before(function () {
     }
 
     if ((gdbNonStop || hardwareBreakpoint) && os.platform() === 'win32') {
-        // non-stop unsupported on Windows
+        // skip tests that are unsupported on Windows
         this.skip();
     }
 });
