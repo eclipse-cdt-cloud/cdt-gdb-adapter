@@ -60,20 +60,16 @@ describe('breakpoints', async function () {
         await dc.configurationDoneRequest();
         let isCorrect;
         let outputs;
-        while (!isCorrect)
-        {
+        while (!isCorrect) {
             // Cover the case of getting event in Linux environment.
             // If cannot get correct event, program timeout and test case failed.
             outputs = await dc.waitForEvent('output', this.timeout());
-            isCorrect = (outputs.body.output).includes('breakpoint-modified');
+            isCorrect = outputs.body.output.includes('breakpoint-modified');
         }
         let substring: string;
-        if (hardwareBreakpoint)
-        {
+        if (hardwareBreakpoint) {
             substring = 'type="hw breakpoint"';
-        }
-        else
-        {
+        } else {
             substring = 'type="breakpoint"';
         }
         expect(outputs?.body.output).includes(substring);

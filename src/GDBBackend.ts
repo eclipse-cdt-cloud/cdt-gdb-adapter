@@ -158,7 +158,7 @@ export class GDBBackend extends events.EventEmitter {
     public isNonStopMode() {
         return this.gdbNonStop;
     }
-    
+
     public isUseHWBreakpoint() {
         return this.hardwareBreakpoint;
     }
