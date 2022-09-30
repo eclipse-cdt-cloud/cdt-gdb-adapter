@@ -119,13 +119,15 @@ export async function sendBreakInsert(
     // Todo: lots of options
     const temp = request.temporary ? '-t ' : '';
     const ignore = request.ignoreCount ? `-i ${request.ignoreCount} ` : '';
+    const hwBreakpoint = request.hardware ? '-h ' : '';
+    const pend = request.pending ? '-f ' : '';
     const location = await breakpointLocation(
         gdb,
         request.source,
         request.line.toString(),
         true
     );
-    const command = `-break-insert ${temp}${ignore} ${location}`;
+    const command = `-break-insert ${temp}${hwBreakpoint}${ignore}${pend}${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
         command
     );
@@ -154,10 +156,18 @@ export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
 
 export async function sendBreakFunctionInsert(
     gdb: GDBBackend,
-    fn: string
+    fn: string,
+    request?: {
+        temporary?: boolean;
+        hardware?: boolean;
+        pending?: boolean;
+    }
 ): Promise<MIBreakInsertResponse> {
+    const temp = request?.temporary ? '-t ' : '';
+    const hwBreakpoint = request?.hardware ? '-h ' : '';
+    const pend = request?.pending ? '-f ' : '';
     const location = await breakpointFunctionLocation(gdb, fn, true);
-    const command = `-break-insert ${location}`;
+    const command = `-break-insert ${temp}${hwBreakpoint}${pend}${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
         command
     );
