@@ -223,6 +223,7 @@ export function fillDefaults(
     args.openGdbConsole = openGdbConsole;
     args.gdbAsync = gdbAsync;
     args.gdbNonStop = gdbNonStop;
+    args.hardwareBreakpoint = hardwareBreakpoint;
     return args;
 }
 
@@ -239,6 +240,8 @@ export const gdbPath: string | undefined = getGdbPathCli();
 export const gdbServerPath: string = getGdbServerPathCli();
 export const debugServerPort: number | undefined = getDebugServerPortCli();
 export const defaultAdapter: string = getDefaultAdapterCli();
+export const hardwareBreakpoint: boolean = 
+    process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
 before(function () {
     // Run make once per mocha execution, unless --skip-make
@@ -248,7 +251,7 @@ before(function () {
         cp.execSync('make', { cwd: testProgramsDir });
     }
 
-    if (gdbNonStop && os.platform() === 'win32') {
+    if ((gdbNonStop || hardwareBreakpoint) && os.platform() === 'win32') {
         // non-stop unsupported on Windows
         this.skip();
     }
@@ -268,6 +271,9 @@ beforeEach(function () {
         }
         if (gdbNonStop) {
             prefix += 'gdb-non-stop ';
+        }
+        if (hardwareBreakpoint) {
+            prefix += 'hw-breakpoint-on ';
         }
         if (prefix) {
             prefix = '/' + prefix.trim() + '/';
