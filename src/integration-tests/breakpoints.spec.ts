@@ -20,6 +20,7 @@ import {
     fillDefaults,
     gdbAsync,
     isRemoteTest,
+    hardwareBreakpoint,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as os from 'os';
@@ -38,6 +39,40 @@ describe('breakpoints', async function () {
 
     afterEach(async () => {
         await dc.stop();
+    });
+
+    it('set type of standard breakpoint', async () => {
+        const bpResp = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        expect(bpResp.body.breakpoints.length).eq(1);
+        expect(bpResp.body.breakpoints[0].verified).eq(true);
+        expect(bpResp.body.breakpoints[0].message).eq(undefined);
+        await dc.configurationDoneRequest();
+        let isCorrect;
+        let outputs;
+        while (!isCorrect) {
+            // Cover the case of getting event in Linux environment.
+            // If cannot get correct event, program timeout and test case failed.
+            outputs = await dc.waitForEvent('output', this.timeout());
+            isCorrect = outputs.body.output.includes('breakpoint-modified');
+        }
+        let substring: string;
+        if (hardwareBreakpoint) {
+            substring = 'type="hw breakpoint"';
+        } else {
+            substring = 'type="breakpoint"';
+        }
+        expect(outputs?.body.output).includes(substring);
     });
 
     it('hits a standard breakpoint', async () => {

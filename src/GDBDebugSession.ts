@@ -45,6 +45,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     logFile?: string;
     openGdbConsole?: boolean;
     initCommands?: string[];
+    hardwareBreakpoint?: boolean;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -540,6 +541,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
+                        hardware: this.gdb.isUseHWBreakpoint(),
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
@@ -655,7 +657,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 try {
                     const gdbbp = await mi.sendBreakFunctionInsert(
                         this.gdb,
-                        bp.vsbp.name
+                        bp.vsbp.name,
+                        {
+                            hardware: this.gdb.isUseHWBreakpoint(),
+                        }
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
                     actual.push(createActual(gdbbp.bkpt));

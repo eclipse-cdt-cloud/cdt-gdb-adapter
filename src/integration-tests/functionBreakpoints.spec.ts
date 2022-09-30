@@ -19,6 +19,7 @@ import {
     fillDefaults,
     gdbAsync,
     isRemoteTest,
+    hardwareBreakpoint,
 } from './utils';
 import * as os from 'os';
 
@@ -37,6 +38,35 @@ describe('function breakpoints', async function () {
 
     afterEach(async () => {
         await dc.stop();
+    });
+
+    it('set type of function breakpoint', async () => {
+        const bpResp = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'main',
+                },
+            ],
+        });
+        expect(bpResp.body.breakpoints.length).eq(1);
+        expect(bpResp.body.breakpoints[0].verified).eq(true);
+        expect(bpResp.body.breakpoints[0].message).eq(undefined);
+        await dc.configurationDoneRequest();
+        let isCorrect;
+        let outputs;
+        while (!isCorrect) {
+            // Cover the case of getting event in Linux environment.
+            // If cannot get correct event, program timeout and test case failed.
+            outputs = await dc.waitForEvent('output', this.timeout());
+            isCorrect = outputs.body.output.includes('breakpoint-modified');
+        }
+        let substring: string;
+        if (hardwareBreakpoint) {
+            substring = 'type="hw breakpoint"';
+        } else {
+            substring = 'type="breakpoint"';
+        }
+        expect(outputs?.body.output).includes(substring);
     });
 
     it('hits the main function breakpoint', async () => {
