@@ -58,12 +58,14 @@ describe('breakpoints', async function () {
         expect(bpResp.body.breakpoints[0].verified).eq(true);
         expect(bpResp.body.breakpoints[0].message).eq(undefined);
         await dc.configurationDoneRequest();
-        let outputs = await dc.waitForEvent('output');
-        const isCorrect = (outputs.body.output).includes('breakpoint-modified');
-        if (!isCorrect)
+        let isCorrect;
+        let outputs;
+        while (!isCorrect)
         {
-            // Cover the case of getting event in Linux environment
-            outputs = await dc.waitForEvent('output');
+            // Cover the case of getting event in Linux environment.
+            // If cannot get correct event, program timeout after 5000ms and test case failed.
+            outputs = await dc.waitForEvent('output', 5000);
+            isCorrect = (outputs.body.output).includes('breakpoint-modified');
         }
         let substring: string;
         if (hardwareBreakpoint)
@@ -74,7 +76,7 @@ describe('breakpoints', async function () {
         {
             substring = 'type="breakpoint"';
         }
-        expect(outputs.body.output).includes(substring);
+        expect(outputs?.body.output).includes(substring);
     });
 
     it('hits a standard breakpoint', async () => {
