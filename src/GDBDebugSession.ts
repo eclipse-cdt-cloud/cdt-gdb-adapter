@@ -657,7 +657,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 try {
                     const gdbbp = await mi.sendBreakFunctionInsert(
                         this.gdb,
-                	 bp.vsbp.name,
+                        bp.vsbp.name,
                         {
                             hardware: this.gdb.isUseHWBreakpoint(),
                         }
