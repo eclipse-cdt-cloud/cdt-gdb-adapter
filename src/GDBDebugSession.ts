@@ -1222,14 +1222,14 @@ export class GDBDebugSession extends LoggingDebugSession {
                             : 0,
                 };
             }
-
-            this.sendResponse(response);
         } catch (err) {
-            // For multiple debug session, another sessions can catch error in case of not have variable in source.
-            // Cannot send ErrorResponse because it make another session are failed.
-            // Send the response notify 'Error: could not evaluate expression' instead of ErrorResponse.
-            this.sendResponse(response);
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
         }
+        this.sendResponse(response);
     }
 
     /**
