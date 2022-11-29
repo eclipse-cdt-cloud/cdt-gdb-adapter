@@ -86,6 +86,7 @@ export type VariableReference =
 export interface MemoryRequestArguments {
     address: string;
     length: number;
+    child: string;
     offset?: number;
 }
 
@@ -96,6 +97,7 @@ export interface MemoryContents {
     /* Hex-encoded string of bytes.  */
     data: string;
     address: string;
+    child?: string[];
 }
 
 export interface MemoryResponse extends Response {
@@ -198,7 +200,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: any
     ): void {
         if (command === 'cdt-gdb-adapter/Memory') {
-            this.memoryRequest(response as MemoryResponse, args);
+            if (args.address === '') {
+                response.body = { data: '', address: '', child: [] };
+                this.sendResponse(response as MemoryResponse);
+            } else {
+                this.memoryRequest(response as MemoryResponse, args);
+            }
             // This custom request exists to allow tests in this repository to run arbitrary commands
             // Use at your own risk!
         } else if (command === 'cdt-gdb-tests/executeCommand') {
