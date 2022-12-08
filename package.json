@@ -56,7 +56,8 @@
   "dependencies": {
     "@vscode/debugadapter": "^1.48.0",
     "@vscode/debugprotocol": "^1.48.0",
-    "node-addon-api": "^4.3.0"
+    "node-addon-api": "^4.3.0",
+    "cdt-amalgamator": "^0.0.5"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
