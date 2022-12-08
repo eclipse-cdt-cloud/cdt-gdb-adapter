@@ -33,6 +33,7 @@ import {
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
 import { breakpointFunctionLocation, breakpointLocation } from './mi';
+import { ChildDapContents } from 'cdt-amalgamator';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -86,7 +87,6 @@ export type VariableReference =
 export interface MemoryRequestArguments {
     address: string;
     length: number;
-    child: string;
     offset?: number;
 }
 
@@ -97,7 +97,6 @@ export interface MemoryContents {
     /* Hex-encoded string of bytes.  */
     data: string;
     address: string;
-    child?: string[];
 }
 
 export interface MemoryResponse extends Response {
@@ -200,14 +199,13 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: any
     ): void {
         if (command === 'cdt-gdb-adapter/Memory') {
-            if (args.address === '') {
-                response.body = { data: '', address: '', child: [] };
-                this.sendResponse(response as MemoryResponse);
-            } else {
-                this.memoryRequest(response as MemoryResponse, args);
-            }
+            this.memoryRequest(response as MemoryResponse, args);
             // This custom request exists to allow tests in this repository to run arbitrary commands
             // Use at your own risk!
+        } else if ('cdt-amalgamator/getChildDapNames') {
+            //Returns empty array when debugging with single core
+            response.body = { child: [] } as ChildDapContents;
+            this.sendResponse(response);
         } else if (command === 'cdt-gdb-tests/executeCommand') {
             this.gdb
                 .sendCommand(args.command)
