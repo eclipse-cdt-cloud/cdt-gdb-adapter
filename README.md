@@ -14,8 +14,53 @@ Build is pretty simple.
 yarn
 ```
 
+## Running
+
 The entry point for the adapter is `cdtDebugAdapter` for local debugging
 and `cdtDebugTargetAdapter` for target (remote) debugging.
+
+### Command line arguments
+
+#### `--server=PORT`
+
+Start the adapter listening on the given port instead of on stdin/stdout.
+
+#### `--config=INITIALCONFIG`
+
+Start the adapter using the given configuration as a starting point for the args in `launch` or `attach` request.
+
+For example, the default GDB can be set like this:
+
+```sh
+    node debugTargetAdapter.js --config='{"gdb":"arm-none-eabi-gdb"}'
+```
+
+The config can be passed on the command line as JSON, or a response file can be used by starting the argument with `@`.
+The rest of the argument will be interpreted as a file name to read.
+For example, to start the adapter defaulting to a process ID to attach to, create a file containing the JSON and reference it like this:
+
+```sh
+    cat >config.json <<END
+    {
+      "processId": 1234
+    }
+    END
+    node debugAdapter.js --config=@config.json
+
+```
+
+#### `--config-frozen=FROZENCONFIG`
+
+Similar to `--config`, the `--config-frozen` sets the provided configuration fields in the args to the `launch` or `attach` request to the given values, not allowing the user to override them.
+Specifying which type of request is allowed (`launch` or `attach`) can be specified with the `request` field.
+When freezing the type of request, regardless of which type of request the user requested, the frozen request type will be used.
+
+For example, the adapter can be configured for program to be frozen to a specific value.
+This may be useful for starting adapters in a container and exposing the server port.
+
+```sh
+    node debugAdapter.js --server=23221 --config-frozen='{"program":"/path/to/my.elf"}'
+```
 
 ## Testing
 
