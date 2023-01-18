@@ -108,7 +108,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetLaunchRequestArguments
     ): Promise<void> {
         try {
-            await this.attachOrLaunchRequest(response, 'launch', args);
+            const [request, resolvedArgs] = this.applyRequestArguments(
+                'launch',
+                args
+            );
+            await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -123,7 +127,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetAttachRequestArguments
     ): Promise<void> {
         try {
-            await this.attachOrLaunchRequest(response, 'attach', args);
+            const [request, resolvedArgs] = this.applyRequestArguments(
+                'attach',
+                args
+            );
+            await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,

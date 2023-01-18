@@ -9,7 +9,9 @@
  *********************************************************************/
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
 import {
+    DebugSession,
     Handles,
     InitializedEvent,
     Logger,
@@ -152,6 +154,18 @@ export function base64ToHex(base64: string): string {
 }
 
 export class GDBDebugSession extends LoggingDebugSession {
+    /**
+     * Initial (aka default) configuration for launch/attach request
+     * typically supplied with the --config command line argument.
+     */
+    protected static defaultRequestArguments?: any;
+
+    /**
+     * Frozen configuration for launch/attach request
+     * typically supplied with the --config-frozen command line argument.
+     */
+    protected static frozenRequestArguments?: { request?: string };
+
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
@@ -182,6 +196,66 @@ export class GDBDebugSession extends LoggingDebugSession {
     constructor() {
         super();
         this.logger = logger;
+    }
+
+    /**
+     * Main entry point
+     */
+    public static run(debugSession: typeof GDBDebugSession) {
+        GDBDebugSession.processArgv(process.argv.slice(2));
+        DebugSession.run(debugSession);
+    }
+
+    /**
+     * Parse an optional config file which is a JSON string of launch/attach request arguments.
+     * The config can be a response file by starting with an @.
+     */
+    public static processArgv(args: string[]) {
+        args.forEach(function (val, _index, _array) {
+            const configMatch = /^--config(-frozen)?=(.*)$/.exec(val);
+            if (configMatch) {
+                let configJson;
+                const configStr = configMatch[2];
+                if (configStr.startsWith('@')) {
+                    const configFile = configStr.slice(1);
+                    configJson = JSON.parse(
+                        fs.readFileSync(configFile).toString('utf8')
+                    );
+                } else {
+                    configJson = JSON.parse(configStr);
+                }
+                if (configMatch[1]) {
+                    GDBDebugSession.frozenRequestArguments = configJson;
+                } else {
+                    GDBDebugSession.defaultRequestArguments = configJson;
+                }
+            }
+        });
+    }
+
+    /**
+     * Apply the initial and frozen launch/attach request arguments.
+     * @param request the default request type to return if request type is not frozen
+     * @param args the arguments from the user to apply initial and frozen arguments to.
+     * @returns resolved request type and the resolved arguments
+     */
+    protected applyRequestArguments(
+        request: 'launch' | 'attach',
+        args: LaunchRequestArguments | AttachRequestArguments
+    ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
+        const frozenRequest = GDBDebugSession.frozenRequestArguments?.request;
+        if (frozenRequest === 'launch' || frozenRequest === 'attach') {
+            request = frozenRequest;
+        }
+
+        return [
+            request,
+            {
+                ...GDBDebugSession.defaultRequestArguments,
+                ...args,
+                ...GDBDebugSession.frozenRequestArguments,
+            },
+        ];
     }
 
     protected createBackend(): GDBBackend {
@@ -305,7 +379,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: AttachRequestArguments
     ): Promise<void> {
         try {
-            await this.attachOrLaunchRequest(response, 'attach', args);
+            const [request, resolvedArgs] = this.applyRequestArguments(
+                'attach',
+                args
+            );
+            await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -320,7 +398,11 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments
     ): Promise<void> {
         try {
-            await this.attachOrLaunchRequest(response, 'launch', args);
+            const [request, resolvedArgs] = this.applyRequestArguments(
+                'launch',
+                args
+            );
+            await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,
