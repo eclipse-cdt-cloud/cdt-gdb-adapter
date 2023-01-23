@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 Ericsson and others
+ * Copyright (c) 2018, 2023 Ericsson and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -181,30 +181,11 @@ export const testProgramsDir = path.join(
     'test-programs'
 );
 
-function getAdapterAndArgs(adapter?: string): string {
-    const chosenAdapter = adapter !== undefined ? adapter : defaultAdapter;
-    let args: string = path.join(__dirname, '../../dist', chosenAdapter);
-    if (process.env.INSPECT_DEBUG_ADAPTER) {
-        args = '--inspect-brk ' + args;
-    }
-    return args;
-}
-
 export async function standardBeforeEach(
-    adapter?: string
+    adapter?: string,
+    extraArgs?: string[]
 ): Promise<CdtDebugClient> {
-    const dc: CdtDebugClient = new CdtDebugClient(
-        'node',
-        getAdapterAndArgs(adapter),
-        'cppdbg',
-        {
-            shell: true,
-        }
-    );
-
-    // These timeouts should match what is in .mocharc.json and .mocharc-windows-ci.json
-    dc.defaultTimeout = os.platform() === 'win32' ? 25000 : 5000;
-
+    const dc: CdtDebugClient = new CdtDebugClient(adapter, extraArgs);
     await dc.start(debugServerPort);
     await dc.initializeRequest();
 
