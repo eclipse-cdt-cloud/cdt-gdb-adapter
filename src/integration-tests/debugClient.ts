@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 Ericsson and others
+ * Copyright (c) 2018, 2023 Ericsson and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -10,6 +10,9 @@
 import * as cp from 'child_process';
 import { DebugClient } from '@vscode/debugadapter-testsupport';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import * as path from 'path';
+import { defaultAdapter } from './utils';
+import * as os from 'os';
 
 export type ReverseRequestHandler<
     A = any,
@@ -23,11 +26,83 @@ export interface ReverseRequestHandlers {
     >;
 }
 
+function getAdapterAndArgs(adapter?: string): string[] {
+    const chosenAdapter = adapter !== undefined ? adapter : defaultAdapter;
+    const adapterPath: string = path.join(
+        __dirname,
+        '../../dist',
+        chosenAdapter
+    );
+    if (process.env.INSPECT_DEBUG_ADAPTER) {
+        return ['--inspect-brk', adapterPath];
+    }
+    return [adapterPath];
+}
+
 /**
- * Extend the DebugClient to support Reverse Requests:
- * https://microsoft.github.io/debug-adapter-protocol/specification#Reverse_Requests_RunInTerminal
+ * Extend the standard DebugClient to support additional client features
  */
 export class CdtDebugClient extends DebugClient {
+    private _cdt_args: string[];
+    private _cdt_adapterProcess?: cp.ChildProcess;
+    constructor(adapter?: string, extraArgs?: string[]) {
+        // The unused are as such because we do override process launching
+        super('unused', 'unused', 'gdb');
+        this._cdt_args = getAdapterAndArgs(adapter);
+        if (extraArgs) {
+            this._cdt_args.push(...extraArgs);
+        }
+        // These timeouts should match what is in .mocharc.json and .mocharc-windows-ci.json
+        this.defaultTimeout = os.platform() === 'win32' ? 25000 : 5000;
+    }
+
+    /**
+     * Start a debug session allowing command line arguments to be supplied
+     */
+    public start(port?: number): Promise<void> {
+        if (typeof port === 'number') {
+            return super.start(port);
+        }
+
+        return new Promise<void>((resolve, reject) => {
+            this._cdt_adapterProcess = cp.spawn('node', this._cdt_args);
+            this._cdt_adapterProcess.on('error', (err) => {
+                console.log(err);
+                reject(err);
+            });
+
+            if (
+                this._cdt_adapterProcess.stdout === null ||
+                this._cdt_adapterProcess.stdin === null
+            ) {
+                reject('Missing stdout/stdin');
+                return;
+            }
+            this.connect(
+                this._cdt_adapterProcess.stdout,
+                this._cdt_adapterProcess.stdin
+            );
+            resolve();
+        });
+    }
+
+    public stop(): Promise<void> {
+        return super
+            .stop()
+            .then(() => {
+                this.killAdapter();
+            })
+            .catch(() => {
+                this.killAdapter();
+            });
+    }
+
+    private killAdapter() {
+        if (this._cdt_adapterProcess) {
+            this._cdt_adapterProcess.kill();
+            this._cdt_adapterProcess = undefined;
+        }
+    }
     /**
      * Reverse Request Handlers:
      */
