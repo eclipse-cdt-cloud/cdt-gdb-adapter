@@ -14,8 +14,8 @@ Build is pretty simple.
 yarn
 ```
 
-The entry point for the adapter is `out/debugAdapter.js` for local debugging
-and `out/debugTargetAdapter.js` for target (remote) debugging.g
+The entry point for the adapter is `cdtDebugAdapter` for local debugging
+and `cdtDebugTargetAdapter` for target (remote) debugging.
 
 ## Testing
 

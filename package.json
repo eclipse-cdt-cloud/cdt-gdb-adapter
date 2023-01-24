@@ -4,6 +4,10 @@
   "description": "gdb adapter implementing the debug adapter protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "cdtDebugAdapter": "./dist/debugAdapter.js",
+    "cdtDebugTargetAdapter": "./dist/debugTargetAdapter.js"
+  },
   "scripts": {
     "install": "node install.js",
     "nativebuild": "node-gyp rebuild",
