@@ -201,6 +201,10 @@ export async function standardBeforeEach(
             shell: true,
         }
     );
+
+    // These timeouts should match what is in .mocharc.json and .mocharc-windows-ci.json
+    dc.defaultTimeout = os.platform() === 'win32' ? 25000 : 5000;
+
     await dc.start(debugServerPort);
     await dc.initializeRequest();
 

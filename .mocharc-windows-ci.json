@@ -1,3 +1,4 @@
 {
+  "//": "This timeout should match what is in CdtDebugClient constructor",
   "timeout": "25000"
 }
