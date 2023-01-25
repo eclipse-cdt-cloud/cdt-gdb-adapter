@@ -77,14 +77,27 @@ export interface TargetLaunchRequestArguments
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
 
+    protected async attachOrLaunchRequest(
+        response: DebugProtocol.Response,
+        request: 'launch' | 'attach',
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ) {
+        this.setupCommonLoggerAndHandlers(args);
+
+        if (request === 'launch') {
+            const launchArgs = args as TargetLaunchRequestArguments;
+            await this.startGDBServer(launchArgs);
+        }
+
+        await this.startGDBAndAttachToTarget(response, args);
+    }
+
     protected async launchRequest(
         response: DebugProtocol.LaunchResponse,
         args: TargetLaunchRequestArguments
     ): Promise<void> {
         try {
-            this.setupCommonLoggerAndHandlers(args);
-            await this.startGDBServer(args);
-            await this.startGDBAndAttachToTarget(response, args);
+            await this.attachOrLaunchRequest(response, 'launch', args);
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -99,8 +112,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetAttachRequestArguments
     ): Promise<void> {
         try {
-            this.setupCommonLoggerAndHandlers(args);
-            await this.startGDBAndAttachToTarget(response, args);
+            await this.attachOrLaunchRequest(response, 'attach', args);
         } catch (err) {
             this.sendErrorResponse(
                 response,
