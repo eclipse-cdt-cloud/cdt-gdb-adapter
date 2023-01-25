@@ -264,6 +264,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         );
 
         await this.spawn(args);
+        if (!args.program) {
+            this.sendErrorResponse(
+                response,
+                1,
+                'The program must be specified in the request arguments'
+            );
+            return;
+        }
         await this.gdb.sendFileExecAndSymbols(args.program);
         await this.gdb.sendEnablePrettyPrint();
 
