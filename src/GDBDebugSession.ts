@@ -242,40 +242,62 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
+    protected async attachOrLaunchRequest(
+        response: DebugProtocol.Response,
+        request: 'launch' | 'attach',
+        args: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        logger.setup(
+            args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
+            args.logFile || false
+        );
+
+        this.gdb.on('consoleStreamOutput', (output, category) => {
+            this.sendEvent(new OutputEvent(output, category));
+        });
+
+        this.gdb.on('execAsync', (resultClass, resultData) =>
+            this.handleGDBAsync(resultClass, resultData)
+        );
+        this.gdb.on('notifyAsync', (resultClass, resultData) =>
+            this.handleGDBNotify(resultClass, resultData)
+        );
+
+        await this.spawn(args);
+        await this.gdb.sendFileExecAndSymbols(args.program);
+        await this.gdb.sendEnablePrettyPrint();
+
+        if (request === 'attach') {
+            const attachArgs = args as AttachRequestArguments;
+            await mi.sendTargetAttachRequest(this.gdb, {
+                pid: attachArgs.processId,
+            });
+            this.sendEvent(
+                new OutputEvent(`attached to process ${attachArgs.processId}`)
+            );
+        }
+
+        await this.gdb.sendCommands(args.initCommands);
+
+        if (request === 'launch') {
+            const launchArgs = args as LaunchRequestArguments;
+            if (launchArgs.arguments) {
+                await mi.sendExecArguments(this.gdb, {
+                    arguments: launchArgs.arguments,
+                });
+            }
+        }
+        this.sendEvent(new InitializedEvent());
+        this.sendResponse(response);
+        this.isInitialized = true;
+    }
+
     protected async attachRequest(
         response: DebugProtocol.AttachResponse,
         args: AttachRequestArguments
     ): Promise<void> {
         try {
-            logger.setup(
-                args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
-                args.logFile || false
-            );
-
-            this.gdb.on('consoleStreamOutput', (output, category) => {
-                this.sendEvent(new OutputEvent(output, category));
-            });
-
-            this.gdb.on('execAsync', (resultClass, resultData) =>
-                this.handleGDBAsync(resultClass, resultData)
-            );
-            this.gdb.on('notifyAsync', (resultClass, resultData) =>
-                this.handleGDBNotify(resultClass, resultData)
-            );
-
-            await this.spawn(args);
-            await this.gdb.sendFileExecAndSymbols(args.program);
-            await this.gdb.sendEnablePrettyPrint();
-
-            await mi.sendTargetAttachRequest(this.gdb, { pid: args.processId });
-            this.sendEvent(
-                new OutputEvent(`attached to process ${args.processId}`)
-            );
-            await this.gdb.sendCommands(args.initCommands);
-
-            this.sendEvent(new InitializedEvent());
-            this.sendResponse(response);
-            this.isInitialized = true;
+            await this.attachOrLaunchRequest(response, 'attach', args);
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -290,40 +312,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: LaunchRequestArguments
     ): Promise<void> {
         try {
-            logger.setup(
-                args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
-                args.logFile || false
-            );
-
-            this.gdb.on('consoleStreamOutput', (output, category) => {
-                this.sendEvent(new OutputEvent(output, category));
-            });
-
-            this.gdb.on('execAsync', (resultClass, resultData) =>
-                this.handleGDBAsync(resultClass, resultData)
-            );
-            this.gdb.on('notifyAsync', (resultClass, resultData) =>
-                this.handleGDBNotify(resultClass, resultData)
-            );
-
-            await this.spawn(args);
-            await this.gdb.sendFileExecAndSymbols(args.program);
-            await this.gdb.sendEnablePrettyPrint();
-
-            if (args.initCommands) {
-                for (const command of args.initCommands) {
-                    await this.gdb.sendCommand(command);
-                }
-            }
-
-            if (args.arguments) {
-                await mi.sendExecArguments(this.gdb, {
-                    arguments: args.arguments,
-                });
-            }
-            this.sendEvent(new InitializedEvent());
-            this.sendResponse(response);
-            this.isInitialized = true;
+            await this.attachOrLaunchRequest(response, 'launch', args);
         } catch (err) {
             this.sendErrorResponse(
                 response,
