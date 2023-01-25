@@ -74,4 +74,18 @@ describe('launch', function () {
             }
         );
     });
+
+    it('provides a decent error if program is omitted', async function () {
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {} as LaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+
+        expect(errorMessage.message).to.satisfy((msg: string) =>
+            msg.includes('program must be specified')
+        );
+    });
 });

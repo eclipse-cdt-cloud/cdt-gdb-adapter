@@ -86,6 +86,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
+            if (
+                launchArgs.target?.serverParameters === undefined &&
+                !launchArgs.program
+            ) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'The program must be specified in the launch request arguments'
+                );
+                return;
+            }
             await this.startGDBServer(launchArgs);
         }
 
