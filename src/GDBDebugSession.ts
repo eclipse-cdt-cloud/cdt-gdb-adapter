@@ -1633,7 +1633,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected handleGDBAsync(resultClass: string, resultData: any) {
         const updateIsRunning = () => {
-            this.isRunning = true;
+            this.isRunning = this.threads.length ? true : false;
             for (const thread of this.threads) {
                 if (!thread.running) {
                     this.isRunning = false;
