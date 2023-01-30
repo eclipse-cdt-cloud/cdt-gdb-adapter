@@ -26,7 +26,7 @@ export function sendStackInfoDepth(
     }
 ): Promise<MIStackInfoDepthResponse> {
     let command = '-stack-info-depth';
-    if (params.threadId) {
+    if (params.threadId !== undefined) {
         command += ` --thread ${params.threadId}`;
     }
     if (params.maxDepth) {
@@ -47,7 +47,7 @@ export function sendStackListFramesRequest(
     stack: MIFrameInfo[];
 }> {
     let command = '-stack-list-frames';
-    if (params.threadId) {
+    if (params.threadId !== undefined) {
         command += ` --thread ${params.threadId}`;
     }
     if (params.noFrameFilters) {
@@ -88,10 +88,10 @@ export function sendStackListVariables(
     if (params.skipUnavailable) {
         command += ' --skip-unavailable';
     }
-    if (params.thread) {
+    if (params.thread !== undefined) {
         command += ` --thread ${params.thread}`;
     }
-    if (params.frame) {
+    if (params.frame !== undefined) {
         command += ` --frame ${params.frame}`;
     }
     command += ` --${params.printValues}`;
