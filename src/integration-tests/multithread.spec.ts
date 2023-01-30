@@ -94,31 +94,92 @@ describe('multithread', async function () {
             }
 
             const stack = await dc.stackTraceRequest({ threadId });
-            let frameId: number | undefined = undefined;
+            let printHelloFrameId: number | undefined = undefined;
+            let callerFrameId: number | undefined = undefined;
             for (const frame of stack.body.stackFrames) {
                 if (frame.name === 'PrintHello') {
-                    frameId = frame.id;
+                    printHelloFrameId = frame.id;
+                } else if (printHelloFrameId !== undefined) {
+                    callerFrameId = frame.id;
                     break;
                 }
             }
-            if (frameId === undefined) {
+            if (printHelloFrameId === undefined) {
                 fail("Failed to find frame with name 'PrintHello'");
             }
-            const scopes = await dc.scopesRequest({ frameId });
-            const vr = scopes.body.scopes[0].variablesReference;
-            const vars = await dc.variablesRequest({ variablesReference: vr });
-            const varnameToValue = new Map(
-                vars.body.variables.map((variable) => [
-                    variable.name,
-                    variable.value,
-                ])
-            );
-            expect(varnameToValue.get('thread_id')).to.equal(
-                idInProgram.toString()
-            );
-            // The "name" variable is a pointer, so is displayed as an address + the
-            // extracted nul terminated string
-            expect(varnameToValue.get('name')).to.contain(name);
+            if (callerFrameId === undefined) {
+                fail("Failed to find frame that called 'PrintHello'");
+            }
+
+            {
+                const scopes = await dc.scopesRequest({
+                    frameId: callerFrameId,
+                });
+                const vr = scopes.body.scopes[0].variablesReference;
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                const varnameToValue = new Map(
+                    vars.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                // Make sure we aren't getting the HelloWorld frame's variables.
+                // The calling method (in glibc or similar) may end up with a local
+                // variable called thread_id, if so, update this heuristic
+                expect(varnameToValue.get('thread_id')).to.be.undefined;
+            }
+            {
+                const scopes = await dc.scopesRequest({
+                    frameId: printHelloFrameId,
+                });
+                const vr = scopes.body.scopes[0].variablesReference;
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                const varnameToValue = new Map(
+                    vars.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                expect(varnameToValue.get('thread_id')).to.equal(
+                    idInProgram.toString()
+                );
+                // The "name" variable is a pointer, so is displayed as an address + the
+                // extracted nul terminated string
+                expect(varnameToValue.get('name')).to.contain(name);
+            }
+            {
+                // Make sure we can get variables for frame 0,
+                // the contents of those variables don't actually matter
+                // as the thread will probably be stopped in a library
+                // somewhere waiting for a semaphore
+                // This is a test for #235
+                const scopes = await dc.scopesRequest({
+                    frameId: stack.body.stackFrames[0].id,
+                });
+                const vr = scopes.body.scopes[0].variablesReference;
+
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                const varnameToValue = new Map(
+                    vars.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                // Make sure we aren't getting the HelloWorld frame's variables.
+                // The calling method (in glibc or similar) may end up with a local
+                // variable called thread_id, if so, update this heuristic
+                // We could be stopped PrintHello, so we don't perform the check
+                // if that is the case
+                if (stack.body.stackFrames[0].id !== printHelloFrameId) {
+                    expect(varnameToValue.get('thread_id')).to.be.undefined;
+                }
+            }
         }
     });
 });
