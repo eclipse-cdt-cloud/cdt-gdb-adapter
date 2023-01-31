@@ -56,6 +56,13 @@ MultiThread: MultiThread.o
 MultiThreadRunControl: MultiThreadRunControl.o
 	$(LINK_CXX)
 
+# See https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/239#issuecomment-1411173434
+BrokenSO: BrokenSO_libsomea.c BrokenSO_libsomeb.c BrokenSO_main.c Makefile
+	gcc -shared -o libsomea.so -fPIC -g3 BrokenSO_libsomea.c
+	gcc -shared -o libsomeb.so -fPIC -g3 BrokenSO_libsomeb.c
+	gcc -o BrokenSO BrokenSO_main.c -g3 -L. -lsomea
+	mv libsomeb.so libsomea.so
+
 %.o: %.c
 	$(CC) -c $< -g3 -O0
 
