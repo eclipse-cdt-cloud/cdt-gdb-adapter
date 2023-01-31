@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr
 
 .PHONY: all
 all: $(BINS)
@@ -55,6 +55,9 @@ MultiThread: MultiThread.o
 
 MultiThreadRunControl: MultiThreadRunControl.o
 	$(LINK_CXX)
+
+stderr: stderr.o
+	$(LINK)
 
 %.o: %.c
 	$(CC) -c $< -g3 -O0
