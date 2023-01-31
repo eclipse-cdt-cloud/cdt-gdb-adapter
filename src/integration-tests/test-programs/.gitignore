@@ -18,3 +18,4 @@ MultiThreadRunControl
 .settings/
 /vars_cpp
 /log
+stderr

@@ -85,6 +85,12 @@ export class GDBBackend extends events.EventEmitter {
         this.out = this.proc.stdin;
         this.hardwareBreakpoint = requestArgs.hardwareBreakpoint ? true : false;
         await this.parser.parse(this.proc.stdout);
+        if (this.proc.stderr) {
+            this.proc.stderr.on('data', (chunk) => {
+                const newChunk = chunk.toString();
+                this.emit('consoleStreamOutput', newChunk, 'stderr');
+            });
+        }
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
