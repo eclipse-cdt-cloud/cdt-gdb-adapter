@@ -19,6 +19,9 @@ jobs:
           gdb --version
           gcc --version
           gdbserver --version
+      - name: Enable ptrace so tests can attach to running processes, see attach.spec.ts
+        run: |
+          sudo sysctl kernel.yama.ptrace_scope=0
       - name: Build
         run: yarn
       - name: Build Test Programs
