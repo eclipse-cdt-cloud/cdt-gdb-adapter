@@ -52,8 +52,11 @@ export class CdtDebugClient extends DebugClient {
         if (extraArgs) {
             this._cdt_args.push(...extraArgs);
         }
-        // These timeouts should match what is in .mocharc.json and .mocharc-windows-ci.json
-        this.defaultTimeout = os.platform() === 'win32' ? 25000 : 5000;
+        // These timeouts should be smaller than what is in .mocharc.json and .mocharc-windows-ci.json
+        // to allow the individual timeouts to fail before the whole test timesout.
+        // This will mean error message on things such as waitForEvent will not
+        // be hidden by overall test failure
+        this.defaultTimeout = os.platform() === 'win32' ? 25000 / 2 : 5000 / 2;
     }
 
     /**
