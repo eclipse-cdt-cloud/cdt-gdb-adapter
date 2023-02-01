@@ -57,7 +57,7 @@ describe('function breakpoints', async function () {
         while (!isCorrect) {
             // Cover the case of getting event in Linux environment.
             // If cannot get correct event, program timeout and test case failed.
-            outputs = await dc.waitForEvent('output', this.timeout());
+            outputs = await dc.waitForEvent('output');
             isCorrect = outputs.body.output.includes('breakpoint-modified');
         }
         let substring: string;
