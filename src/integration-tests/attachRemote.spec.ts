@@ -21,6 +21,7 @@ import {
     gdbServerPath,
     fillDefaults,
 } from './utils';
+import { expect } from 'chai';
 
 describe('attach remote', function () {
     let dc: CdtDebugClient;
@@ -31,9 +32,13 @@ describe('attach remote', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
-        gdbserver = cp.spawn(gdbServerPath, [':0', emptyProgram], {
-            cwd: testProgramsDir,
-        });
+        gdbserver = cp.spawn(
+            gdbServerPath,
+            [':0', emptyProgram, 'running-from-spawn'],
+            {
+                cwd: testProgramsDir,
+            }
+        );
         port = await new Promise<number>((resolve, reject) => {
             if (gdbserver.stderr) {
                 gdbserver.stderr.on('data', (data) => {
@@ -59,18 +64,14 @@ describe('attach remote', function () {
     });
 
     it('can attach remote and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    type: 'remote',
-                    parameters: [`localhost:${port}`],
-                } as TargetAttachArguments,
-            } as TargetAttachRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
+        const attachArgs = fillDefaults(this.test, {
+            program: emptyProgram,
+            target: {
+                type: 'remote',
+                parameters: [`localhost:${port}`],
+            } as TargetAttachArguments,
+        } as TargetAttachRequestArguments);
+        await dc.attachHitBreakpoint(attachArgs, { line: 3, path: emptySrc });
+        expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
     });
 });
