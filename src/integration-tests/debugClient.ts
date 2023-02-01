@@ -13,6 +13,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import * as path from 'path';
 import { defaultAdapter } from './utils';
 import * as os from 'os';
+import { expect } from 'chai';
 
 export type ReverseRequestHandler<
     A = any,
@@ -323,6 +324,52 @@ export class CdtDebugClient extends DebugClient {
         args: DebugProtocol.WriteMemoryArguments
     ): Promise<DebugProtocol.WriteMemoryResponse> {
         return this.send('writeMemory', args);
+    }
+
+    public attachHitBreakpoint(
+        attachArgs: any,
+        breakpoint: { line: number; path: string }
+    ): Promise<any> {
+        return Promise.all([
+            this.waitForEvent('initialized')
+                .then((_event) => {
+                    return this.setBreakpointsRequest({
+                        breakpoints: [{ line: breakpoint.line }],
+                        source: { path: breakpoint.path },
+                    });
+                })
+                .then((response) => {
+                    const bp = response.body.breakpoints[0];
+                    expect(bp.verified).to.be.true;
+                    expect(bp.line).to.equal(breakpoint.line);
+
+                    return Promise.all([
+                        this.configurationDoneRequest(),
+                        this.assertStoppedLocation('breakpoint', breakpoint),
+                    ]);
+                }),
+
+            this.initializeRequest().then((_response) => {
+                return this.attachRequest(attachArgs);
+            }),
+        ]);
+    }
+
+    /**
+     * Obtain the value of the expression in the context of the
+     * top frame, of the first returned thread.
+     * @param name name of the variable
+     */
+    public async evaluate(expression: string): Promise<string | undefined> {
+        const threads = await this.threadsRequest();
+        const stack = await this.stackTraceRequest({
+            threadId: threads.body.threads[0].id,
+        });
+        const evalResponse = await this.evaluateRequest({
+            expression,
+            frameId: stack.body.stackFrames[0].id,
+        });
+        return evalResponse.body.result;
     }
 }
 
