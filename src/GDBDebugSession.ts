@@ -350,6 +350,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         await this.gdb.sendEnablePrettyPrint();
 
         if (request === 'attach') {
+            this.isAttach = true;
             const attachArgs = args as AttachRequestArguments;
             await mi.sendTargetAttachRequest(this.gdb, {
                 pid: attachArgs.processId,
