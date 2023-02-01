@@ -233,11 +233,13 @@ export class CdtDebugClient extends DebugClient {
     }
 
     /*
-     * Returns a promise that will resolve if an output event with a specific category was received.
+     * Returns a promise that will resolve if an output event
+     * with a specific category and optional output message was received.
      * The promise will be rejected if a timeout occurs.
      */
     public async waitForOutputEvent(
         category: string,
+        output?: string,
         timeout: number = this.defaultTimeout
     ): Promise<DebugProtocol.OutputEvent> {
         const isOutputEvent = (
@@ -249,26 +251,30 @@ export class CdtDebugClient extends DebugClient {
             );
         };
 
-        const timer = setTimeout(() => {
-            throw new Error(
-                `no output event with category '${category}' received after ${timeout} ms`
-            );
-        }, timeout);
-
-        for (;;) {
-            const event = await new Promise((resolve) =>
-                this.once('output', (e) => resolve(e))
-            );
-
-            if (!isOutputEvent(event)) {
-                continue;
-            }
-
-            if (event.body.category === category) {
-                clearTimeout(timer);
-                return event;
-            }
-        }
+        return new Promise<DebugProtocol.OutputEvent>((resolve, reject) => {
+            const outputProcessor = (event: DebugProtocol.OutputEvent) => {
+                if (isOutputEvent(event) && event.body.category === category) {
+                    if (output === undefined || output === event.body.output) {
+                        clearTimeout(timer);
+                        this.off('output', outputProcessor);
+                        resolve(event);
+                    }
+                }
+            };
+            const timer = setTimeout(() => {
+                this.off('output', outputProcessor);
+                reject(
+                    new Error(
+                        `no output event with category '${category}' ${
+                            output === undefined
+                                ? ''
+                                : `and output message '${output}'`
+                        } received after ${timeout} ms`
+                    )
+                );
+            }, timeout);
+            this.on('output', outputProcessor);
+        });
     }
 
     /**
