@@ -10,6 +10,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as tmp from 'tmp';
 import {
     DebugSession,
     Handles,
@@ -50,7 +51,10 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     hardwareBreakpoint?: boolean;
 }
 
+export type InferiorTerminal = 'integrated' | 'external' | 'auto' | 'none';
+
 export interface LaunchRequestArguments extends RequestArguments {
+    inferiorTerminal?: InferiorTerminal;
     arguments?: string;
 }
 
@@ -165,6 +169,15 @@ export class GDBDebugSession extends LoggingDebugSession {
      * typically supplied with the --config-frozen command line argument.
      */
     protected static frozenRequestArguments?: { request?: string };
+
+    /**
+     * The launch or attach request arguments passed to launchRequest
+     * or attachRequest available for when steps after initial
+     * launch need the settings.
+     */
+    protected requestArguments?:
+        | LaunchRequestArguments
+        | AttachRequestArguments;
 
     protected gdb: GDBBackend = this.createBackend();
     protected isAttach = false;
@@ -321,6 +334,8 @@ export class GDBDebugSession extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
+        this.requestArguments = args;
+
         logger.setup(
             args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
             args.logFile || false
@@ -451,6 +466,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                             'runInTerminal',
                             {
                                 kind: 'integrated',
+                                title: this.requestArguments?.gdb || 'gdb',
                                 cwd: process.cwd(),
                                 env: process.env,
                                 args: command,
@@ -812,6 +828,122 @@ export class GDBDebugSession extends LoggingDebugSession {
         return { resolved, deletes };
     }
 
+    protected async createInferiorTerminalLinux(
+        inferiorTerminal: InferiorTerminal
+    ) {
+        if (
+            inferiorTerminal === 'external' ||
+            inferiorTerminal === 'integrated'
+        ) {
+            /**
+             * The basic design of the inferior terminal on Linux is:
+             * - adapter requests client (aka vscode) to create a terminal (using runInTerminal)
+             * - in that terminal we run a small script that "returns" the tty name to the adapter
+             * - then the script waits until the adapter is complete
+             *
+             * XXX: The script run in the terminal won't auto-stop when running the adapter
+             * in server mode (for development)
+             */
+
+            const ttyTmpDir = tmp.dirSync({
+                prefix: 'cdt-gdb-adapter-tty',
+            }).name;
+
+            fs.writeFileSync(
+                `${ttyTmpDir}/start-tty`,
+                `#!/usr/bin/env sh
+
+                echo "Terminal output from the program being debugged will appear here."
+                echo "GDB may display a warning about failing to set controlling terminal,"
+                echo "this warning can be ignored."
+
+                # Store name of tty in a temp file
+                tty > ${ttyTmpDir}/ttyname-temp
+                # rename the file for the atomic operation that
+                # the watcher is looking for
+                mv ${ttyTmpDir}/ttyname-temp ${ttyTmpDir}/ttyname
+
+                # wait for cdt-gdb-adapter to finish
+                # prefer using tail to detect PID exit, but that requires GNU tail
+                # fall back to polling if tail errors
+                tail -f --pid=${process.pid} /dev/null 2>/dev/null \
+                    || while kill -s 0 ${process.pid} 2>/dev/null; do sleep 1s; done
+
+                # cleanup
+                rm ${ttyTmpDir}/ttyname
+                rm ${ttyTmpDir}/start-tty
+                rmdir ${ttyTmpDir}
+                `
+            );
+
+            let watcher: fs.FSWatcher | undefined;
+            const ttyNamePromise = new Promise<string>((resolve) => {
+                watcher = fs.watch(ttyTmpDir, (_eventType, filename) => {
+                    if (filename === 'ttyname') {
+                        watcher?.close();
+                        resolve(
+                            fs
+                                .readFileSync(`${ttyTmpDir}/ttyname`)
+                                .toString()
+                                .trim()
+                        );
+                    }
+                });
+            });
+
+            const response = await new Promise<DebugProtocol.Response>(
+                (resolve) =>
+                    this.sendRequest(
+                        'runInTerminal',
+                        {
+                            kind: inferiorTerminal,
+                            title: this.requestArguments?.program,
+                            cwd: this.requestArguments?.cwd || '',
+                            args: ['/bin/sh', `${ttyTmpDir}/start-tty`],
+                        } as DebugProtocol.RunInTerminalRequestArguments,
+                        5000,
+                        resolve
+                    )
+            );
+            if (response.success) {
+                const tty = await ttyNamePromise;
+                await this.gdb.sendCommand(`set inferior-tty ${tty}`);
+                return;
+            } else {
+                watcher?.close();
+                const message = `could not start the terminal on the client: ${response.message}`;
+                logger.error(message);
+                throw new Error(message);
+            }
+        }
+    }
+
+    protected async createInferiorTerminal() {
+        if (!this.supportsRunInTerminalRequest) {
+            return;
+        }
+
+        let inferiorTerminal =
+            (this.requestArguments as LaunchRequestArguments)
+                ?.inferiorTerminal || 'none';
+        if (inferiorTerminal === 'auto') {
+            if (os.platform() === 'linux') {
+                inferiorTerminal = 'integrated';
+            } else if (os.platform() === 'win32') {
+                inferiorTerminal = 'external';
+            } else {
+                inferiorTerminal = 'none';
+            }
+        }
+
+        if (os.platform() === 'linux') {
+            await this.createInferiorTerminalLinux(inferiorTerminal);
+        }
+
+        // Fallthrough case is there is no inferior we can create, so simply use GDB's
+        // default which will make an inferior with the same I/O as GDB itself
+    }
+
     protected async configurationDoneRequest(
         response: DebugProtocol.ConfigurationDoneResponse,
         _args: DebugProtocol.ConfigurationDoneArguments
@@ -820,6 +952,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             if (this.isAttach) {
                 await mi.sendExecContinue(this.gdb);
             } else {
+                await this.createInferiorTerminal();
                 await mi.sendExecRun(this.gdb);
             }
             this.sendResponse(response);
