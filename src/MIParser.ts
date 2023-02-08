@@ -270,6 +270,11 @@ export class MIParser {
                     const resultClass = this.handleString();
                     const resultData = this.handleAsyncData();
                     command(resultClass, resultData);
+                    this.gdb.emit(
+                        'result',
+                        resultClass,
+                        resultData
+                    );
                     delete this.commandQueue[token];
                 } else {
                     logger.error('GDB response with no command: ' + token);
