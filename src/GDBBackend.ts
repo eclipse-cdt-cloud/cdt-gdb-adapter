@@ -38,7 +38,7 @@ export declare interface GDBBackend {
         listener: (output: string, category: string) => void
     ): this;
     on(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync' | 'result',
         listener: (asyncClass: string, data: any) => void
     ): this;
 
@@ -48,7 +48,7 @@ export declare interface GDBBackend {
         category: string
     ): boolean;
     emit(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync' | 'result',
         asyncClass: string,
         data: any
     ): boolean;
