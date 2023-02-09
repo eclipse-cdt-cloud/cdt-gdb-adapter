@@ -35,6 +35,7 @@ import {
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
 import { breakpointFunctionLocation, breakpointLocation } from './mi';
+import { ContinuedEvent } from './continuedEvent';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -289,6 +290,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                             : `Encountered a problem executing ${args.command}`;
                     this.sendErrorResponse(response, 1, message);
                 });
+        } else if (command === 'cdt-gdb-adapter/resumeAll') {
+            this.continueAllSessionsRequest(response as DebugProtocol.ContinueResponse, args);
+            this.sendResponse(response);
         } else {
             return super.customRequest(command, response, args);
         }
@@ -999,6 +1003,23 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
+    protected async continueAllSessionsRequest(
+        response: DebugProtocol.ContinueResponse,
+        args: DebugProtocol.ContinueArguments
+    ): Promise<void> {
+        try {
+            await mi.sendExecContinue(this.gdb, args.threadId);
+            this.sendEvent(new ContinuedEvent(args.threadId));
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+    
     protected async pauseRequest(
         response: DebugProtocol.PauseResponse,
         args: DebugProtocol.PauseArguments
