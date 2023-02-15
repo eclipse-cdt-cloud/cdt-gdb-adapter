@@ -1551,6 +1551,10 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             await this.gdb.sendGDBExit();
+            // Delay 5 ms to wait for GDB server to be terminated completely
+            if(_args.restart){
+                await new Promise((res) => setTimeout(res, 5000));
+            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
