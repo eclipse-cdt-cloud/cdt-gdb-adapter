@@ -18,6 +18,7 @@ import {
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
+import { exec } from 'child_process';
 
 export interface TargetAttachArguments {
     // Target type default is "remote"
@@ -76,6 +77,7 @@ export interface TargetLaunchRequestArguments
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
+    static isGDBServerTerminated = true;
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -159,6 +161,86 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         );
     }
 
+    protected async isProcessRunning(pid: any): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            const cmd =
+                process.platform === 'win32'
+                    ? `tasklist /fi "PID eq ${pid}"`
+                    : `ps -p ${pid}`;
+            exec(cmd, (err, stdout) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve(
+                    process.platform === 'win32'
+                        ? stdout.includes(`${pid}`)
+                        : stdout.trim().split('\n').slice(1).length > 0
+                );
+            });
+        });
+    }
+
+    protected async killProcess(pid: any): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const cmd =
+                process.platform === 'win32'
+                    ? `taskkill /f /im ${pid}`
+                    : `kill -9 ${pid}`;
+            exec(cmd, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve();
+            });
+        });
+    }
+
+    protected async waitAndKillProcess(): Promise<void> {
+        const maxIterations = 5;
+        const interval = 1000;
+        for (let i = 0; i < maxIterations; i++) {
+            await new Promise((resolve) => setTimeout(resolve, interval));
+            const isTerminated = !(await this.isProcessRunning(
+                this.gdbserver?.pid
+            ));
+            if (isTerminated) {
+                return;
+            }
+        }
+        try {
+            //Kill process if it remains running
+            this.killProcess(this.gdbserver?.pid);
+        } catch (error) {
+            throw new Error('Failed to kill process');
+        }
+    }
+    protected isReadyToStartGDBServer(): boolean {
+        return GDBTargetDebugSession.isGDBServerTerminated;
+    }
+
+    protected async disconnectRequest(
+        response: DebugProtocol.DisconnectResponse,
+        _args: DebugProtocol.DisconnectArguments
+    ): Promise<void> {
+        try {
+            GDBTargetDebugSession.isGDBServerTerminated = false;
+            await this.gdb.sendGDBExit();
+            this?.gdbserver?.on('exit', () => {
+                this.waitAndKillProcess();
+                GDBTargetDebugSession.isGDBServerTerminated = true;
+            });
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
     protected async startGDBServer(
         args: TargetLaunchRequestArguments
     ): Promise<void> {
@@ -174,6 +256,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 ? target.serverParameters
                 : ['--once', ':0', args.program];
 
+        while (!this.isReadyToStartGDBServer()) {
+            await new Promise((resolve) => setTimeout(resolve, 5));
+        }
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
