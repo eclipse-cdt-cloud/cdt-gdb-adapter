@@ -161,76 +161,63 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         );
     }
 
+    protected isReadyToStartGDBServer(): boolean {
+        return GDBTargetDebugSession.isGDBServerTerminated;
+    }
+
     protected async isProcessRunning(pid: any): Promise<boolean> {
+        const cmd = process.platform === 'win32' ? 'tasklist' : 'ps';
+        const args =
+            process.platform === 'win32'
+                ? ['/fi', `PID eq ${pid}`]
+                : ['-p', pid];
+        const childProcess = spawn(cmd, args);
+
         return new Promise((resolve, reject) => {
-            const cmd =
-                process.platform === 'win32'
-                    ? `tasklist /fi "PID eq ${pid}"`
-                    : `ps -p ${pid}`;
-            exec(cmd, (err, stdout) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(
-                    process.platform === 'win32'
-                        ? stdout.includes(`${pid}`)
-                        : stdout.trim().split('\n').slice(1).length > 0
-                );
+            childProcess.on('error', (err) => {
+                reject(err);
+            });
+
+            childProcess.on('exit', (code) => {
+                resolve(code === 0);
             });
         });
     }
 
     protected async killProcess(pid: any): Promise<void> {
+        const cmd = process.platform === 'win32' ? 'taskkill' : 'kill';
+        const args =
+            process.platform === 'win32' ? ['/f', '/im', pid] : ['-9', pid];
+        const childProcess = spawn(cmd, args);
+
         return new Promise((resolve, reject) => {
-            const cmd =
-                process.platform === 'win32'
-                    ? `taskkill /f /im ${pid}`
-                    : `kill -9 ${pid}`;
-            exec(cmd, (err) => {
-                if (err) {
-                    reject(err);
-                    return;
+            childProcess.on('error', (err) => {
+                reject(err);
+            });
+
+            childProcess.on('exit', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Failed to kill process with PID ${pid}`));
                 }
-                resolve();
             });
         });
     }
 
-    protected async waitAndKillProcess(): Promise<void> {
-        const maxIterations = 5;
-        const interval = 1000;
-        for (let i = 0; i < maxIterations; i++) {
-            await new Promise((resolve) => setTimeout(resolve, interval));
-            const isTerminated = !(await this.isProcessRunning(
-                this.gdbserver?.pid
-            ));
-            if (isTerminated) {
-                return;
-            }
-        }
-        try {
-            //Kill process if it remains running
-            this.killProcess(this.gdbserver?.pid);
-        } catch (error) {
-            throw new Error('Failed to kill process');
-        }
-    }
-    protected isReadyToStartGDBServer(): boolean {
-        return GDBTargetDebugSession.isGDBServerTerminated;
-    }
-
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
-        _args: DebugProtocol.DisconnectArguments
+        args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            GDBTargetDebugSession.isGDBServerTerminated = false;
+            if (args.restart) {
+                GDBTargetDebugSession.isGDBServerTerminated = false;
+            }
             await this.gdb.sendGDBExit();
             this?.gdbserver?.on('exit', () => {
-                this.waitAndKillProcess();
                 GDBTargetDebugSession.isGDBServerTerminated = true;
             });
+            this.waitAndKillProcess();
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -238,6 +225,29 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 1,
                 err instanceof Error ? err.message : String(err)
             );
+        }
+    }
+
+    protected async waitAndKillProcess(): Promise<void> {
+        const maxIterations = 500;
+        const interval = 100;
+        for (let i = 0; i < maxIterations; i++) {
+            await new Promise((resolve) => setTimeout(resolve, interval));
+            const isTerminated = !(await this.isProcessRunning(
+                this.gdbserver?.pid
+            ));
+            if (isTerminated) {
+                GDBTargetDebugSession.isGDBServerTerminated = true;
+                return;
+            }
+        }
+        try {
+            //Kill process if it remains running
+            this.killProcess(this.gdbserver?.pid);
+            GDBTargetDebugSession.isGDBServerTerminated = true;
+            return;
+        } catch (error) {
+            throw new Error('Failed to kill process');
         }
     }
 
