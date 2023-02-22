@@ -18,7 +18,6 @@ import {
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
-import { exec } from 'child_process';
 
 export interface TargetAttachArguments {
     // Target type default is "remote"
