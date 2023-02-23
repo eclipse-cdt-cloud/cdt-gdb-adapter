@@ -160,48 +160,32 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         );
     }
 
+    protected isProcessRunning(): boolean {
+        return this.gdbserver?.exitCode === null;
+    }
+
     protected isReadyToStartGDBServer(): boolean {
         return GDBTargetDebugSession.isGDBServerTerminated;
     }
 
-    protected async isProcessRunning(pid: any): Promise<boolean> {
-        const cmd = process.platform === 'win32' ? 'tasklist' : 'ps';
-        const args =
-            process.platform === 'win32'
-                ? ['/fi', `PID eq ${pid}`]
-                : ['-p', pid];
-        const childProcess = spawn(cmd, args);
-
-        return new Promise((resolve, reject) => {
-            childProcess.on('error', (err) => {
-                reject(err);
-            });
-
-            childProcess.on('exit', (code) => {
-                resolve(code === 0);
-            });
-        });
+    protected async killProcess(): Promise<void> {
+        this.gdbserver?.kill();
     }
 
-    protected async killProcess(pid: any): Promise<void> {
-        const cmd = process.platform === 'win32' ? 'taskkill' : 'kill';
-        const args =
-            process.platform === 'win32' ? ['/f', '/im', pid] : ['-9', pid];
-        const childProcess = spawn(cmd, args);
-
-        return new Promise((resolve, reject) => {
-            childProcess.on('error', (err) => {
-                reject(err);
-            });
-
-            childProcess.on('exit', (code) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(new Error(`Failed to kill process with PID ${pid}`));
-                }
-            });
-        });
+    protected async waitAndKillProcess(): Promise<void> {
+        const maxIterations = 15;
+        const interval = 500;
+        for (let i = 0; i < maxIterations; i++) {
+            await new Promise((resolve) => setTimeout(resolve, interval));
+            if (!this.isProcessRunning()) {
+                GDBTargetDebugSession.isGDBServerTerminated = true;
+                return;
+            }
+        }
+        if (this.isProcessRunning()) {
+            this.killProcess();
+            GDBTargetDebugSession.isGDBServerTerminated = true;
+        }
     }
 
     protected async disconnectRequest(
@@ -213,10 +197,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 GDBTargetDebugSession.isGDBServerTerminated = false;
             }
             await this.gdb.sendGDBExit();
-            this?.gdbserver?.on('exit', () => {
-                GDBTargetDebugSession.isGDBServerTerminated = true;
-            });
             this.waitAndKillProcess();
+            while (!this.isReadyToStartGDBServer()) {
+                await new Promise((resolve) => setTimeout(resolve, 5));
+            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -224,29 +208,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 1,
                 err instanceof Error ? err.message : String(err)
             );
-        }
-    }
-
-    protected async waitAndKillProcess(): Promise<void> {
-        const maxIterations = 500;
-        const interval = 100;
-        for (let i = 0; i < maxIterations; i++) {
-            await new Promise((resolve) => setTimeout(resolve, interval));
-            const isTerminated = !(await this.isProcessRunning(
-                this.gdbserver?.pid
-            ));
-            if (isTerminated) {
-                GDBTargetDebugSession.isGDBServerTerminated = true;
-                return;
-            }
-        }
-        try {
-            //Kill process if it remains running
-            this.killProcess(this.gdbserver?.pid);
-            GDBTargetDebugSession.isGDBServerTerminated = true;
-            return;
-        } catch (error) {
-            throw new Error('Failed to kill process');
         }
     }
 
@@ -329,6 +290,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             this.gdbserver.on('exit', (code) => {
+                GDBTargetDebugSession.isGDBServerTerminated = true;
                 const exitmsg = `${serverExe} has exited with code ${code}`;
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
