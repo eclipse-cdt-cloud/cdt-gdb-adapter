@@ -1007,9 +1007,6 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             await mi.sendExecContinue(this.gdb, args.threadId);
-            response.body = {
-                allThreadsContinued: false,
-            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
