@@ -14,6 +14,7 @@ import {
     Logger,
     logger,
     OutputEvent,
+    TerminatedEvent,
 } from '@vscode/debugadapter';
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -160,47 +161,56 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         );
     }
 
-    protected isProcessRunning(): boolean {
-        return this.gdbserver?.exitCode === null;
-    }
-
     protected isReadyToStartGDBServer(): boolean {
         return GDBTargetDebugSession.isGDBServerTerminated;
+    }
+
+    protected isProcessRunning(): boolean {
+        return this.gdbserver?.exitCode === null;
     }
 
     protected async killProcess(): Promise<void> {
         this.gdbserver?.kill();
     }
 
-    protected async waitAndKillProcess(): Promise<void> {
-        const maxIterations = 15;
-        const interval = 500;
-        for (let i = 0; i < maxIterations; i++) {
-            await new Promise((resolve) => setTimeout(resolve, interval));
-            if (!this.isProcessRunning()) {
-                GDBTargetDebugSession.isGDBServerTerminated = true;
-                return;
-            }
-        }
-        if (this.isProcessRunning()) {
-            this.killProcess();
-            GDBTargetDebugSession.isGDBServerTerminated = true;
-        }
-    }
-
-    protected async disconnectRequest(
-        response: DebugProtocol.DisconnectResponse,
-        args: DebugProtocol.DisconnectArguments
+    protected async terminateRequest(
+        response: DebugProtocol.TerminateResponse,
+        args: DebugProtocol.TerminateArguments
     ): Promise<void> {
         try {
             if (args.restart) {
                 GDBTargetDebugSession.isGDBServerTerminated = false;
             }
             await this.gdb.sendGDBExit();
-            this.waitAndKillProcess();
-            while (!this.isReadyToStartGDBServer()) {
-                await new Promise((resolve) => setTimeout(resolve, 5));
-            }
+            await new Promise<void>((resolve) => {
+                setTimeout(() => {
+                    this.sendEvent(new TerminatedEvent());
+                    resolve();
+                }, 1800);
+            });
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
+    protected async disconnectRequest(
+        response: DebugProtocol.DisconnectResponse,
+        _args: DebugProtocol.DisconnectArguments
+    ): Promise<void> {
+        try {
+            await new Promise<void>((resolve) => {
+                setTimeout(() => {
+                    if (this.isProcessRunning()) {
+                        this.killProcess();
+                    }
+                    resolve();
+                }, 1800);
+            });
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
