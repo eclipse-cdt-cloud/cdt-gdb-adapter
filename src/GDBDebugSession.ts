@@ -192,10 +192,16 @@ export class GDBDebugSession extends LoggingDebugSession {
     // therefore be resumed after breakpoints are inserted.
     protected waitPausedNeeded = false;
     protected isInitialized = false;
+    protected capabilities: {
+        supportsTerminateRequest: boolean;
+    };
 
     constructor() {
         super();
         this.logger = logger;
+        this.capabilities = {
+            supportsTerminateRequest: true,
+        };
     }
 
     /**
@@ -313,6 +319,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsDisassembleRequest = true;
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
+        response.body.supportsTerminateRequest = true;
         this.sendResponse(response);
     }
 
