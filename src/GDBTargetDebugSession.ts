@@ -341,4 +341,21 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             );
         }
     }
+
+    protected async disconnectRequest(
+        response: DebugProtocol.DisconnectResponse,
+        _args: DebugProtocol.DisconnectArguments
+    ): Promise<void> {
+        try {
+            await this.gdb.sendGDBExit();
+            await this.gdbserver?.kill();
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
 }
