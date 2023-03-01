@@ -23,7 +23,6 @@ import {
     Source,
     StackFrame,
     TerminatedEvent,
-    Event,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBBackend } from './GDBBackend';
@@ -113,23 +112,6 @@ export interface CDTDisassembleArguments
      * is used.
      */
     endMemoryReference: string;
-}
-
-export class ContinuedEvent
-    extends Event
-    implements DebugProtocol.ContinuedEvent
-{
-    public body: {
-        /** The thread which was continued. */
-        threadId: number;
-        /** If 'allThreadsContinued' is true, a debug adapter can announce that all threads have continued. */
-        allThreadsContinued?: boolean;
-    };
-
-    constructor(threadId: number, allThreadsContinued: boolean) {
-        super('continued');
-        this.body = { threadId, allThreadsContinued };
-    }
 }
 
 class ThreadWithStatus implements DebugProtocol.Thread {
@@ -1007,6 +989,10 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             await mi.sendExecContinue(this.gdb, args.threadId);
+            const isAllThread = args.threadId ? false : true;
+            response.body = {
+                allThreadsContinued: isAllThread,
+            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -1590,14 +1576,6 @@ export class GDBDebugSession extends LoggingDebugSession {
         // Send the event
         this.sendEvent(new StoppedEvent(reason, threadId, allThreadsStopped));
     }
-    
-    protected sendContinuedEvent(
-        threadId: number,
-        allThreadsStopped: boolean
-    ) {
-        // Send the event
-        this.sendEvent(new ContinuedEvent(threadId, allThreadsStopped));
-    }
 
     protected handleGDBStopped(result: any) {
         const getThreadId = (resultData: any) =>
@@ -1674,13 +1652,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = true;
-                            this.sendContinuedEvent(thread.id, false);
                         }
                     }
                 } else {
                     for (const thread of this.threads) {
                         thread.running = true;
-                        this.sendContinuedEvent(thread.id, false);
                     }
                 }
                 updateIsRunning();
@@ -1731,7 +1707,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                     (this.gdb.isNonStopMode() ||
                         (wasRunning && !this.isRunning))
                 ) {
-                    this.handleGDBStopped(resultData);
+                    if (this.isInitialized) {
+                        this.handleGDBStopped(resultData);
+                    }
                 }
                 break;
             }
