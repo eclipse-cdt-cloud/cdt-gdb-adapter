@@ -34,7 +34,7 @@ describe('continues', async function() {
         await dc.stop();
     });
 
-    it.only('handles continues single-thread', async function() {
+    it('handles continues single-thread', async function() {
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
