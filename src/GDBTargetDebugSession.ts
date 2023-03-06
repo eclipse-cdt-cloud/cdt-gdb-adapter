@@ -19,6 +19,10 @@ import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
 
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
+
 export interface TargetAttachArguments {
     // Target type default is "remote"
     type?: string;
@@ -76,6 +80,7 @@ export interface TargetLaunchRequestArguments
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
+    protected isServerTerminated: boolean = false;
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -177,6 +182,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
+            this.isServerTerminated = false;
             let gdbserverStartupResolved = false;
             let accumulatedStderr = '';
             let checkTargetPort = (_data: any) => {
@@ -235,6 +241,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             this.gdbserver.on('exit', (code) => {
+                this.isServerTerminated = true;
                 const exitmsg = `${serverExe} has exited with code ${code}`;
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
@@ -339,6 +346,38 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 1,
                 err instanceof Error ? err.message : String(err)
             );
+        }
+    }
+    
+    protected async disconnectRequest(
+        response: DebugProtocol.DisconnectResponse,
+        _args: DebugProtocol.DisconnectArguments
+    ): Promise<void> {
+        try {
+            await this.gdb.sendGDBExit();
+            if (!_args.restart) {
+                this.exitGDBServer();
+            }
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
+    protected async exitGDBServer(): Promise<void> {
+        if (!this.isServerTerminated) {
+            let timeout = setTimeout(() => {
+                this.gdbserver?.kill();
+                return;
+            }, 2000);
+            while (!this.isServerTerminated) {
+                await delay(200);
+            }
+            clearTimeout(timeout);
         }
     }
 }
