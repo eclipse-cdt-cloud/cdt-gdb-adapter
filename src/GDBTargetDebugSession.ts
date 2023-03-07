@@ -371,7 +371,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    public async exitGDBServer(isKillProcess: boolean): Promise<void> {
+    protected async exitGDBServer(isKillProcess: boolean): Promise<void> {
         if (this.isServerTerminated) {
             return;
         }
