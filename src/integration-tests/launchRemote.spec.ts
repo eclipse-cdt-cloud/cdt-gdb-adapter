@@ -17,7 +17,7 @@ import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('launch remote', function () {
-    let dc: CdtDebugClient;
+    let dc: CdtDebugClient | undefined;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
 
@@ -26,11 +26,11 @@ describe('launch remote', function () {
     });
 
     afterEach(async function () {
-        await dc.stop();
+        await dc?.stop();
     });
 
     it('can launch remote and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
+        await dc?.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptyProgram,
                 target: {
@@ -42,5 +42,28 @@ describe('launch remote', function () {
                 line: 3,
             }
         );
+    });
+
+    it('closes target server at exit', async function() {
+        let config = this.test;
+        config?.timeout(99999);
+        await dc?.hitBreakpoint(
+            fillDefaults(config, {
+                program: emptyProgram,
+                target: {
+                    // By default we use --once with gdbserver so that it naturally quits
+                    // when gdb disconnects. Here we leave that off and uses extended-remote
+                    // so that gdbserver doesn't quit automatically
+                    type: 'extended-remote',
+                    serverParameters: [':0', emptyProgram],
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments),
+            {
+                path: emptySrc,
+                line: 3,
+            }
+        );
+        await dc?.stop();
+        dc = undefined;
     });
 });

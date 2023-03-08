@@ -18,6 +18,7 @@ import {
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
+import * as os from 'os';
 
 export interface TargetAttachArguments {
     // Target type default is "remote"
@@ -76,8 +77,7 @@ export interface TargetLaunchRequestArguments
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
-    protected isServerTerminated: boolean = false;
-    protected waitTerminated?: (value?: void | PromiseLike<void>) => void;
+    protected waitTerminated?: (value?: void | PromiseLike<void>) => void; 
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -179,7 +179,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
-            this.isServerTerminated = false;
             let gdbserverStartupResolved = false;
             let accumulatedStderr = '';
             let checkTargetPort = (_data: any) => {
@@ -238,7 +237,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             this.gdbserver.on('exit', (code) => {
-                this.isServerTerminated = true;
                 if (this.waitTerminated){
                     this.waitTerminated();
                     this.waitTerminated = undefined;
@@ -349,18 +347,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             );
         }
     }
-    
+
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
-        _args: DebugProtocol.DisconnectArguments
+        args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
             await this.gdb.sendGDBExit();
             // Kill a process in case of termination, should not in case of restart
-            if (_args.restart !== true) {
-                // Call async function for checking process exit gdb after send response to client
-                this.exitGDBServer(true);
-            }
+            await this.exitGDBServer(args?.restart !== true);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -371,16 +366,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    protected async exitGDBServer(isKillProcess: boolean): Promise<void> {
-        if (this.isServerTerminated) {
+    public async exitGDBServer(isKillProcess: boolean): Promise<void> {
+        if (this.gdbserver?.exitCode !== null) {
             return;
         }
         let timeout;
         if (isKillProcess) {
             // Kill process after 4 seconds timeout
             timeout = setTimeout(() => {
-                this.gdbserver?.kill();
-                return;
+                if (os.platform() === 'win32') {
+                    this.gdbserver?.kill();
+                } else {
+                    this.gdbserver?.kill('SIGTERM');
+                }
             }, 4000);
         }
         const waitTerminated = new Promise<void>((resolve) => {
