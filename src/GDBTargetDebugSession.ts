@@ -18,7 +18,6 @@ import {
 import * as mi from './mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
-import * as os from 'os';
 
 export interface TargetAttachArguments {
     // Target type default is "remote"
@@ -355,7 +354,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         try {
             await this.gdb.sendGDBExit();
             // Kill a process in case of termination, should not in case of restart
-            await this.exitGDBServer(args?.restart !== true);
+            await this.exitGDBServer();
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -366,21 +365,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    public async exitGDBServer(isKillProcess: boolean): Promise<void> {
+    public async exitGDBServer(): Promise<void> {
         if (this.gdbserver?.exitCode !== null) {
             return;
         }
-        let timeout;
-        if (isKillProcess) {
-            // Kill process after 4 seconds timeout
-            timeout = setTimeout(() => {
-                if (os.platform() === 'win32') {
-                    this.gdbserver?.kill();
-                } else {
-                    this.gdbserver?.kill('SIGTERM');
-                }
-            }, 4000);
-        }
+        // Kill process after 4 seconds timeout
+        let timeout = setTimeout(() => {
+            // Set SIGKILL makes signal is not ignored for both case Windows and Linux
+            this.gdbserver?.kill('SIGKILL');
+        }, 4000);
         const waitTerminated = new Promise<void>((resolve) => {
             this.waitTerminated = resolve;
         });
