@@ -46,6 +46,8 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
     // provided, it is the delay after that regexp is seen.
     serverStartupDelay?: number;
+    // Automatically kill the launched server when client issues a disconnect (default: true)
+    automaticallyKillServer?: boolean;
     // Specifies the working directory of gdbserver
     cwd?: string;
 }
@@ -76,6 +78,7 @@ export interface TargetLaunchRequestArguments
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
+    protected killGdbServer = true;
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -173,6 +176,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             target.serverParameters !== undefined
                 ? target.serverParameters
                 : ['--once', ':0', args.program];
+
+        this.killGdbServer = target.automaticallyKillServer !== false;
 
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
@@ -369,8 +374,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     ): Promise<void> {
         try {
             await this.gdb.sendGDBExit();
-            await this.stopGDBServer();
-            this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+            if (this.killGdbServer) {
+                await this.stopGDBServer();
+                this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
