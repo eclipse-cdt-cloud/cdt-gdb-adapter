@@ -347,10 +347,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    protected async stopGDBServer(
-    ): Promise<void> {
+    protected async stopGDBServer(): Promise<void> {
         return new Promise((resolve, reject) => {
-            if (! this.gdbserver || this.gdbserver.exitCode !== null) {
+            if (!this.gdbserver || this.gdbserver.exitCode !== null) {
                 resolve();
             } else {
                 this.gdbserver.on('exit', () => {
@@ -358,7 +357,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 });
                 this.gdbserver?.kill();
             }
-            setTimeout(() => {reject()}, 1000);
+            setTimeout(() => {
+                reject();
+            }, 1000);
         });
     }
 
