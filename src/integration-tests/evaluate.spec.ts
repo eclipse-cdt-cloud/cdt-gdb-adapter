@@ -79,4 +79,41 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('-var-create: unable to create variable object');
     });
+    it('should be able to update value of a variable which has local scope and named "monitor"', async function () {
+        const res1 = await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        expect(res1.body.result).eq('10');
+        const res2 = await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+        expect(res2.body.result).eq('10');
+    });
+    it('should not be able to use monitor commands to an unsupported target', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: '>monitor help',
+                frameId: scope.frame.id,
+            })
+        );
+
+        expect(err.message).eq(
+            '"monitor" command not supported by this target.'
+        );
+    });
+    it('should be able to use gdb command with prefix ">"', async function () {
+        const res = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '>help',
+            frameId: scope.frame.id,
+        });
+
+        expect(res.body.result).eq('\r');
+    });
 });
