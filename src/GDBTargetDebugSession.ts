@@ -46,6 +46,8 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
     // provided, it is the delay after that regexp is seen.
     serverStartupDelay?: number;
+    // Automatically kill the launched server when client issues a disconnect (default: true)
+    automaticallyKillServer?: boolean;
     // Specifies the working directory of gdbserver
     cwd?: string;
 }
@@ -76,6 +78,7 @@ export interface TargetLaunchRequestArguments
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
+    protected killGdbServer = true;
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -174,6 +177,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 ? target.serverParameters
                 : ['--once', ':0', args.program];
 
+        this.killGdbServer = target.automaticallyKillServer !== false;
+
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
@@ -234,8 +239,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 throw new Error('Missing stderr in spawned gdbserver');
             }
 
-            this.gdbserver.on('exit', (code) => {
-                const exitmsg = `${serverExe} has exited with code ${code}`;
+            this.gdbserver.on('exit', (code, signal) => {
+                let exitmsg: string;
+                if (code === null) {
+                    exitmsg = `${serverExe} is killed by signal ${signal}`;
+                } else {
+                    exitmsg = `${serverExe} has exited with code ${code}`;
+                }
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
                     gdbserverStartupResolved = true;
@@ -333,6 +343,42 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
             this.isInitialized = true;
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
+    protected async stopGDBServer(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (!this.gdbserver || this.gdbserver.exitCode !== null) {
+                resolve();
+            } else {
+                this.gdbserver.on('exit', () => {
+                    resolve();
+                });
+                this.gdbserver?.kill();
+            }
+            setTimeout(() => {
+                reject();
+            }, 1000);
+        });
+    }
+
+    protected async disconnectRequest(
+        response: DebugProtocol.DisconnectResponse,
+        _args: DebugProtocol.DisconnectArguments
+    ): Promise<void> {
+        try {
+            await this.gdb.sendGDBExit();
+            if (this.killGdbServer) {
+                await this.stopGDBServer();
+                this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+            }
+            this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
                 response,
