@@ -1232,6 +1232,20 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
+
+            if (args.expression.startsWith('>')) {
+                await mi.sendThreadSelectRequest(this.gdb, {
+                    threadId: frame.threadId,
+                });
+                await this.gdb.sendCommand(args.expression.slice(1));
+                response.body = {
+                    result: '\r',
+                    variablesReference: 0,
+                };
+                this.sendResponse(response);
+                return;
+            }
+
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
             });
