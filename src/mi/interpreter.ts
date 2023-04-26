@@ -11,8 +11,8 @@ import { GDBBackend } from '../GDBBackend';
 export function sendInterpreterExecConsole(
     gdb: GDBBackend,
     params: {
-        threadId?: number;
-        frameId?: number;
+        threadId: number;
+        frameId: number;
     }
 ) {
     return gdb.sendCommand(
