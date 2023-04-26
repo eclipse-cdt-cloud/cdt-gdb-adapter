@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 Ericsson and others
+ * Copyright (c) 2018 QNX Software Systems and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -7,12 +7,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-export * from './base';
-export * from './breakpoint';
-export * from './data';
-export * from './exec';
-export * from './stack';
-export * from './target';
-export * from './thread';
-export * from './var';
-export * from './interpreter';
+import { GDBBackend } from '../GDBBackend';
+export function sendInterpreterExecConsole(
+    gdb: GDBBackend,
+    params: {
+        threadId?: number;
+        frameId?: number;
+    }
+) {
+    return gdb.sendCommand(
+        `-interpreter-exec console "thread ${params.threadId}" "frame ${params.frameId}"`
+    );
+}
