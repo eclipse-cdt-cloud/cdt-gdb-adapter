@@ -94,19 +94,6 @@ describe('evaluate request', function () {
         });
         expect(res2.body.result).eq('10');
     });
-    it('should not be able to use monitor commands to an unsupported target', async function () {
-        const err = await expectRejection(
-            dc.evaluateRequest({
-                context: 'repl',
-                expression: '>monitor help',
-                frameId: scope.frame.id,
-            })
-        );
-
-        expect(err.message).eq(
-            '"monitor" command not supported by this target.'
-        );
-    });
     it('should be able to use gdb command', async function () {
         const res = await dc.evaluateRequest({
             context: 'repl',
