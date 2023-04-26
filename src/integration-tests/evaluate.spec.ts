@@ -79,7 +79,7 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('-var-create: unable to create variable object');
     });
-    it('should be able to update value of a variable which has local scope and named "monitor"', async function () {
+    it('should be able to update the value of a variable named monitor and that variable has local scope', async function () {
         const res1 = await dc.evaluateRequest({
             context: 'repl',
             expression: 'monitor = 10',
@@ -107,7 +107,7 @@ describe('evaluate request', function () {
             '"monitor" command not supported by this target.'
         );
     });
-    it('should be able to use gdb command with prefix ">"', async function () {
+    it('should be able to use gdb command', async function () {
         const res = await dc.evaluateRequest({
             context: 'repl',
             expression: '>help',
