@@ -997,7 +997,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             response.body = {
                 allThreadsContinued: isAllThreadsContinued,
-            }
+            };
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -1233,9 +1233,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 return;
             }
 
-            if (args.expression.startsWith('>')) {
-                await mi.sendThreadSelectRequest(this.gdb, {
+            if (args.expression.startsWith('>') && args.context === 'repl') {
+                await mi.sendInterpreterExecConsole(this.gdb, {
                     threadId: frame.threadId,
+                    frameId: frame.frameId,
                 });
                 await this.gdb.sendCommand(args.expression.slice(1));
                 response.body = {
