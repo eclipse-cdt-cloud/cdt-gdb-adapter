@@ -1234,11 +1234,15 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
 
             if (args.expression.startsWith('>') && args.context === 'repl') {
-                await mi.sendInterpreterExecConsole(this.gdb, {
-                    threadId: frame.threadId,
-                    frameId: frame.frameId,
-                });
-                await this.gdb.sendCommand(args.expression.slice(1));
+                if (args.expression[1] === '-') {
+                    await this.gdb.sendCommand(args.expression.slice(1));
+                } else {
+                    await mi.sendInterpreterExecConsole(this.gdb, {
+                        threadId: frame.threadId,
+                        frameId: frame.frameId,
+                        command: args.expression.slice(1),
+                    });
+                }
                 response.body = {
                     result: '\r',
                     variablesReference: 0,
