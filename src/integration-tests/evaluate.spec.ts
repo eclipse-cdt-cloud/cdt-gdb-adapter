@@ -94,14 +94,31 @@ describe('evaluate request', function () {
         });
         expect(res2.body.result).eq('10');
     });
-
-    it('should be able to use GDB commands', async function () {
-        const res = await dc.evaluateRequest({
+    it('should be able to use GDB command', async function () {
+        const res1 = await dc.evaluateRequest({
             context: 'repl',
             expression: '>help',
             frameId: scope.frame.id,
         });
 
-        expect(res.body.result).eq('\r');
+        expect(res1.body.result).eq('\r');
+        const res2 = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '>-gdb-version',
+            frameId: scope.frame.id,
+        });
+
+        expect(res2.body.result).eq('\r');
+    });
+    it('should reject entering an invalid MI command', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: '>-a',
+                frameId: scope.frame.id,
+            })
+        );
+
+        expect(err.message).eq('Undefined MI command: a');
     });
 });
