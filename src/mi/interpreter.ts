@@ -13,9 +13,10 @@ export function sendInterpreterExecConsole(
     params: {
         threadId: number;
         frameId: number;
+        command: any;
     }
 ) {
     return gdb.sendCommand(
-        `-interpreter-exec console "thread ${params.threadId}" "frame ${params.frameId}"`
+        `-interpreter-exec console "thread ${params.threadId}" "frame ${params.frameId}" "${params.command}"`
     );
 }
