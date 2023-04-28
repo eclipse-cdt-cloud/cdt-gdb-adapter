@@ -823,6 +823,18 @@ export class GDBDebugSession extends LoggingDebugSession {
                 await mi.sendExecRun(this.gdb);
             }
             this.sendResponse(response);
+            this.sendEvent(
+                new OutputEvent(
+                    '\n' +
+                        'In the Debug Console view you can interact directly with GDB.\n' +
+                        'To display the value of an expression, type that expression which can reference\n' +
+                        "variables that are in scope. For example type '2 + 3' or the name of a variable.\n" +
+                        "Arbitrary commands can be sent to GDB by prefixing the input with a '>',\n" +
+                        "for example type '>show version' or '>help'.\n" +
+                        '\n',
+                    'console'
+                )
+            );
         } catch (err) {
             this.sendErrorResponse(
                 response,
