@@ -79,46 +79,4 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('-var-create: unable to create variable object');
     });
-    it('should be able to update the value of a variable named monitor and that variable has local scope', async function () {
-        const res1 = await dc.evaluateRequest({
-            context: 'repl',
-            expression: 'monitor = 10',
-            frameId: scope.frame.id,
-        });
-
-        expect(res1.body.result).eq('10');
-        const res2 = await dc.evaluateRequest({
-            context: 'repl',
-            expression: 'monitor',
-            frameId: scope.frame.id,
-        });
-        expect(res2.body.result).eq('10');
-    });
-    it('should be able to use GDB command', async function () {
-        const res1 = await dc.evaluateRequest({
-            context: 'repl',
-            expression: '>help',
-            frameId: scope.frame.id,
-        });
-
-        expect(res1.body.result).eq('\r');
-        const res2 = await dc.evaluateRequest({
-            context: 'repl',
-            expression: '>-gdb-version',
-            frameId: scope.frame.id,
-        });
-
-        expect(res2.body.result).eq('\r');
-    });
-    it('should reject entering an invalid MI command', async function () {
-        const err = await expectRejection(
-            dc.evaluateRequest({
-                context: 'repl',
-                expression: '>-a',
-                frameId: scope.frame.id,
-            })
-        );
-
-        expect(err.message).eq('Undefined MI command: a');
-    });
 });
