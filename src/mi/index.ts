@@ -15,4 +15,3 @@ export * from './stack';
 export * from './target';
 export * from './thread';
 export * from './var';
-export * from './interpreter';
