@@ -291,7 +291,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 });
         } else if (command === 'cdt-gdb-adapter/HWBreakpoint') {
             this.gdb.setHWBreakpoint();
-            if (this.gdb.getUseHWBreakpoint()) {
+            if (this.gdb.getHWBreakpoint()) {
                 logger.warn('Hardware breakpoint is enabled');
             } else {
                 logger.warn('Software breakpoint is enabled');
@@ -628,7 +628,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
-                        hardware: this.gdb.getUseHWBreakpoint(),
+                        hardware: this.gdb.getHWBreakpoint(),
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
@@ -746,7 +746,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         this.gdb,
                         bp.vsbp.name,
                         {
-                            hardware: this.gdb.getUseHWBreakpoint(),
+                            hardware: this.gdb.getHWBreakpoint(),
                         }
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
