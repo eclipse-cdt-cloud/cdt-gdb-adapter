@@ -1004,7 +1004,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             response.body = {
                 allThreadsContinued: isAllThreadsContinued,
-            };
+            }
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
