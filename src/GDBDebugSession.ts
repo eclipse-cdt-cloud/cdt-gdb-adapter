@@ -289,6 +289,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                             : `Encountered a problem executing ${args.command}`;
                     this.sendErrorResponse(response, 1, message);
                 });
+        } else if (command === 'cdt-gdb-adapter/HWBreakpoint') {
+            this.gdb.setHWBreakpoint();
+            if (this.gdb.getUseHWBreakpoint()) {
+                logger.warn('Hardware breakpoint is enabled');
+            } else {
+                logger.warn('Software breakpoint is enabled');
+            }
         } else {
             return super.customRequest(command, response, args);
         }
@@ -621,7 +628,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
-                        hardware: this.gdb.isUseHWBreakpoint(),
+                        hardware: this.gdb.getUseHWBreakpoint(),
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
@@ -739,7 +746,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         this.gdb,
                         bp.vsbp.name,
                         {
-                            hardware: this.gdb.isUseHWBreakpoint(),
+                            hardware: this.gdb.getUseHWBreakpoint(),
                         }
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
@@ -1232,25 +1239,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
-
-            if (args.expression.startsWith('>') && args.context === 'repl') {
-                if (args.expression[1] === '-') {
-                    await this.gdb.sendCommand(args.expression.slice(1));
-                } else {
-                    await mi.sendInterpreterExecConsole(this.gdb, {
-                        threadId: frame.threadId,
-                        frameId: frame.frameId,
-                        command: args.expression.slice(1),
-                    });
-                }
-                response.body = {
-                    result: '\r',
-                    variablesReference: 0,
-                };
-                this.sendResponse(response);
-                return;
-            }
-
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
             });
