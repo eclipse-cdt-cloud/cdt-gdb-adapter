@@ -289,9 +289,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                             : `Encountered a problem executing ${args.command}`;
                     this.sendErrorResponse(response, 1, message);
                 });
-        } else if (command === 'cdt-gdb-adapter/HWBreakpoint') {
-            this.gdb.setHWBreakpoint();
-            if (this.gdb.getHWBreakpoint()) {
+        } else if (command === 'cdt-gdb-adapter/toggleBreakpoint') {
+            this.gdb.toggleBreakpoint();
+            if (this.gdb.isUseHWBreakpoint()) {
                 logger.warn('Hardware breakpoint is enabled');
             } else {
                 logger.warn('Software breakpoint is enabled');
@@ -628,7 +628,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
-                        hardware: this.gdb.getHWBreakpoint(),
+                        hardware: this.gdb.isUseHWBreakpoint(),
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
@@ -746,7 +746,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         this.gdb,
                         bp.vsbp.name,
                         {
-                            hardware: this.gdb.getHWBreakpoint(),
+                            hardware: this.gdb.isUseHWBreakpoint(),
                         }
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
@@ -824,6 +824,18 @@ export class GDBDebugSession extends LoggingDebugSession {
         _args: DebugProtocol.ConfigurationDoneArguments
     ): Promise<void> {
         try {
+            this.sendEvent(
+                new OutputEvent(
+                    '\n' +
+                        'In the Debug Console view you can interact directly with GDB.\n' +
+                        'To display the value of an expression, type that expression which can reference\n' +
+                        "variables that are in scope. For example type '2 + 3' or the name of a variable.\n" +
+                        "Arbitrary commands can be sent to GDB by prefixing the input with a '>',\n" +
+                        "for example type '>show version' or '>help'.\n" +
+                        '\n',
+                    'console'
+                )
+            );
             if (this.isAttach) {
                 await mi.sendExecContinue(this.gdb);
             } else {
@@ -1004,7 +1016,7 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
             response.body = {
                 allThreadsContinued: isAllThreadsContinued,
-            }
+            };
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -1239,6 +1251,25 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
+
+            if (args.expression.startsWith('>') && args.context === 'repl') {
+                if (args.expression[1] === '-') {
+                    await this.gdb.sendCommand(args.expression.slice(1));
+                } else {
+                    await mi.sendInterpreterExecConsole(this.gdb, {
+                        threadId: frame.threadId,
+                        frameId: frame.frameId,
+                        command: args.expression.slice(1),
+                    });
+                }
+                response.body = {
+                    result: '\r',
+                    variablesReference: 0,
+                };
+                this.sendResponse(response);
+                return;
+            }
+
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
             });
