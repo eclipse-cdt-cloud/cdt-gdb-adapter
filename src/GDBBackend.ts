@@ -169,8 +169,8 @@ export class GDBBackend extends events.EventEmitter {
         return this.hardwareBreakpoint;
     }
 
-    public toggleBreakpoint() {
-        this.hardwareBreakpoint = !this.hardwareBreakpoint;
+    public setHWBreakpoint(isSet: boolean) {
+        this.hardwareBreakpoint = isSet;
     }
 
     public pause(threadId?: number) {
