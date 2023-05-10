@@ -289,13 +289,18 @@ export class GDBDebugSession extends LoggingDebugSession {
                             : `Encountered a problem executing ${args.command}`;
                     this.sendErrorResponse(response, 1, message);
                 });
-        } else if (command === 'cdt-gdb-adapter/toggleBreakpoint') {
-            this.gdb.toggleBreakpoint();
-            if (this.gdb.isUseHWBreakpoint()) {
-                logger.warn('Hardware breakpoint is enabled');
-            } else {
-                logger.warn('Software breakpoint is enabled');
+        } else if (command === 'cdt-gdb-adapter/getHWBreakpoint') {
+            response.body = this.gdb.isUseHWBreakpoint();
+            this.sendResponse(response);
+        } else if (command === 'cdt-gdb-adapter/setHWBreakpoint') {
+            if (typeof args.isSetHWBrekpoint !== 'boolean') {
+                throw new Error(
+                    `Invalid type for 'isSetHWBrekpoint', expected string, got ${typeof args.status}`
+                );
             }
+            this.gdb.setHWBreakpoint(args.isSetHWBrekpoint);
+            response.body = this.gdb.isUseHWBreakpoint();
+            this.sendResponse(response);
         } else {
             return super.customRequest(command, response, args);
         }
