@@ -124,6 +124,11 @@ class ThreadWithStatus implements DebugProtocol.Thread {
         this.running = running;
     }
 }
+interface DataObject {
+    source: string;
+    line: number;
+    type: string;
+}
 
 // Allow a single number for ignore count or the form '> [number]'
 const ignoreCountRegex = /\s|>/g;
@@ -508,6 +513,8 @@ export class GDBDebugSession extends LoggingDebugSession {
             // Need to get the list of current breakpoints in the file and then make sure
             // that we end up with the requested set of breakpoints for that file
             // deleting ones not requested and inserting new ones.
+            const rootFolder = path.dirname(args.source.path as string);
+            const filePath = path.join(rootFolder, 'BreakpointSettings.json');
 
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
@@ -627,13 +634,28 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 try {
+                    let newDataIndex = -1;
+                    let existingData: DataObject[] = [];
+                    if (fs.existsSync(filePath)) {
+                        const fileContent = fs.readFileSync(filePath, 'utf-8');
+                        existingData = JSON.parse(fileContent) as DataObject[];
+                        newDataIndex = existingData.findIndex((item) => {
+                            return (
+                                item.source === file && item.line === vsbp.line
+                            );
+                        });
+                    }
                     const gdbbp = await mi.sendBreakInsert(this.gdb, {
                         source: file,
                         line: vsbp.line,
                         condition: vsbp.condition,
                         temporary,
                         ignoreCount,
-                        hardware: this.gdb.isUseHWBreakpoint(),
+                        hardware:
+                            newDataIndex != -1
+                                ? existingData[newDataIndex].type ===
+                                  'hw breakpoint'
+                                : this.gdb.isUseHWBreakpoint(),
                     });
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
@@ -648,6 +670,29 @@ export class GDBDebugSession extends LoggingDebugSession {
             response.body = {
                 breakpoints: actual,
             };
+            const bpResult = await mi.sendBreakList(this.gdb);
+            const bpData = bpResult.BreakpointTable.body.map((info) => {
+                let data: DataObject = {
+                    source: '',
+                    line: 0,
+                    type: '',
+                };
+                if (
+                    info['original-location'] &&
+                    info.line &&
+                    info.func &&
+                    info.addr &&
+                    info.type
+                ) {
+                    data = {
+                        source: info['original-location'].replace(/:\d+$/, ''),
+                        line: parseInt(info.line, 10),
+                        type: info.type,
+                    };
+                }
+                return data;
+            });
+            this.saveDataToFile(bpData, filePath);
 
             this.sendResponse(response);
         } catch (err) {
@@ -665,6 +710,17 @@ export class GDBDebugSession extends LoggingDebugSession {
                 mi.sendExecContinue(this.gdb);
             }
         }
+    }
+
+    protected saveDataToFile(data: DataObject[], filePath: string): void {
+        const jsonData = JSON.stringify(data, null, 2);
+
+        fs.writeFile(filePath, jsonData, 'utf-8', (err) => {
+            if (err) {
+                logger.error(err.message);
+                throw new Error(err.message);
+            }
+        });
     }
 
     protected async setFunctionBreakPointsRequest(
