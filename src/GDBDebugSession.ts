@@ -862,9 +862,18 @@ export class GDBDebugSession extends LoggingDebugSession {
         try {
             if (!this.isRunning) {
                 const result = await mi.sendThreadInfoRequest(this.gdb, {});
-                this.threads = result.threads.map((thread) =>
-                    this.convertThread(thread)
+                const threadMapInfo = result.threads.map((self) =>
+                    this.convertThread(self)
                 );
+                this.threads.map((thread) => {
+                    const threadInfo = threadMapInfo.find(
+                        (self) => self.id === thread.id
+                    );
+                    if (threadInfo !== undefined) {
+                        thread.name = threadInfo.name;
+                        thread.running = threadInfo.running;
+                    }
+                });
             }
 
             response.body = {
