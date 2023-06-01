@@ -861,19 +861,12 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             if (!this.isRunning) {
-                const result = await mi.sendThreadInfoRequest(this.gdb, {});
-                const threadMapInfo = result.threads.map((self) =>
-                    this.convertThread(self)
-                );
-                this.threads.map((thread) => {
-                    const threadInfo = threadMapInfo.find(
-                        (self) => self.id === thread.id
-                    );
-                    if (threadInfo !== undefined) {
-                        thread.name = threadInfo.name;
-                        thread.running = threadInfo.running;
-                    }
-                });
+                if (!this.isRunning) {
+                    const result = await mi.sendThreadInfoRequest(this.gdb, {});
+                    this.threads = result.threads.map((thread) =>
+                        this.convertThread(thread)
+                    ).sort((a, b) => a.id - b.id);
+                }
             }
 
             response.body = {
