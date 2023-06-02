@@ -864,7 +864,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 const result = await mi.sendThreadInfoRequest(this.gdb, {});
                 this.threads = result.threads.map((thread) =>
                     this.convertThread(thread)
-                );
+                ).sort((a, b) => a.id - b.id);
             }
 
             response.body = {
