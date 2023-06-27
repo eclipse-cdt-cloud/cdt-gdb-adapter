@@ -48,6 +48,24 @@ export interface MIBreakListResponse extends MIResponse {
     };
 }
 
+export interface MIBreakpointInsertOptions {
+    temporary?: boolean;
+    hardware?: boolean;
+    pending?: boolean;
+    disabled?: boolean;
+    tracepoint?: boolean;
+    condition?: string;
+    ignoreCount?: number;
+    threadId?: string;
+}
+
+export interface MIBreakpointLocation {
+    locationType?: 'source' | 'function';
+    source?: string;
+    line?: string;
+    fn?: string;
+}
+
 function cleanupBreakpointResponse(
     raw: MIBreakInsertResponseInternal
 ): MIBreakInsertResponse {
@@ -66,7 +84,7 @@ function cleanupBreakpointResponse(
     };
 }
 
-export function breakpointLocation(
+export function sourceBreakpointLocation(
     gdb: GDBBackend,
     source: string,
     line = '',
@@ -88,7 +106,7 @@ export function breakpointLocation(
     }
 }
 
-export function breakpointFunctionLocation(
+export function functionBreakpointLocation(
     gdb: GDBBackend,
     fn: string,
     forInsert = false
@@ -101,40 +119,24 @@ export function breakpointFunctionLocation(
     }
 }
 
-export async function sendBreakInsert(
+export async function sendBreakpointInsert(
     gdb: GDBBackend,
-    request: {
-        temporary?: boolean;
-        hardware?: boolean;
-        pending?: boolean;
-        disabled?: boolean;
-        tracepoint?: boolean;
-        condition?: string;
-        ignoreCount?: number;
-        threadId?: string;
-        source: string;
-        line: number;
-    }
+    location: string,
+    options?: MIBreakpointInsertOptions
 ): Promise<MIBreakInsertResponse> {
     // Todo: lots of options
-    const temp = request.temporary ? '-t ' : '';
-    const ignore = request.ignoreCount ? `-i ${request.ignoreCount} ` : '';
-    const hwBreakpoint = request.hardware ? '-h ' : '';
-    const pend = request.pending ? '-f ' : '';
-    const location = await breakpointLocation(
-        gdb,
-        request.source,
-        request.line.toString(),
-        true
-    );
+    const temp = options?.temporary ? '-t ' : '';
+    const ignore = options?.ignoreCount ? `-i ${options?.ignoreCount} ` : '';
+    const hwBreakpoint = options?.hardware ? '-h ' : '';
+    const pend = options?.pending ? '-f ' : '';
     const command = `-break-insert ${temp}${hwBreakpoint}${ignore}${pend}${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
         command
     );
     const clean = cleanupBreakpointResponse(result);
-    if (request.condition) {
+    if (options?.condition) {
         await gdb.sendCommand(
-            `-break-condition ${clean.bkpt.number} ${request.condition}`
+            `-break-condition ${clean.bkpt.number} ${options.condition}`
         );
     }
 
@@ -154,23 +156,21 @@ export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
     return gdb.sendCommand('-break-list');
 }
 
-export async function sendBreakFunctionInsert(
+export async function sendFunctionBreakpointInsert(
     gdb: GDBBackend,
     fn: string,
-    request?: {
-        temporary?: boolean;
-        hardware?: boolean;
-        pending?: boolean;
-    }
+    options?: MIBreakpointInsertOptions
 ): Promise<MIBreakInsertResponse> {
-    const temp = request?.temporary ? '-t ' : '';
-    const hwBreakpoint = request?.hardware ? '-h ' : '';
-    const pend = request?.pending ? '-f ' : '';
-    const location = await breakpointFunctionLocation(gdb, fn, true);
-    const command = `-break-insert ${temp}${hwBreakpoint}${pend}${location}`;
-    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
-        command
-    );
-    const clean = cleanupBreakpointResponse(result);
-    return clean;
+    const location = await functionBreakpointLocation(gdb, fn, true);
+    return sendBreakpointInsert(gdb, location, options);
+}
+
+export async function sendSourceBreakpointInsert(
+    gdb: GDBBackend,
+    source: string,
+    line?: string,
+    options?: MIBreakpointInsertOptions
+): Promise<MIBreakInsertResponse> {
+    const location = await sourceBreakpointLocation(gdb, source, line, true);
+    return sendBreakpointInsert(gdb, location, options);
 }
