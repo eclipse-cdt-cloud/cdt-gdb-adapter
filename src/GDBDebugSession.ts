@@ -23,6 +23,7 @@ import {
     Source,
     StackFrame,
     TerminatedEvent,
+    ThreadEvent,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBBackend } from './GDBBackend';
@@ -313,6 +314,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsDisassembleRequest = true;
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
+        response.body.supportsTerminateThreadsRequest = true;
         this.sendResponse(response);
     }
 
@@ -1585,6 +1587,21 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
+    protected async terminateThreadsRequest(
+        response: DebugProtocol.TerminateThreadsResponse,
+        _args: DebugProtocol.TerminateThreadsArguments,
+        request: DebugProtocol.Request
+    ) {
+        const threadIds: number[] = request.arguments.threadIds;
+        threadIds.forEach((threadGroupId) => {
+            mi.sendInterpreterExecThreadGroupKill(this.gdb, {
+                threadGroupId: threadGroupId,
+            });
+        });
+
+        this.sendResponse(response);
+    }
+
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
         _args: DebugProtocol.DisconnectArguments
@@ -1772,7 +1789,14 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'thread-selected':
             case 'thread-group-added':
             case 'thread-group-started':
-            case 'thread-group-exited':
+                break;
+            case 'thread-group-exited': {
+                const thread: mi.MIThreadInfo = notifyData;
+                const exitId = parseInt(thread.id.split('i')[1], 10);
+                this.threads = this.threads.filter((t) => t.id !== exitId);
+                this.sendEvent(new ThreadEvent('exited', exitId));
+                break;
+            }
             case 'library-loaded':
             case 'breakpoint-modified':
             case 'breakpoint-deleted':
