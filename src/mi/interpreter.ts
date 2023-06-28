@@ -20,3 +20,14 @@ export function sendInterpreterExecConsole(
         `-interpreter-exec --thread ${params.threadId} --frame ${params.frameId} console "${params.command}"`
     );
 }
+
+export function sendInterpreterExecThreadGroupKill(
+    gdb: GDBBackend,
+    params: {
+        threadGroupId: number;
+    }
+) {
+    return gdb.sendCommand(
+        `-interpreter-exec --thread-group i${params.threadGroupId} console kill`
+    );
+}
