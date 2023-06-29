@@ -495,7 +495,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     ): Promise<void> {
         try {
             try {
-                SerialPort.close();
+                if (SerialPort.isOpen) SerialPort.close();
             } catch (err) {
                 logger.error((err as Error).message);
             }

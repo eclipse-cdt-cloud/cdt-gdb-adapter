@@ -1776,7 +1776,6 @@ export class GDBDebugSession extends LoggingDebugSession {
             case 'library-loaded':
             case 'breakpoint-modified':
             case 'breakpoint-deleted':
-            case 'cmd-param-changed':
                 // Known unhandled notifies
                 break;
             default:
