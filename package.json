@@ -60,7 +60,9 @@
   "dependencies": {
     "@vscode/debugadapter": "^1.59.0",
     "@vscode/debugprotocol": "^1.59.0",
-    "node-addon-api": "^4.3.0"
+    "node-addon-api": "^4.3.0",
+    "serialport": "11.0.0",
+    "@types/serialport": "8.0.2"
   },
   "devDependencies": {
     "@types/chai": "^4.3.4",
