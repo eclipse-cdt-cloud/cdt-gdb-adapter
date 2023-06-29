@@ -1589,17 +1589,31 @@ export class GDBDebugSession extends LoggingDebugSession {
 
     protected async terminateThreadsRequest(
         response: DebugProtocol.TerminateThreadsResponse,
-        _args: DebugProtocol.TerminateThreadsArguments,
-        request: DebugProtocol.Request
+        args: DebugProtocol.TerminateThreadsArguments
     ) {
-        const threadIds: number[] = request.arguments.threadIds;
-        threadIds.forEach((threadGroupId) => {
-            mi.sendInterpreterExecThreadGroupKill(this.gdb, {
-                threadGroupId: threadGroupId,
-            });
-        });
-
-        this.sendResponse(response);
+        try {
+            if (args.threadIds !== undefined) {
+                const threadIds: number[] = args.threadIds;
+                threadIds.forEach(async (threadGroupId) => {
+                    // If we are running the target-async support, there is a bug with GDB 7.12
+                    // where after we terminate the process, the GDB prompt does not come
+                    // back in the console.  As a workaround, we first interrupt the process
+                    // to get the prompt back, and only then kill the process.
+                    // https://sourceware.org/bugzilla/show_bug.cgi?id=20766
+                    this.gdb.pause(threadGroupId);
+                    mi.sendInterpreterExecThreadGroupKill(this.gdb, {
+                        threadGroupId: threadGroupId,
+                    });
+                });
+            }
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
     }
 
     protected async disconnectRequest(
@@ -1786,10 +1800,6 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.threads = this.threads.filter((t) => t.id !== exitId);
                 break;
             }
-            case 'thread-selected':
-            case 'thread-group-added':
-            case 'thread-group-started':
-                break;
             case 'thread-group-exited': {
                 const thread: mi.MIThreadInfo = notifyData;
                 const exitId = parseInt(thread.id.split('i')[1], 10);
@@ -1797,6 +1807,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                 this.sendEvent(new ThreadEvent('exited', exitId));
                 break;
             }
+            case 'thread-selected':
+            case 'thread-group-added':
+            case 'thread-group-started':
             case 'library-loaded':
             case 'breakpoint-modified':
             case 'breakpoint-deleted':
