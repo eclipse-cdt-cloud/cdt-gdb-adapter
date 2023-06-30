@@ -80,6 +80,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
     protected killGdbServer = true;
 
+    /**
+     * Define the target type here such that we can run the "disconnect"
+     * command when servicing the disconnect request if the target type
+     * is remote.
+     */
+    protected targetType?: string;
+
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
@@ -293,7 +300,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             if (target.connectCommands === undefined) {
-                const targetType =
+                this.targetType =
                     target.type !== undefined ? target.type : 'remote';
                 let defaultTarget: string[];
                 if (target.port !== undefined) {
@@ -310,12 +317,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         ? target.parameters
                         : defaultTarget;
                 await mi.sendTargetSelectRequest(this.gdb, {
-                    type: targetType,
+                    type: this.targetType,
                     parameters: targetParameters,
                 });
                 this.sendEvent(
                     new OutputEvent(
-                        `connected to ${targetType} target ${targetParameters.join(
+                        `connected to ${this.targetType} target ${targetParameters.join(
                             ' '
                         )}`
                     )
@@ -373,6 +380,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
+            if (this.targetType === "remote") {
+                await this.gdb.sendCommand("disconnect");
+            }
             await this.gdb.sendGDBExit();
             if (this.killGdbServer) {
                 await this.stopGDBServer();
