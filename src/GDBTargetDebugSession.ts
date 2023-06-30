@@ -21,6 +21,25 @@ import { spawn, ChildProcess } from 'child_process';
 import{ SerialPort, ReadlineParser } from "serialport";
 import { Socket } from "net";
 
+interface UARTArguments {
+    // Path to the serial port connected to the UART on the board.
+    serialPort?: string;
+    // Target TCP port on the host machine to attach socket to print UART output (defaults to 3456)
+    socketPort?: string;
+    // Baud Rate (in bits/s) of the serial port to be opened (defaults to 115200).
+    baudRate?: number;
+    // The number of bits in each character of data sent across the serial line (defaults to 8).
+    characterSize?: (5 | 6 | 7 | 8);
+    // The type of parity check enabled with the transmitted data (defaults to "none" - no parity bit sent)
+    parity?: ("none" | "even" | "odd" | "mark" | "space");
+    // The number of stop bits sent to allow the receiver to detect the end of characters and resynchronize with the character stream (defaults to 1).
+    stopBits?: (1 | 1.5 | 2);
+    // The handshaking method used for flow control across the serial line (defaults to "none" - no handshaking)
+    handshakingMethod?: ("none" | "XON/XOFF" | "RTS/CTS");
+    // The EOL character used to parse the UART output line-by-line.
+    eolCharacter?: ("LF" | "CRLF")
+}
+
 export interface TargetAttachArguments {
     // Target type default is "remote"
     type?: string;
@@ -34,22 +53,7 @@ export interface TargetAttachArguments {
     // Target connect commands - if specified used in preference of type, parameters, host, target
     connectCommands?: string[];
     // Settings related to displaying UART output in the debug console
-    uart?: {
-        // Path to the serial port connected to the UART on the board.
-        serialPort?: string;
-        // Target TCP port on the host machine to attach socket to print UART output (defaults to 3456)
-        socketPort?: string;
-        // Baud Rate (in bits/s) of the serial port to be opened (defaults to 115200).
-        baudRate?: number;
-        // The number of bits in each character of data sent across the serial line (defaults to 8).
-        characterSize?: (5 | 6 | 7 | 8);
-        // The type of parity check enabled with the transmitted data (defaults to "none" - no parity bit sent)
-        parity?: ("none" | "even" | "odd" | "mark" | "space");
-        // The number of stop bits sent to allow the receiver to detect the end of characters and resynchronize with the character stream (defaults to 1).
-        stopBits?: (1 | 1.5 | 2);
-        // The handshaking method used for flow control across the serial line (defaults to "none" - no handshaking)
-        handshakingMethod?: ("none" | "XON/XOFF" | "RTS/CTS");
-    }
+    uart?: UARTArguments;
 }
 
 export interface TargetLaunchArguments extends TargetAttachArguments {
@@ -288,6 +292,122 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
+    protected initializeUARTConnection(
+        uart: UARTArguments,
+        host: string | undefined
+    ): void {
+        if (uart.serialPort !== undefined) {
+            // Set the path to the serial port
+            this.serialPort = new SerialPort({
+                path: uart.serialPort,
+                // If the serial port path is defined, then so will the baud rate.
+                baudRate: uart.baudRate ?? 115200,
+                // If the serial port path is deifned, then so will the number of data bits.
+                dataBits: uart.characterSize ?? 8,
+                // If the serial port path is defined, then so will the number of stop bits.
+                stopBits: uart.stopBits ?? 1,
+                // If the serial port path is defined, then so will the parity check type.
+                parity: uart.parity ?? 'none',
+                // If the serial port path is defined, then so will the type of handshaking method.
+                rtscts:
+                    uart.handshakingMethod === 'RTS/CTS'
+                        ? true
+                        : false,
+                xon:
+                    uart.handshakingMethod === 'XON/XOFF'
+                        ? true
+                        : false,
+                xoff:
+                    uart.handshakingMethod === 'XON/XOFF'
+                        ? true
+                        : false,
+                autoOpen: false,
+            });
+
+            this.serialPort.on("open", () => {
+                this.sendEvent(
+                    new OutputEvent(
+                        `listening on serial port ${this.serialPort?.path}`,
+                        "Serial Port"
+                    )
+                );
+            });
+
+            const SerialUartParser = new ReadlineParser({
+                delimiter: uart.eolCharacter === "LF" ? "\n" : "\r\n",
+                encoding: "utf8"
+            });
+
+            this.serialPort.pipe(SerialUartParser).on("data", (line: string) => {
+                this.sendEvent(
+                    new OutputEvent(line, "Serial Port")
+                );
+            });
+
+            this.serialPort.on("close", () => {
+                this.sendEvent(
+                    new OutputEvent(
+                        "closing serial port connection",
+                        "Serial Port"
+                    )
+                );
+            });
+
+            this.serialPort.open();
+        } else if (uart.socketPort !== undefined) {
+            this.socket = new Socket();
+            this.socket.setEncoding("utf-8");
+
+            let eolChar: string = uart.eolCharacter === "LF" ? "\n" : "\r\n";
+
+            let tcpUartData = "";
+            this.socket.on("data", (data: string) => {
+                for (const char of data) {
+                    if (char === eolChar) {
+                        this.sendEvent(
+                            new OutputEvent(
+                                tcpUartData,
+                                "Socket"
+                            )
+                        )
+                        tcpUartData = "";
+                    } else{
+                        tcpUartData += char;
+                    }
+                }
+            });
+            this.socket.on("close", () => {
+                this.sendEvent(
+                    new OutputEvent(
+                        tcpUartData,
+                        "Socket"
+                    )
+                );
+                this.sendEvent(
+                    new OutputEvent(
+                        "closing socket connection",
+                        "Socket"
+                    )
+                );
+            });
+
+            this.socket.connect(
+                // Putting a + (unary plus operator) infront of the string converts it to a number.
+                +uart.socketPort,
+                // Default to localhost if target.host is undefined.
+                host ?? "localhost",
+                () => {
+                    this.sendEvent(
+                        new OutputEvent(
+                            `listening on tcp port ${uart?.socketPort}`,
+                            "Socket"
+                        )
+                    );
+                }
+            );
+        }
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -356,134 +476,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.gdb.sendCommands(args.initCommands);
 
             if (target.uart !== undefined) {
-                if (target.uart.serialPort !== undefined) {
-                    try {
-                        // Set the path to the serial port
-                        this.serialPort = new SerialPort({
-                            path: target.uart.serialPort,
-                            // If the serial port path is defined, then so will the baud rate.
-                            baudRate: target.uart.baudRate ?? 115200,
-                            // If the serial port path is deifned, then so will the number of data bits.
-                            dataBits: target.uart.characterSize ?? 8,
-                            // If the serial port path is defined, then so will the number of stop bits.
-                            stopBits: target.uart.stopBits ?? 1,
-                            // If the serial port path is defined, then so will the parity check type.
-                            parity: target.uart.parity ?? 'none',
-                            // If the serial port path is defined, then so will the type of handshaking method.
-                            rtscts:
-                                target.uart.handshakingMethod === 'RTS/CTS'
-                                    ? true
-                                    : false,
-                            xon:
-                                target.uart.handshakingMethod === 'XON/XOFF'
-                                    ? true
-                                    : false,
-                            xoff:
-                                target.uart.handshakingMethod === 'XON/XOFF'
-                                    ? true
-                                    : false,
-                            autoOpen: false,
-                        });
-
-                        this.serialPort.on("open", () => {
-                            this.sendEvent(
-                                new OutputEvent(
-                                    `listening on serial port ${this.serialPort?.path}`,
-                                    "Serial Port"
-                                )
-                            );
-                        });
-
-                        const SerialUartParser = new ReadlineParser({
-                            delimiter: "\n",
-                            encoding: "utf8"
-                        });
-
-                        this.serialPort.pipe(SerialUartParser).on("data", (line: string) => {
-                            this.sendEvent(
-                                new OutputEvent(line, "Serial Port")
-                            );
-                        });
-
-                        this.serialPort.on("close", () => {
-                            this.sendEvent(
-                                new OutputEvent(
-                                    "closing serial port connection",
-                                    "Serial Port"
-                                )
-                            );
-                        });
-
-                        this.serialPort.open();
-                    } catch (err) {
-                        this.sendErrorResponse(
-                            response,
-                            1,
-                            err instanceof Error ? err.message : String(err)
-                        );
-                    }
-                } else if (target.uart.socketPort !== undefined) {
-                    try {
-                        /**
-                         * This is a placeholder for the socket. We assign the correct socket
-                         * port path below in "startGDBAndAttachToTarget" if it is specified.
-                         */
-                        this.socket = new Socket();
-                        this.socket.setEncoding("utf-8");
-
-                        let tcpUartData = "";
-                        this.socket.on("data", (data: string) => {
-                            for (const char of data) {
-                                if (char === "\n") {
-                                    this.sendEvent(
-                                        new OutputEvent(
-                                            tcpUartData,
-                                            "Socket"
-                                        )
-                                    )
-                                    tcpUartData = "";
-                                } else{
-                                    tcpUartData += char;
-                                }
-                            }
-                        });
-                        this.socket.on("close", () => {
-                            this.sendEvent(
-                                new OutputEvent(
-                                    tcpUartData,
-                                    "Socket"
-                                )
-                            );
-                            this.sendEvent(
-                                new OutputEvent(
-                                    "closing socket connection",
-                                    "Socket"
-                                )
-                            );
-                        });
-
-                        this.socket.connect(
-                            // Putting a + (unary plus operator) infront of the string converts it to a number.
-                            +target.uart.socketPort,
-                            // Default to localhost if target.host is undefined.
-                            target.host ?? "localhost",
-                            () => {
-                                this.sendEvent(
-                                    new OutputEvent(
-                                        `listening on tcp port ${target.uart?.socketPort}`,
-                                        "Socket"
-                                    )
-                                );
-                            }
-                        );
-                    } catch (err) {
-                        this.sendErrorResponse(
-                            response,
-                            1,
-                            err instanceof Error ? err.message : String(err)
-                        );
-                    }
-                }
+                this.initializeUARTConnection(target.uart, target.host)
             }
 
             if (args.imageAndSymbols) {
@@ -498,11 +491,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
             this.isInitialized = true;
-            this.sendEvent(
-                new OutputEvent(
-                    "starting debug"
-                )
-            );
         } catch (err) {
             this.sendErrorResponse(
                 response,
@@ -533,19 +521,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            try {
-                if (
-                    this.serialPort !== undefined &&
-                    this.serialPort.isOpen
-                )
-                    this.serialPort.close();
-            } catch (err) {
-                this.sendErrorResponse(
-                    response,
-                    1,
-                    err instanceof Error ? err.message : String(err)
-                );
-            }
+            if (
+                this.serialPort !== undefined &&
+                this.serialPort.isOpen
+            )
+                this.serialPort.close();
+
             await this.gdb.sendGDBExit();
             if (this.killGdbServer) {
                 await this.stopGDBServer();
