@@ -103,10 +103,18 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: ChildProcess;
     protected killGdbServer = true;
 
+
     // Serial Port to capture UART output across the serial line
     protected serialPort?: SerialPort;
     // Socket to listen on a TCP port to capture UART output
     protected socket?: Socket;
+
+    /**
+     * Define the target type here such that we can run the "disconnect"
+     * command when servicing the disconnect request if the target type
+     * is remote.
+     */
+    protected targetType?: string;
 
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
@@ -437,7 +445,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             if (target.connectCommands === undefined) {
-                const targetType =
+                this.targetType =
                     target.type !== undefined ? target.type : 'remote';
                 let defaultTarget: string[];
                 if (target.port !== undefined) {
@@ -454,12 +462,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         ? target.parameters
                         : defaultTarget;
                 await mi.sendTargetSelectRequest(this.gdb, {
-                    type: targetType,
+                    type: this.targetType,
                     parameters: targetParameters,
                 });
                 this.sendEvent(
                     new OutputEvent(
-                        `connected to ${targetType} target ${targetParameters.join(
+                        `connected to ${this.targetType} target ${targetParameters.join(
                             ' '
                         )}`
                     )
@@ -526,6 +534,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.serialPort.isOpen
             )
                 this.serialPort.close();
+
+            if (this.targetType === "remote") {
+                await this.gdb.sendCommand("disconnect");
+            }
 
             await this.gdb.sendGDBExit();
             if (this.killGdbServer) {
