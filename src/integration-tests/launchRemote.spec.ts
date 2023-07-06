@@ -43,4 +43,31 @@ describe('launch remote', function () {
             }
         );
     });
+
+    it('can print a message to the debug console sent from a socket server', async function () {
+        dc.getSocketOutput(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                openGdbConsole: false,
+                initCommands: ["shell echo \"Hello World!\" | nc -l 3456 &"],
+                preRunCommands: ["disconnect"],
+                target: {
+                    "host": "localhost",
+                    "port": "9899",
+                    "server": "gdbserver",
+                    "serverParameters": [
+                        "--once",
+                        "localhost:9899",
+                        emptyProgram
+                    ],
+                    "uart": {
+                        "socketPort": "3456",
+                        "eolCharacter": "LF"
+                    }
+                } as TargetLaunchArguments
+            } as TargetLaunchRequestArguments),
+            "Socket",
+            "Hello World!"
+        )
+    });
 });

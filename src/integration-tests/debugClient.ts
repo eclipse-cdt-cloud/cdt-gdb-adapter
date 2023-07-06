@@ -371,6 +371,35 @@ export class CdtDebugClient extends DebugClient {
         });
         return evalResponse.body.result;
     }
+
+    /**
+     * Obtain the output coming from the socket server.
+     * @param category catgory of output event from socket server
+     * @param output expected output coming from socket server
+     */
+    public getSocketOutput(
+        attachArgs: any,
+        category: string,
+        output: string
+    ): Promise<any> {
+        return Promise.all([
+            this.waitForEvent('initialized')
+                .then((_event) => {
+                    return this.waitForOutputEvent(
+                        category,
+                        output
+                    );
+                })
+                .then((response) => {
+                    expect(response.body.category).to.equal(category);
+                    expect(response.body.category).to.equal(output);
+                }),
+
+            this.initializeRequest().then((_response) => {
+                return this.attachRequest(attachArgs);
+            }),
+        ]);
+    }
 }
 
 /**
