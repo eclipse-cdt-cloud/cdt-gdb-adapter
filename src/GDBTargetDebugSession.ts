@@ -366,7 +366,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.socket = new Socket();
             this.socket.setEncoding("utf-8");
 
-            let eolChar: string = uart.eolCharacter === "LF" ? "\n" : "\r\n";
+            const eolChar: string = uart.eolCharacter === "LF" ? "\n" : "\r\n";
 
             let tcpUartData = "";
             this.socket.on("data", (data: string) => {
@@ -398,7 +398,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             });
-
+            console.log(uart.socketPort);
             this.socket.connect(
                 // Putting a + (unary plus operator) infront of the string converts it to a number.
                 +uart.socketPort,

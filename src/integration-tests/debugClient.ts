@@ -377,27 +377,19 @@ export class CdtDebugClient extends DebugClient {
      * @param category catgory of output event from socket server
      * @param output expected output coming from socket server
      */
-    public getSocketOutput(
-        attachArgs: any,
+    public async getSocketOutput(
+        launchArgs: any,
         category: string,
         output: string
     ): Promise<any> {
         return Promise.all([
-            this.waitForEvent('initialized')
-                .then((_event) => {
-                    return this.waitForOutputEvent(
-                        category,
-                        output
-                    );
-                })
-                .then((response) => {
-                    expect(response.body.category).to.equal(category);
-                    expect(response.body.category).to.equal(output);
-                }),
-
-            this.initializeRequest().then((_response) => {
-                return this.attachRequest(attachArgs);
-            }),
+            this.waitForEvent('initialized'),
+            this.launch(launchArgs).then((_event) => {
+                return this.waitForOutputEvent(
+                    category,
+                    output
+                );
+            })
         ]);
     }
 }

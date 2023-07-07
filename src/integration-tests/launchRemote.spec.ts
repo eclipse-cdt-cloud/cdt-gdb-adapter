@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
+import * as cp from 'child_process';
 import * as path from 'path';
 import {
     TargetLaunchRequestArguments,
@@ -45,29 +46,41 @@ describe('launch remote', function () {
     });
 
     it('can print a message to the debug console sent from a socket server', async function () {
-        dc.getSocketOutput(
+        const socketServer = cp.spawn(
+            "node",
+            [`${path.join(testProgramsDir, "socketServer.js")}`],
+            {
+                cwd: testProgramsDir,
+            }
+        );
+        let socketPort = "";
+        socketServer.stdout.on("data", (data) => {
+            socketPort = data.toString();
+            socketPort = socketPort.substring(0, socketPort.indexOf("\n"));
+        })
+        const serverPort: number = Math.floor(Math.random() * 10000);
+        await dc.getSocketOutput(
             fillDefaults(this.test, {
                 program: emptyProgram,
                 openGdbConsole: false,
-                initCommands: ["shell echo \"Hello World!\" | nc -l 3456 &"],
-                preRunCommands: ["disconnect"],
+                initCommands: ["break _fini"],
                 target: {
-                    "host": "localhost",
-                    "port": "9899",
-                    "server": "gdbserver",
-                    "serverParameters": [
+                    host: "localhost",
+                    port: serverPort.toString(),
+                    server: "gdbserver",
+                    serverParameters: [
                         "--once",
-                        "localhost:9899",
+                        `localhost:${serverPort}`,
                         emptyProgram
                     ],
-                    "uart": {
-                        "socketPort": "3456",
-                        "eolCharacter": "LF"
+                    uart: {
+                        socketPort: socketPort,
+                        eolCharacter: "LF"
                     }
                 } as TargetLaunchArguments
             } as TargetLaunchRequestArguments),
             "Socket",
-            "Hello World!"
+            "Hello World!\n"
         )
     });
 });
