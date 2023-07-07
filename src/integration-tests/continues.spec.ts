@@ -13,15 +13,15 @@ import {
     fillDefaults,
     testProgramsDir,
     getScopes,
-    gdbNonStop
+    gdbNonStop,
 } from './utils';
 import { expect } from 'chai';
 import * as path from 'path';
 
-describe('continues', async function() {
+describe('continues', async function () {
     let dc: CdtDebugClient;
 
-    beforeEach(async function() {
+    beforeEach(async function () {
         dc = await standardBeforeEach();
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
@@ -30,11 +30,11 @@ describe('continues', async function() {
         );
     });
 
-    afterEach(async function() {
+    afterEach(async function () {
         await dc.stop();
     });
 
-    it('handles continues single-thread', async function() {
+    it('handles continues single-thread', async function () {
         await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -50,7 +50,9 @@ describe('continues', async function() {
         await dc.configurationDoneRequest();
         await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
-        const continueResponse = await dc.continueRequest({ threadId: scope.thread.id });
+        const continueResponse = await dc.continueRequest({
+            threadId: scope.thread.id,
+        });
         expect(continueResponse.body.allThreadsContinued).to.eq(!gdbNonStop);
     });
 });

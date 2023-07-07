@@ -322,9 +322,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 });
                 this.sendEvent(
                     new OutputEvent(
-                        `connected to ${this.targetType} target ${targetParameters.join(
-                            ' '
-                        )}`
+                        `connected to ${
+                            this.targetType
+                        } target ${targetParameters.join(' ')}`
                     )
                 );
             } else {
@@ -380,8 +380,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            if (this.targetType === "remote") {
-                await this.gdb.sendCommand("disconnect");
+            if (this.targetType === 'remote') {
+                await this.gdb.sendCommand('disconnect');
             }
             await this.gdb.sendGDBExit();
             if (this.killGdbServer) {
