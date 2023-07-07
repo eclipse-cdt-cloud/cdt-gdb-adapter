@@ -40,6 +40,8 @@ jobs:
           name: test-results-ubuntu
           path: 'test-reports/*.xml'
           retention-days: 1
+      - name: Verify code formatting is valid
+        run: yarn format-check
   Build-on-Windows:
     name: Build & Test on Windows
     runs-on: windows-latest
