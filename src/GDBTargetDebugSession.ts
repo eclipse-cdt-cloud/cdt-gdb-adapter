@@ -467,9 +467,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 });
                 this.sendEvent(
                     new OutputEvent(
-                        `connected to ${this.targetType} target ${targetParameters.join(
-                            ' '
-                        )}`
+                        `connected to ${
+                            this.targetType
+                        } target ${targetParameters.join(' ')}`
                     )
                 );
             } else {
