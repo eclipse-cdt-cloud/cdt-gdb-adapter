@@ -16,6 +16,7 @@ import {
 } from '../GDBTargetDebugSession';
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import { expect } from 'chai';
 
 describe('launch remote', function () {
     let dc: CdtDebugClient;
@@ -53,26 +54,23 @@ describe('launch remote', function () {
                 cwd: testProgramsDir,
             }
         );
+        // Ensure that the socket port is defined prior to the test.
         let socketPort = "";
         socketServer.stdout.on("data", (data) => {
             socketPort = data.toString();
             socketPort = socketPort.substring(0, socketPort.indexOf("\n"));
-        })
-        const serverPort: number = Math.floor(Math.random() * 10000);
+        });
+
+        // Sleep for 1 second before running test to ensure socketPort is defined.
+        await new Promise(f => setTimeout(f, 1000));
+        expect(socketPort).not.eq("");
+
         await dc.getSocketOutput(
             fillDefaults(this.test, {
                 program: emptyProgram,
                 openGdbConsole: false,
                 initCommands: ["break _fini"],
                 target: {
-                    host: "localhost",
-                    port: serverPort.toString(),
-                    server: "gdbserver",
-                    serverParameters: [
-                        "--once",
-                        `localhost:${serverPort}`,
-                        emptyProgram
-                    ],
                     uart: {
                         socketPort: socketPort,
                         eolCharacter: "LF"
@@ -80,7 +78,7 @@ describe('launch remote', function () {
                 } as TargetLaunchArguments
             } as TargetLaunchRequestArguments),
             "Socket",
-            "Hello World!\n"
+            "Hello World!"
         )
     });
 });

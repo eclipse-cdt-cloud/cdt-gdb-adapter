@@ -398,7 +398,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             });
-            console.log(uart.socketPort);
             this.socket.connect(
                 // Putting a + (unary plus operator) infront of the string converts it to a number.
                 +uart.socketPort,
