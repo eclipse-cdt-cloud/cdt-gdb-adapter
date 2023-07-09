@@ -385,11 +385,8 @@ export class CdtDebugClient extends DebugClient {
         return Promise.all([
             this.waitForEvent('initialized'),
             this.launch(launchArgs).then((_event) => {
-                return this.waitForOutputEvent(
-                    category,
-                    output
-                );
-            })
+                return this.waitForOutputEvent(category, output);
+            }),
         ]);
     }
 }
