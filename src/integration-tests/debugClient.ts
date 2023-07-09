@@ -373,11 +373,11 @@ export class CdtDebugClient extends DebugClient {
     }
 
     /**
-     * Obtain the output coming from the socket server.
-     * @param category catgory of output event from socket server
-     * @param output expected output coming from socket server
+     * Obtain the output coming from the debug console..
+     * @param category catgory of output event coming on debug console.
+     * @param output expected output coming on debug console
      */
-    public async getSocketOutput(
+    public async getDebugConsoleOutput(
         launchArgs: any,
         category: string,
         output: string

@@ -17,6 +17,7 @@ import {
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 import { expect } from 'chai';
+import * as os from 'os';
 
 describe('launch remote', function () {
     let dc: CdtDebugClient;
@@ -65,7 +66,7 @@ describe('launch remote', function () {
         await new Promise((f) => setTimeout(f, 1000));
         expect(socketPort).not.eq('');
 
-        await dc.getSocketOutput(
+        await dc.getDebugConsoleOutput(
             fillDefaults(this.test, {
                 program: emptyProgram,
                 openGdbConsole: false,
@@ -78,6 +79,37 @@ describe('launch remote', function () {
                 } as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Socket',
+            'Hello World!'
+        );
+    });
+
+    it('can print a message to the debug console sent from across a serial line', async function () {
+        // Skip this test on Windows - socat utility only available on Linux.
+        if (os.platform() === 'win32') this.skip();
+
+        // Start a virtual serial line. Use /tmp/ttyV0 and /tmp/ttyV1 to refer to the two ends.
+        cp.spawn('socat', [
+            '-d',
+            '-d',
+            'pty,rawer,echo=0,link=/tmp/ttyV0',
+            'pty,rawer,echo=0,link=/tmp/ttyV1',
+        ]);
+
+        await dc.getDebugConsoleOutput(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                openGdbConsole: false,
+                initCommands: ['break _fini'],
+                preRunCommands: [`shell echo "Hello World!" > /tmp/ttyV1`],
+                target: {
+                    uart: {
+                        serialPort: '/tmp/ttyV0',
+                        eolCharacter: 'LF',
+                        baudRate: 38400,
+                    },
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments),
+            'Serial Port',
             'Hello World!'
         );
     });
