@@ -19,5 +19,8 @@
       }
     ]
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/integration-tests/test-programs/socketServer.js"
+  ]
 }

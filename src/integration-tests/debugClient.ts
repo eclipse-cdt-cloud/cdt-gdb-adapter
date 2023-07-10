@@ -371,6 +371,23 @@ export class CdtDebugClient extends DebugClient {
         });
         return evalResponse.body.result;
     }
+
+    /**
+     * Obtain the output coming from the debug console..
+     * @param category catgory of output event coming on debug console.
+     * @param output expected output coming on debug console
+     */
+    public async getDebugConsoleOutput(
+        launchArgs: any,
+        category: string,
+        output: string
+    ): Promise<any> {
+        return Promise.all([
+            this.waitForEvent('initialized'),
+            this.launch(launchArgs),
+            this.waitForOutputEvent(category, output),
+        ]);
+    }
 }
 
 /**
