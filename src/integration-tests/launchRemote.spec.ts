@@ -81,6 +81,9 @@ describe('launch remote', function () {
             'Socket',
             'Hello World!'
         );
+
+        // Kill the spawned process.
+        socketServer.kill();
     });
 
     it('can print a message to the debug console sent from across a serial line', async function () {
@@ -88,7 +91,7 @@ describe('launch remote', function () {
         if (os.platform() === 'win32') this.skip();
 
         // Start a virtual serial line. Use /tmp/ttyV0 and /tmp/ttyV1 to refer to the two ends.
-        cp.spawn('socat', [
+        const virtualSerialLine = cp.spawn('socat', [
             '-d',
             '-d',
             'pty,rawer,echo=0,link=/tmp/ttyV0',
@@ -112,5 +115,8 @@ describe('launch remote', function () {
             'Serial Port',
             'Hello World!'
         );
+
+        // Kill the spawned process.
+        virtualSerialLine.kill();
     });
 });
