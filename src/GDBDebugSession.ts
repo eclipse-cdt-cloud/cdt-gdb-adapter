@@ -34,7 +34,6 @@ import {
 } from './mi/data';
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
-import { breakpointFunctionLocation, breakpointLocation } from './mi';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
@@ -499,7 +498,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const result = await mi.sendBreakList(this.gdb);
             const file = args.source.path as string;
-            const gdbOriginalLocationPrefix = await breakpointLocation(
+            const gdbOriginalLocationPrefix = await mi.sourceBreakpointLocation(
                 this.gdb,
                 file
             );
@@ -615,14 +614,26 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 try {
-                    const gdbbp = await mi.sendBreakInsert(this.gdb, {
-                        source: file,
-                        line: vsbp.line,
-                        condition: vsbp.condition,
-                        temporary,
-                        ignoreCount,
-                        hardware: this.gdb.isUseHWBreakpoint(),
-                    });
+                    const line = vsbp.line.toString();
+                    const options = await this.gdb.getBreakpointOptions(
+                        {
+                            locationType: 'source',
+                            source: file,
+                            line,
+                        },
+                        {
+                            condition: vsbp.condition,
+                            temporary,
+                            ignoreCount,
+                            hardware: this.gdb.isUseHWBreakpoint(),
+                        }
+                    );
+                    const gdbbp = await mi.sendSourceBreakpointInsert(
+                        this.gdb,
+                        file,
+                        line,
+                        options
+                    );
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
                     actual.push({
@@ -699,7 +710,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
-                    const originalLocation = breakpointFunctionLocation(
+                    const originalLocation = mi.functionBreakpointLocation(
                         this.gdb,
                         vsbp.name
                     );
@@ -735,12 +746,19 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 try {
-                    const gdbbp = await mi.sendBreakFunctionInsert(
-                        this.gdb,
-                        bp.vsbp.name,
+                    const options = await this.gdb.getBreakpointOptions(
+                        {
+                            locationType: 'function',
+                            fn: bp.vsbp.name,
+                        },
                         {
                             hardware: this.gdb.isUseHWBreakpoint(),
                         }
+                    );
+                    const gdbbp = await mi.sendFunctionBreakpointInsert(
+                        this.gdb,
+                        bp.vsbp.name,
+                        options
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
                     actual.push(createActual(gdbbp.bkpt));

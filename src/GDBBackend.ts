@@ -165,6 +165,17 @@ export class GDBBackend extends events.EventEmitter {
         return this.gdbNonStop;
     }
 
+    // getBreakpointOptions called before inserting the breakpoint and this
+    // method could overridden in derived classes to dynamically control the
+    // breakpoint insert options. If an error thrown from this method, then
+    // the breakpoint will not be inserted.
+    public async getBreakpointOptions(
+        _: mi.MIBreakpointLocation,
+        initialOptions: mi.MIBreakpointInsertOptions
+    ): Promise<mi.MIBreakpointInsertOptions> {
+        return initialOptions;
+    }
+
     public isUseHWBreakpoint() {
         return this.hardwareBreakpoint;
     }
