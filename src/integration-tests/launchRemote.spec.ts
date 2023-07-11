@@ -119,4 +119,23 @@ describe('launch remote', function () {
         // Kill the spawned process.
         virtualSerialLine.kill();
     });
+
+    it('can shows user error on debug console if UART fails to open', async function () {
+        const output = await dc.getDebugConsoleOutput(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                openGdbConsole: false,
+                initCommands: ['break _fini'],
+                target: {
+                    uart: {
+                        serialPort: '/mistake',
+                    },
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments),
+            'Serial Port',
+            'error on serial port connection',
+            true
+        );
+        expect(output.body.output).contains('mistake');
+    });
 });
