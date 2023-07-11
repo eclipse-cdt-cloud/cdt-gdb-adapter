@@ -79,7 +79,7 @@ describe('launch remote', function () {
                 } as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Socket',
-            'Hello World!'
+            'Hello World!\n'
         );
 
         // Kill the spawned process.
@@ -113,7 +113,7 @@ describe('launch remote', function () {
                 } as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Serial Port',
-            'Hello World!'
+            'Hello World!\n'
         );
 
         // Kill the spawned process.
