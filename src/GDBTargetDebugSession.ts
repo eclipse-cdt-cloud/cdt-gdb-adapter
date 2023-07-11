@@ -16,6 +16,7 @@ import {
     OutputEvent,
 } from '@vscode/debugadapter';
 import * as mi from './mi';
+import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
 import { SerialPort, ReadlineParser } from 'serialport';
@@ -325,7 +326,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.serialPort.on('open', () => {
                 this.sendEvent(
                     new OutputEvent(
-                        `listening on serial port ${this.serialPort?.path}`,
+                        `listening on serial port ${this.serialPort?.path}${os.EOL}`,
                         'Serial Port'
                     )
                 );
@@ -339,13 +340,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.serialPort
                 .pipe(SerialUartParser)
                 .on('data', (line: string) => {
-                    this.sendEvent(new OutputEvent(line, 'Serial Port'));
+                    this.sendEvent(
+                        new OutputEvent(line + os.EOL, 'Serial Port')
+                    );
                 });
 
             this.serialPort.on('close', () => {
                 this.sendEvent(
                     new OutputEvent(
-                        'closing serial port connection',
+                        `closing serial port connection${os.EOL}`,
                         'Serial Port'
                     )
                 );
@@ -363,7 +366,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.socket.on('data', (data: string) => {
                 for (const char of data) {
                     if (char === eolChar) {
-                        this.sendEvent(new OutputEvent(tcpUartData, 'Socket'));
+                        this.sendEvent(
+                            new OutputEvent(tcpUartData + os.EOL, 'Socket')
+                        );
                         tcpUartData = '';
                     } else {
                         tcpUartData += char;
@@ -371,9 +376,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
             });
             this.socket.on('close', () => {
-                this.sendEvent(new OutputEvent(tcpUartData, 'Socket'));
+                this.sendEvent(new OutputEvent(tcpUartData + os.EOL, 'Socket'));
                 this.sendEvent(
-                    new OutputEvent('closing socket connection', 'Socket')
+                    new OutputEvent(
+                        `closing socket connection${os.EOL}`,
+                        'Socket'
+                    )
                 );
             });
             this.socket.connect(
@@ -384,7 +392,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 () => {
                     this.sendEvent(
                         new OutputEvent(
-                            `listening on tcp port ${uart?.socketPort}`,
+                            `listening on tcp port ${uart?.socketPort}${os.EOL}`,
                             'Socket'
                         )
                     );
