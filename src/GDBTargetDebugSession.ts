@@ -326,9 +326,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.serialPort.on('open', () => {
                 this.sendEvent(
                     new OutputEvent(
-                        `listening on serial port ${this.serialPort?.path}${
-                            os.platform() === 'win32' ? '\r\n' : '\n'
-                        }`,
+                        `listening on serial port ${this.serialPort?.path}${os.EOL}`,
                         'Serial Port'
                     )
                 );
@@ -343,19 +341,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 .pipe(SerialUartParser)
                 .on('data', (line: string) => {
                     this.sendEvent(
-                        new OutputEvent(
-                            line + SerialUartParser.delimiter,
-                            'Serial Port'
-                        )
+                        new OutputEvent(line + os.EOL, 'Serial Port')
                     );
                 });
 
             this.serialPort.on('close', () => {
                 this.sendEvent(
                     new OutputEvent(
-                        `closing serial port connection${
-                            os.platform() === 'win32' ? '\r\n' : '\n'
-                        }`,
+                        `closing serial port connection${os.EOL}`,
                         'Serial Port'
                     )
                 );
@@ -373,7 +366,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 for (const char of data) {
                     if (char === eolChar) {
                         this.sendEvent(
-                            new OutputEvent(tcpUartData + eolChar, 'Socket')
+                            new OutputEvent(tcpUartData + os.EOL, 'Socket')
                         );
                         tcpUartData = '';
                     } else {
@@ -382,14 +375,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
             });
             this.socket.on('close', () => {
-                this.sendEvent(
-                    new OutputEvent(tcpUartData + eolChar, 'Socket')
-                );
+                this.sendEvent(new OutputEvent(tcpUartData + os.EOL, 'Socket'));
                 this.sendEvent(
                     new OutputEvent(
-                        `closing socket connection${
-                            os.platform() === 'win32' ? '\r\n' : '\n'
-                        }`,
+                        `closing socket connection${os.EOL}`,
                         'Socket'
                     )
                 );
@@ -402,9 +391,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 () => {
                     this.sendEvent(
                         new OutputEvent(
-                            `listening on tcp port ${uart?.socketPort}${
-                                os.platform() === 'win32' ? '\r\n' : '\n'
-                            }`,
+                            `listening on tcp port ${uart?.socketPort}${os.EOL}`,
                             'Socket'
                         )
                     );
