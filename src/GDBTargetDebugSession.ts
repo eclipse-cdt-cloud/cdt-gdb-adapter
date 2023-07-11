@@ -332,7 +332,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             const SerialUartParser = new ReadlineParser({
-                delimiter: uart.eolCharacter === 'LF' ? '\n' : '\r\n',
+                delimiter: uart.eolCharacter === 'CRLF' ? '\r\n' : '\n',
                 encoding: 'utf8',
             });
 
@@ -356,7 +356,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.socket = new Socket();
             this.socket.setEncoding('utf-8');
 
-            const eolChar: string = uart.eolCharacter === 'LF' ? '\n' : '\r\n';
+            const eolChar: string =
+                uart.eolCharacter === 'CRLF' ? '\r\n' : '\n';
 
             let tcpUartData = '';
             this.socket.on('data', (data: string) => {
