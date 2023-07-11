@@ -354,6 +354,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             });
 
+            this.serialPort.on('error', (err) => {
+                this.sendEvent(
+                    new OutputEvent(
+                        `error on serial port connection${os.EOL} - ${err}`,
+                        'Serial Port'
+                    )
+                );
+            });
+
             this.serialPort.open();
         } else if (uart.socketPort !== undefined) {
             this.socket = new Socket();

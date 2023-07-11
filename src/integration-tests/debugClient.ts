@@ -244,6 +244,7 @@ export class CdtDebugClient extends DebugClient {
     public async waitForOutputEvent(
         category: string,
         output?: string,
+        outputIsRegex = false,
         timeout: number = this.defaultTimeout
     ): Promise<DebugProtocol.OutputEvent> {
         const isOutputEvent = (
@@ -258,10 +259,22 @@ export class CdtDebugClient extends DebugClient {
         return new Promise<DebugProtocol.OutputEvent>((resolve, reject) => {
             const outputProcessor = (event: DebugProtocol.OutputEvent) => {
                 if (isOutputEvent(event) && event.body.category === category) {
-                    if (output === undefined || output === event.body.output) {
+                    const done = () => {
                         clearTimeout(timer);
                         this.off('output', outputProcessor);
                         resolve(event);
+                    };
+                    if (output === undefined) {
+                        done();
+                    } else {
+                        if (outputIsRegex && event.body.output.match(output)) {
+                            done();
+                        } else if (
+                            !outputIsRegex &&
+                            output === event.body.output
+                        ) {
+                            done();
+                        }
                     }
                 }
             };
@@ -272,7 +285,9 @@ export class CdtDebugClient extends DebugClient {
                         `no output event with category '${category}' ${
                             output === undefined
                                 ? ''
-                                : `and output message '${output}'`
+                                : `and output message '${output}' ${
+                                      outputIsRegex ? '(regex)' : ''
+                                  }`
                         } received after ${timeout} ms`
                     )
                 );
@@ -380,13 +395,20 @@ export class CdtDebugClient extends DebugClient {
     public async getDebugConsoleOutput(
         launchArgs: any,
         category: string,
-        output: string
-    ): Promise<any> {
-        return Promise.all([
+        output: string,
+        outputIsRegex = false
+    ): Promise<DebugProtocol.OutputEvent> {
+        const outputEvent = this.waitForOutputEvent(
+            category,
+            output,
+            outputIsRegex
+        );
+        await Promise.all([
             this.waitForEvent('initialized'),
             this.launch(launchArgs),
-            this.waitForOutputEvent(category, output),
+            outputEvent,
         ]);
+        return outputEvent;
     }
 }
 
