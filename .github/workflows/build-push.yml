@@ -43,6 +43,8 @@ jobs:
           fail_on_failure: true
           require_tests: true
           check_name: Test Results on Ubuntu
+      - name: Verify no unexpected changes to source tree
+        run: git diff --exit-code
   Build-on-Windows:
     name: Build & Test on Windows
     runs-on: windows-latest
