@@ -10,7 +10,7 @@
 import { Readable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from './GDBBackend';
-
+import * as utf8 from 'utf8';
 export class MIParser {
     protected line = '';
     protected pos = 0;
@@ -91,10 +91,19 @@ export class MIParser {
         }
 
         let cstring = '';
-        for (c = this.next(); c; c = this.next()) {
+        let octal = '';
+        mainloop: for (c = this.next(); c; c = this.next()) {
+            if (octal) {
+                octal += c;
+                if (octal.length == 3) {
+                    cstring += String.fromCodePoint(parseInt(octal, 8));
+                    octal = '';
+                }
+                continue;
+            }
             switch (c) {
                 case '"':
-                    return cstring;
+                    break mainloop;
                 case '\\':
                     c = this.next();
                     if (c) {
@@ -106,6 +115,16 @@ export class MIParser {
                                 cstring += '\t';
                                 break;
                             case 'r':
+                                break;
+                            case '0':
+                            case '1':
+                            case '2':
+                            case '3':
+                            case '4':
+                            case '5':
+                            case '6':
+                            case '7':
+                                octal = c;
                                 break;
                             default:
                                 cstring += c;
@@ -119,7 +138,14 @@ export class MIParser {
             }
         }
 
-        return cstring;
+        try {
+            return utf8.decode(cstring);
+        } catch (err) {
+            logger.error(
+                `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
+            );
+            return cstring;
+        }
     }
 
     protected handleString() {

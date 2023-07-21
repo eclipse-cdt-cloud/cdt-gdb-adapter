@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr
+BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试
 
 .PHONY: all
 all: $(BINS)
@@ -27,6 +27,15 @@ count\ space.o: count\ space.c
 	$(CC) -c "count space.c" -g3 -O0
 
 empty: empty.o
+	$(LINK)
+
+# This is a workaround because make on Windows (on GitHub actions?) doesn't like
+# it otherwise
+bug275-测试.o: empty.c
+	cp empty.c bug275-测试.c
+	$(CC) -c bug275-测试.c -g3 -O0
+
+bug275-测试: bug275-测试.o
 	$(LINK)
 
 evaluate: evaluate.o
