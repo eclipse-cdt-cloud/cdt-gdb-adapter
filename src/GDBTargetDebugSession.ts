@@ -393,6 +393,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             });
+            this.socket.on('error', (err) => {
+                this.sendEvent(
+                    new OutputEvent(
+                        `error on socket connection${os.EOL} - ${err}`,
+                        'Socket'
+                    )
+                );
+            });
             this.socket.connect(
                 // Putting a + (unary plus operator) infront of the string converts it to a number.
                 +uart.socketPort,

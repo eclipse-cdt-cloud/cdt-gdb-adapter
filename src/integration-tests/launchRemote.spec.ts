@@ -120,7 +120,7 @@ describe('launch remote', function () {
         virtualSerialLine.kill();
     });
 
-    it('can shows user error on debug console if UART fails to open', async function () {
+    it('can show user error on debug console if UART fails to open - Serial Port', async function () {
         const output = await dc.getDebugConsoleOutput(
             fillDefaults(this.test, {
                 program: emptyProgram,
@@ -137,5 +137,24 @@ describe('launch remote', function () {
             true
         );
         expect(output.body.output).contains('mistake');
+    });
+
+    it('can show user error on debug console if UART fails to open - Socket', async function () {
+        const output = await dc.getDebugConsoleOutput(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                openGdbConsole: false,
+                initCommands: ['break _fini'],
+                target: {
+                    uart: {
+                        socketPort: '0',
+                    },
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments),
+            'Socket',
+            'error on socket connection',
+            true
+        );
+        expect(output.body.output).contains('0');
     });
 });
