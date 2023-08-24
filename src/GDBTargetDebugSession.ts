@@ -536,7 +536,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             if (this.targetType === 'remote') {
                 // Ensure target is halted before disconnecting.
-                await this.gdb.sendCommand('interrupt');
+                this.gdb.pause();
+                // Set a 5 ms timeout to give time for GDB to pause.
+                await new Promise((t) => setTimeout(t, 5));
                 await this.gdb.sendCommand('disconnect');
             }
 
