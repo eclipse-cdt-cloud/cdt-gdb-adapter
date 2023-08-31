@@ -8,7 +8,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import * as process from 'process';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from '../../../GDBBackend';
 import { GDBTargetDebugSession } from '../../../GDBTargetDebugSession';
