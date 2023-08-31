@@ -140,6 +140,10 @@ export class GDBBackend extends events.EventEmitter {
         }
     }
 
+    public getAsyncMode(): boolean {
+        return this.gdbAsync;
+    }
+
     public async setNonStopMode(isSet?: boolean) {
         if (isSet === undefined) {
             isSet = false;
