@@ -535,9 +535,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.serialPort.close();
 
             if (this.targetType === 'remote') {
-                if (this.gdb.getAsyncMode() && this.isRunning) {
+                if (this.gdb.getAsyncMode() && this.isRunning)
                     this.gdb.sendCommand('interrupt');
-                }
                 await this.gdb.sendCommand('disconnect');
             }
 
