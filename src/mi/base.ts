@@ -18,21 +18,52 @@ export abstract class MIRequest<R> {
 }
 
 // Shared types
+/** See {@link https://sourceware.org/gdb/current/onlinedocs/gdb.html/GDB_002fMI-Breakpoint-Information.html this documentation} for additional details. */
 export interface MIBreakpointInfo {
+    disp: string;
+    enabled: 'y' | 'n';
     number: string;
     type: string;
-    disp: string;
-    enabled: string;
     addr?: string;
+    addr_flags?: string;
+    at?: string;
+    'catch-type'?: string;
+    cond?: string;
+    enable?: string;
+    'evaluated-by'?: 'host' | 'target';
+    file?: string; // docs say filname, but that is wrong
+    frame?: string;
+    fullname?: string;
     func?: string;
-    file?: string; // docs are wrong
+    ignore?: string;
+    inferior?: string;
+    installed?: 'y' | 'n';
+    line?: string;
+    locations?: MILocation[];
+    mask?: string;
+    'original-location'?: string;
+    pass?: string;
+    pending?: string;
+    script?: string;
+    task?: string;
+    thread?: string;
+    'thread-groups'?: string[];
+    times: string;
+    what?: string;
+    // TODO there are a few more fields here
+}
+
+/** See {@link https://sourceware.org/gdb/current/onlinedocs/gdb.html/GDB_002fMI-Breakpoint-Information.html this documentation} for additional details. */
+export interface MILocation {
+    number: string;
+    enabled: 'y' | 'n' | 'N';
+    addr: string;
+    addr_flags?: string;
+    func?: string;
+    file?: string;
     fullname?: string;
     line?: string;
-    threadGroups: string[];
-    times: string;
-    'original-location'?: string;
-    cond?: string;
-    // TODO there are a lot more fields here
+    'thread-groups': string[];
 }
 
 export interface MIFrameInfo {
