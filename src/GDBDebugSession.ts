@@ -2165,11 +2165,19 @@ export class GDBDebugSession extends LoggingDebugSession {
     }
 
     protected async getAddr(varobj: VarObjType) {
-        const addr = await mi.sendDataEvaluateExpression(
-            this.gdb,
-            `&(${varobj.expression})`
-        );
-        return addr.value ? addr.value : varobj.value;
+        let addr = undefined;
+        try {
+            addr = await mi.sendDataEvaluateExpression(
+                this.gdb,
+                `&(${varobj.expression})`
+            );
+        } catch (err) {
+            console.warn(
+                `Problem evaluating expression &(${varobj.expression}):\n`,
+                err
+            );
+        }
+        return addr?.value ? addr.value : varobj.value;
     }
 
     protected isChildOfClass(child: mi.MIVarChild): boolean {
