@@ -221,6 +221,10 @@ export class GDBBackend extends events.EventEmitter {
         logger.verbose(`GDB command: ${token} ${command}`);
         return new Promise<T>((resolve, reject) => {
             if (this.out) {
+                /* Set error to capture the stack where the request originated,
+                   not the stack of reading the stream and parsing the message.
+                */
+                const failure = new Error();
                 this.parser.queueCommand(token, (resultClass, resultData) => {
                     switch (resultClass) {
                         case 'done':
@@ -230,16 +234,14 @@ export class GDBBackend extends events.EventEmitter {
                             resolve(resultData);
                             break;
                         case 'error':
-                            reject(new Error(resultData.msg));
+                            failure.message = resultData.msg;
+                            reject(failure);
                             break;
                         default:
-                            reject(
-                                new Error(
-                                    `Unknown response ${resultClass}: ${JSON.stringify(
-                                        resultData
-                                    )}`
-                                )
-                            );
+                            failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
+                                resultData
+                            )}`;
+                            reject(failure);
                     }
                 });
                 this.out.write(`${token}${command}\n`);
