@@ -939,7 +939,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                     threadId: args.threadId,
                     frameId: parseInt(frame.level, 10),
                 });
-                const name = frame.func || frame.fullname || '';
+                const name =
+                    frame.func && frame.func != '??'
+                        ? frame.func
+                        : frame.fullname || frame.addr || '';
                 const sf = new StackFrame(
                     frameHandle,
                     name,
