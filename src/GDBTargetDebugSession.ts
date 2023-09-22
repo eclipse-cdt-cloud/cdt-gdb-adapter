@@ -219,6 +219,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         await new Promise<void>((resolve, reject) => {
             this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
             let gdbserverStartupResolved = false;
+            let accumulatedStdout = '';
             let accumulatedStderr = '';
             let checkTargetPort = (_data: any) => {
                 // do nothing by default
@@ -238,11 +239,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     const regex = new RegExp(
                         target.serverPortRegExp
                             ? target.serverPortRegExp
-                            : 'Listening on port ([0-9]+)'
+                            : 'Listening on port ([0-9]+)\r?\n'
                     );
                     const m = regex.exec(data);
                     if (m !== null) {
                         target.port = m[1];
+                        checkTargetPort = (_data: any) => {
+                            // do nothing now that we have our port
+                        };
                         setTimeout(
                             () => {
                                 gdbserverStartupResolved = true;
@@ -257,8 +261,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
             if (this.gdbserver.stdout) {
                 this.gdbserver.stdout.on('data', (data) => {
-                    this.sendEvent(new OutputEvent(data.toString(), 'server'));
-                    checkTargetPort(data);
+                    const out = data.toString();
+                    if (!gdbserverStartupResolved) {
+                        accumulatedStdout += out;
+                    }
+                    this.sendEvent(new OutputEvent(out, 'server'));
+                    checkTargetPort(accumulatedStdout);
                 });
             } else {
                 throw new Error('Missing stdout in spawned gdbserver');
@@ -267,9 +275,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             if (this.gdbserver.stderr) {
                 this.gdbserver.stderr.on('data', (data) => {
                     const err = data.toString();
-                    accumulatedStderr += err;
+                    if (!gdbserverStartupResolved) {
+                        accumulatedStderr += err;
+                    }
                     this.sendEvent(new OutputEvent(err, 'server'));
-                    checkTargetPort(data);
+                    checkTargetPort(accumulatedStderr);
                 });
             } else {
                 throw new Error('Missing stderr in spawned gdbserver');
