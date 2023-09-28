@@ -216,7 +216,7 @@ describe('Variables Test Suite', function () {
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected'
-        ).to.equal(3);
+        ).to.equal(4);
         verifyVariable(children.body.variables[0], 'x', 'int', '1', {
             hasMemoryReference: false,
         });
@@ -251,7 +251,7 @@ describe('Variables Test Suite', function () {
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected'
-        ).to.equal(3);
+        ).to.equal(4);
         verifyVariable(children.body.variables[0], 'x', 'int', '25', {
             hasMemoryReference: false,
         });
@@ -309,7 +309,7 @@ describe('Variables Test Suite', function () {
         expect(
             children.body.variables.length,
             'There is a different number of child variables than expected'
-        ).to.equal(3);
+        ).to.equal(4);
         verifyVariable(children.body.variables[2], 'z', 'struct bar', '{...}', {
             hasChildren: true,
             hasMemoryReference: false,
@@ -331,12 +331,20 @@ describe('Variables Test Suite', function () {
         });
 
         // Evaluate the child structure foo.bar of r
-        const res = await dc.evaluateRequest({
+        let res = await dc.evaluateRequest({
             context: 'variables',
             expression: 'r.z',
             frameId: scope.frame.id,
         });
-        expect(res.body.result).eq('{...}');
+        expect(res.body.result).eq('{\n  "a": 3,\n  "b": 4\n}');
+
+        // Evaluate the child structure foo.baz of r
+        res = await dc.evaluateRequest({
+            context: 'variables',
+            expression: 'r.aa',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('{\n  "w": 3.1415,\n  "v": 1234.5678\n}');
 
         // set the variables to something different
         const setAinHex = await dc.setVariableRequest({
@@ -402,7 +410,7 @@ describe('Variables Test Suite', function () {
         });
         expect(br.success).to.equal(true);
         await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
-            line: 24,
+            line: lineTags['After array init'],
             path: varsSrc,
         });
         scope = await getScopes(dc);
@@ -484,7 +492,7 @@ describe('Variables Test Suite', function () {
         // step the program and see that the values were passed to the program and evaluated.
         await dc.next(
             { threadId: scope.thread.id },
-            { path: varsSrc, line: 25 }
+            { path: varsSrc, line: lineTags['After array init'] + 1 }
         );
         scope = await getScopes(dc);
         expect(
@@ -508,7 +516,7 @@ describe('Variables Test Suite', function () {
         });
         expect(br.success).to.equal(true);
         await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
-            line: 27,
+            line: lineTags['char string setup'],
             path: varsSrc,
         });
         // step the program and see that the values were passed to the program and evaluated.
@@ -534,13 +542,17 @@ describe('Variables Test Suite', function () {
             expression: 'h',
             frameId: scope.frame.id,
         });
-        expect(res.body.result).eq("[3]");
+        expect(res.body.result).eq(
+            '[\n  "1 \'\\\\001\'",\n  "16 \'\\\\020\'",\n  "32 \' \'"\n]'
+        );
         // Evaluate the string char array
         res = await dc.evaluateRequest({
             context: 'variables',
             expression: 'k',
             frameId: scope.frame.id,
         });
-        expect(res.body.result).eq("[6]");
+        expect(res.body.result).eq(
+            '[\n  "104 \'h\'",\n  "101 \'e\'",\n  "108 \'l\'",\n  "108 \'l\'",\n  "111 \'o\'",\n  "0 \'\\\\000\'"\n]'
+        );
     });
 });
