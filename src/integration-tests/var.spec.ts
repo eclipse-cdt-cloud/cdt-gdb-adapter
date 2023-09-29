@@ -328,6 +328,15 @@ describe('Variables Test Suite', function () {
         verifyVariable(subChildren.body.variables[1], 'b', 'int', '4', {
             hasMemoryReference: false,
         });
+
+        // Evaluate the child structure foo.bar of r
+        const res = await dc.evaluateRequest({
+            context: 'variables',
+            expression: 'r.z',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('{...}');
+
         // set the variables to something different
         const setAinHex = await dc.setVariableRequest({
             name: 'a',
