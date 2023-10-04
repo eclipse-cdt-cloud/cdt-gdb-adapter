@@ -19,7 +19,7 @@ import * as mi from './mi';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
-import { compareVersions, getGdbVersion } from './util';
+import { compareVersions, getGdbVersion, createEnvValues } from './util';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -73,12 +73,15 @@ export class GDBBackend extends events.EventEmitter {
         requestArgs: LaunchRequestArguments | AttachRequestArguments
     ) {
         const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(gdbPath);
+        this.gdbVersion = await getGdbVersion(gdbPath, requestArgs.environment);
         let args = ['--interpreter=mi2'];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
         }
-        this.proc = spawn(gdbPath, args);
+        const gdbEnvironment = requestArgs.environment
+            ? createEnvValues(process.env, requestArgs.environment)
+            : process.env;
+        this.proc = spawn(gdbPath, args, { env: gdbEnvironment });
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -100,7 +103,7 @@ export class GDBBackend extends events.EventEmitter {
         cb: (args: string[]) => Promise<void>
     ) {
         const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(gdbPath);
+        this.gdbVersion = await getGdbVersion(gdbPath, requestArgs.environment);
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
@@ -196,8 +199,11 @@ export class GDBBackend extends events.EventEmitter {
         }
     }
 
-    public async supportsNewUi(gdbPath?: string): Promise<boolean> {
-        this.gdbVersion = await getGdbVersion(gdbPath || 'gdb');
+    public async supportsNewUi(
+        gdbPath?: string,
+        environment?: Record<string, string | null>
+    ): Promise<boolean> {
+        this.gdbVersion = await getGdbVersion(gdbPath || 'gdb', environment);
         return this.gdbVersionAtLeast('7.12');
     }
 

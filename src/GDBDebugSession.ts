@@ -34,12 +34,14 @@ import {
 } from './mi/data';
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
+import { createEnvValues } from './util';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
     gdbAsync?: boolean;
     gdbNonStop?: boolean;
+    environment?: Record<string, string | null>;
     program: string;
     cwd?: string; // TODO not implemented
     verbose?: boolean;
@@ -420,7 +422,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                 logger.warn(
                     'cdt-gdb-adapter: openGdbConsole is not supported on this platform'
                 );
-            } else if (!(await this.gdb.supportsNewUi(args.gdb))) {
+            } else if (
+                !(await this.gdb.supportsNewUi(args.gdb, args.environment))
+            ) {
                 logger.warn(
                     `cdt-gdb-adapter: new-ui command not detected (${
                         args.gdb || 'gdb'
@@ -441,30 +445,34 @@ export class GDBDebugSession extends LoggingDebugSession {
             | DebugProtocol.LaunchRequestArguments
             | DebugProtocol.AttachRequestArguments
     ) {
-        return this.gdb.spawnInClientTerminal(
-            args as LaunchRequestArguments | AttachRequestArguments,
-            async (command) => {
-                const response = await new Promise<DebugProtocol.Response>(
-                    (resolve) =>
-                        this.sendRequest(
-                            'runInTerminal',
-                            {
-                                kind: 'integrated',
-                                cwd: process.cwd(),
-                                env: process.env,
-                                args: command,
-                            } as DebugProtocol.RunInTerminalRequestArguments,
-                            5000,
-                            resolve
-                        )
-                );
-                if (!response.success) {
-                    const message = `could not start the terminal on the client: ${response.message}`;
-                    logger.error(message);
-                    throw new Error(message);
-                }
+        const requestArgs = args as
+            | LaunchRequestArguments
+            | AttachRequestArguments;
+        const gdbEnvironment = requestArgs.environment
+            ? createEnvValues(process.env, requestArgs.environment)
+            : process.env;
+
+        return this.gdb.spawnInClientTerminal(requestArgs, async (command) => {
+            const response = await new Promise<DebugProtocol.Response>(
+                (resolve) =>
+                    this.sendRequest(
+                        'runInTerminal',
+                        {
+                            kind: 'integrated',
+                            cwd: process.cwd(),
+                            env: gdbEnvironment,
+                            args: command,
+                        } as DebugProtocol.RunInTerminalRequestArguments,
+                        5000,
+                        resolve
+                    )
+            );
+            if (!response.success) {
+                const message = `could not start the terminal on the client: ${response.message}`;
+                logger.error(message);
+                throw new Error(message);
             }
-        );
+        });
     }
 
     protected async setBreakPointsRequest(

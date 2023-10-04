@@ -21,6 +21,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
 import { SerialPort, ReadlineParser } from 'serialport';
 import { Socket } from 'net';
+import { createEnvValues } from './util';
 
 interface UARTArguments {
     // Path to the serial port connected to the UART on the board.
@@ -62,6 +63,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // defaults to 'gdbserver --once :0 ${args.program}' (requires gdbserver >= 7.3)
     server?: string;
     serverParameters?: string[];
+    environment?: Record<string, string | null>;
     // Regular expression to extract port from by examinging stdout/err of server.
     // Once server is launched, port will be set to this if port is not set.
     // defaults to matching a string like 'Listening on port 41551' which is what gdbserver provides
@@ -215,9 +217,18 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         this.killGdbServer = target.automaticallyKillServer !== false;
 
+        const gdbEnvironment = args.environment
+            ? createEnvValues(process.env, args.environment)
+            : process.env;
+        const serverEnvironment = target.environment
+            ? createEnvValues(gdbEnvironment, target.environment)
+            : gdbEnvironment;
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>((resolve, reject) => {
-            this.gdbserver = spawn(serverExe, serverParams, { cwd: serverCwd });
+            this.gdbserver = spawn(serverExe, serverParams, {
+                cwd: serverCwd,
+                env: serverEnvironment,
+            });
             let gdbserverStartupResolved = false;
             let accumulatedStderr = '';
             let checkTargetPort = (_data: any) => {
