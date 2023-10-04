@@ -149,31 +149,31 @@ export function buildString(
 
 /**
  * This method is providing an automatic operation to including new variables to process.env.
- * Method is not injecting the new variables to current thread, rather it is returning a new 
- * object with included parameters. 
- * 
+ * Method is not injecting the new variables to current thread, rather it is returning a new
+ * object with included parameters.
+ *
  * This method also supports construction of new values with using the old values. This is a
- * common scenario for PATH environment variable. The following configuration will append a 
+ * common scenario for PATH environment variable. The following configuration will append a
  * new path to the PATH variable:
- * 
+ *
  * PATH: '%PATH%;C:\some\new\path'
- * 
- * or 
- * 
+ *
+ * or
+ *
  * PATH: '$PATH:/some/new/path'
- * 
+ *
  * New value construction is not limited to the PATH variable, the logic could be used in any
- * variable and the following formats are supported: 
- * 
+ * variable and the following formats are supported:
+ *
  * %VAR_NAME% format:
  *  TEST_VAR: "%TEST_VAR%;Some other text"
- * 
+ *
  * $VAR_NAME format:
  *  TEST_VAR: "$TEST_VAR;Some other text"
  *
  * ${env.VAR_NAME} format:
  *  TEST_VAR: "${env.TEST_VAR};Some other text"
- * 
+ *
  *
  * @param source
  * 		Source environment variables to include.
