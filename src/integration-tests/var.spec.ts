@@ -30,11 +30,12 @@ describe('Variables Test Suite', function () {
     let scope: Scope;
     const varsProgram = path.join(testProgramsDir, 'vars');
     const varsSrc = path.join(testProgramsDir, 'vars.c');
-    const numVars = 9; // number of variables in the main() scope of vars.c
+    const numVars = 11; // number of variables in the main() scope of vars.c
 
     const lineTags = {
         'STOP HERE': 0,
         'After array init': 0,
+        'char string setup': 0,
     };
 
     const hexValueRegex = /^0x[\da-fA-F]+$/;
@@ -497,5 +498,49 @@ describe('Variables Test Suite', function () {
             'There is a different number of variables than expected'
         ).to.equal(numVars);
         verifyVariable(vars.body.variables[7], 'g', 'int', '66');
+    });
+
+    it('can evaluate char array elements (string)', async function () {
+        // skip ahead to array initialization
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsSrc },
+            breakpoints: [{ line: lineTags['char string setup'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: 27,
+            path: varsSrc,
+        });
+        // step the program and see that the values were passed to the program and evaluated.
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsSrc, line: lineTags['char string setup'] + 1 }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // assert we can see the array and its elements
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(numVars);
+        // Evaluate the non-string char array
+        let res = await dc.evaluateRequest({
+            context: 'variables',
+            expression: 'h',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq("[3]");
+        // Evaluate the string char array
+        res = await dc.evaluateRequest({
+            context: 'variables',
+            expression: 'k',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq("[6]");
     });
 });
