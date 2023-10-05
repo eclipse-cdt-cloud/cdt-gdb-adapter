@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试
+BINS = empty empty\ space evaluate vars vars_cpp vars_env mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试
 
 .PHONY: all
 all: $(BINS)
@@ -48,6 +48,9 @@ disassemble: disassemble.o
 	$(LINK)
 
 vars: vars.o
+	$(LINK)
+
+vars_env: vars_env.o
 	$(LINK)
 
 vars_cpp: vars_cpp.o

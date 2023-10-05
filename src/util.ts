@@ -131,7 +131,7 @@ export function buildString(
     data: any,
     ...keyRegexs: RegExp[]
 ): string {
-    const _resolveFromSourceHandler =
+    const resolveFromSourceHandler =
         (source: any) => (m: string, n: string | undefined) => {
             if (n && typeof n === 'string') {
                 const r = source[n.trim()];
@@ -142,7 +142,7 @@ export function buildString(
 
     let r = str;
     for (const regex of keyRegexs) {
-        r = r.replace(regex, _resolveFromSourceHandler(data));
+        r = r.replace(regex, resolveFromSourceHandler(data));
     }
     return r;
 }

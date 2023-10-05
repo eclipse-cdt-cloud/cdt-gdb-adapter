@@ -6,6 +6,7 @@ empty space
 evaluate
 mem
 vars
+vars_env
 segv
 loopforever
 MultiThread

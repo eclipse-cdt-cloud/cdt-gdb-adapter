@@ -111,6 +111,62 @@ export function verifyVariable(
     }
 }
 
+export function getCharStringVariableValue(
+    variable: DebugProtocol.Variable
+): string | null | undefined {
+    if (variable.value === '0x0') {
+        return null;
+    }
+    // IMPORTANT: When value of the string is long, it returns dots `...` at the end,
+    // We are getting as possible as we can, so this means for long strings, this function
+    // does not returning the whole value.
+    return /^0x[\da-f]+\s\"(?<value>.+)\"(\.\.\.)?$/gi.exec(variable.value)
+        ?.groups?.value;
+}
+
+export function verifyCharStringVariable(
+    variable: DebugProtocol.Variable,
+    expectedType?: string,
+    expectedValue?: string | null,
+    flags?: {
+        hasChildren?: boolean; // default false
+        hasMemoryReference?: boolean; // default true
+    }
+) {
+    if (expectedType) {
+        expect(variable.type, `The type of ${variable.name} is wrong`).to.equal(
+            expectedType
+        );
+    }
+    if (expectedValue !== undefined) {
+        expect(
+            getCharStringVariableValue(variable),
+            `The value of ${variable.name} is wrong`
+        ).to.equal(expectedValue);
+    }
+    if (flags?.hasChildren || flags?.hasChildren === undefined) {
+        expect(
+            variable.variablesReference,
+            `${variable.name} has no children`
+        ).to.not.equal(0);
+    } else {
+        expect(
+            variable.variablesReference,
+            `${variable.name} has children`
+        ).to.equal(0);
+    }
+    if (flags?.hasMemoryReference || flags?.hasMemoryReference === undefined) {
+        // Rather than actual read the memory, just verify that the memory
+        // reference is to what is expected
+        expect(variable.memoryReference).eq(`&(${variable.name})`);
+    } else {
+        // For now we only support memory references for top-level
+        // variables (e.g. no struct members). A possible
+        // TODO is to support memoryReferences in these cases
+        expect(variable.memoryReference).is.undefined;
+    }
+}
+
 /**
  * Test a given register variable returned from a variablesRequest against an expected name and/or value.
  */

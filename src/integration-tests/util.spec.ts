@@ -209,6 +209,9 @@ describe('createEnvValues', () => {
             VARFORMATTEST10: '$VAR1 SOME DATA',
             VARFORMATTEST11: '%VAR1% SOME DATA',
             VARFORMATTEST12: '${env.VAR1} SOME DATA',
+            VARFORMATTEST13: '$VAR1$VAR2',
+            VARFORMATTEST14: '%VAR1%%VAR2%',
+            VARFORMATTEST15: '${env.VAR1}${env.VAR2}',
         };
 
         const valuesExpectedInjected = {
@@ -224,6 +227,9 @@ describe('createEnvValues', () => {
             VARFORMATTEST10: `${initialENV.VAR1} SOME DATA`,
             VARFORMATTEST11: `${initialENV.VAR1} SOME DATA`,
             VARFORMATTEST12: `${initialENV.VAR1} SOME DATA`,
+            VARFORMATTEST13: `${initialENV.VAR1}${initialENV.VAR2}`,
+            VARFORMATTEST14: `${initialENV.VAR1}${initialENV.VAR2}`,
+            VARFORMATTEST15: `${initialENV.VAR1}${initialENV.VAR2}`,
         };
         const result = createEnvValues(initialENV, valuesToInject);
 
