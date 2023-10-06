@@ -20,9 +20,13 @@ import {
     testProgramsDir,
     verifyCharStringVariable,
 } from './utils';
+import { platform } from 'os';
 
 const debugAdapter = 'debugAdapter.js';
 const debugTargetAdapter = 'debugTargetAdapter.js';
+
+export const isHwBreakpointOn: boolean =
+    process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
 describe('launch with environment', function () {
     let dc: CdtDebugClient;
@@ -35,7 +39,10 @@ describe('launch with environment', function () {
         dc = await standardBeforeEach(adapter || debugAdapter);
         await dc.launchRequest(
             fillDefaults(test, {
-                program: path.join(testProgramsDir, 'vars_env'),
+                program: path.join(
+                    testProgramsDir,
+                    platform() === 'win32' ? 'vars_env.exe' : 'vars_env'
+                ),
                 environment: environment,
                 target: {
                     environment: targetEnvironment,
@@ -93,6 +100,9 @@ describe('launch with environment', function () {
     });
 
     it('sets environment variables passed to the process', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -113,6 +123,9 @@ describe('launch with environment', function () {
     });
 
     it('not sets target environment variables passed to the process when debugAdapter used', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -138,6 +151,9 @@ describe('launch with environment', function () {
     });
 
     it('sets target environment variables with debugTargetAdapter', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -179,6 +195,9 @@ describe('launch with environment', function () {
     });
 
     it('unsets when target environment variables sets null with debugTargetAdapter', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -214,6 +233,9 @@ describe('launch with environment', function () {
     });
 
     it('ensures that path is not null', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const results = await runForEnvironmentTest(undefined, this.test);
 
         expect(
@@ -223,9 +245,13 @@ describe('launch with environment', function () {
     });
 
     it('ensures that new entries could be injected to path', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const pathToAppend = '/some/path/to/append';
+        const currentPathValue = process.env.PATH || process.env.Path;
         const environment = {
-            PATH: `${pathToAppend}${path.delimiter}${process.env.PATH}`,
+            PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
         };
         const results = await runForEnvironmentTest(
             undefined,
@@ -244,6 +270,9 @@ describe('launch with environment', function () {
     });
 
     it('check setting null will delete the variable', async function () {
+        if (isHwBreakpointOn) {
+            this.skip();
+        }
         const environment = {
             PATH: null,
         };
