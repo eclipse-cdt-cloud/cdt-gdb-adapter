@@ -51,7 +51,7 @@ describe('launch with environment', function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 19,
+                    line: 22,
                 },
             ],
         });
@@ -95,9 +95,9 @@ describe('launch with environment', function () {
     it('sets environment variables passed to the process', async function () {
         const environment = {
             VARTEST1: 'TEST1',
-            VARTEST2: '$VARTEST1:TEST2',
-            VARTEST3: '%VARTEST2%:TEST3',
-            VARTEST4: '${env.VARTEST3}:TEST4',
+            VARTEST2: 'TEST2',
+            VARTEST3: 'TEST3',
+            VARTEST4: 'TEST4',
         };
 
         const results = await runForEnvironmentTest(
@@ -107,29 +107,21 @@ describe('launch with environment', function () {
         );
 
         verifyCharStringVariable(results.VARTEST1, 'char *', 'TEST1');
-        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST1:TEST2');
-        verifyCharStringVariable(
-            results.VARTEST3,
-            'char *',
-            'TEST1:TEST2:TEST3'
-        );
-        verifyCharStringVariable(
-            results.VARTEST4,
-            'char *',
-            'TEST1:TEST2:TEST3:TEST4'
-        );
+        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST2');
+        verifyCharStringVariable(results.VARTEST3, 'char *', 'TEST3');
+        verifyCharStringVariable(results.VARTEST4, 'char *', 'TEST4');
     });
 
     it('not sets target environment variables passed to the process when debugAdapter used', async function () {
         const environment = {
             VARTEST1: 'TEST1',
-            VARTEST2: '$VARTEST1:TEST2',
+            VARTEST2: 'TEST2',
         };
         const targetEnvironment = {
             VARTEST1: 'TEST1_SOMEDIFFERENT_VALUE',
-            VARTEST2: '$VARTEST1:TEST2_SOMEDIFFERENT_VALUE',
-            VARTEST3: '%VARTEST2%:TEST3_SOMEDIFFERENT_VALUE',
-            VARTEST4: '${env.VARTEST3}:TEST4_SOMEDIFFERENT_VALUE',
+            VARTEST2: 'TEST2_SOMEDIFFERENT_VALUE',
+            VARTEST3: 'TEST3_SOMEDIFFERENT_VALUE',
+            VARTEST4: 'TEST4_SOMEDIFFERENT_VALUE',
         };
 
         const results = await runForEnvironmentTest(
@@ -140,7 +132,7 @@ describe('launch with environment', function () {
         );
 
         verifyCharStringVariable(results.VARTEST1, 'char *', 'TEST1');
-        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST1:TEST2');
+        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST2');
         verifyCharStringVariable(results.VARTEST3, 'char *', null);
         verifyCharStringVariable(results.VARTEST4, 'char *', null);
     });
@@ -148,13 +140,13 @@ describe('launch with environment', function () {
     it('sets target environment variables with debugTargetAdapter', async function () {
         const environment = {
             VARTEST1: 'TEST1',
-            VARTEST2: '$VARTEST1:TEST2',
+            VARTEST2: 'TEST2',
         };
         const targetEnvironment = {
             VARTEST1: 'TEST1_SOMEDIFFERENT_VALUE',
-            VARTEST2: '$VARTEST1:TEST2',
-            VARTEST3: '%VARTEST2%:TEST3',
-            VARTEST4: '${env.VARTEST3}:TEST4',
+            VARTEST2: 'TEST2_SOMEDIFFERENT_VALUE',
+            VARTEST3: 'TEST3_SOMEDIFFERENT_VALUE',
+            VARTEST4: 'TEST4_SOMEDIFFERENT_VALUE',
         };
 
         const results = await runForEnvironmentTest(
@@ -172,30 +164,30 @@ describe('launch with environment', function () {
         verifyCharStringVariable(
             results.VARTEST2,
             'char *',
-            'TEST1_SOMEDIFFERENT_VALUE:TEST2'
+            'TEST2_SOMEDIFFERENT_VALUE'
         );
         verifyCharStringVariable(
             results.VARTEST3,
             'char *',
-            'TEST1_SOMEDIFFERENT_VALUE:TEST2:TEST3'
+            'TEST3_SOMEDIFFERENT_VALUE'
         );
         verifyCharStringVariable(
             results.VARTEST4,
             'char *',
-            'TEST1_SOMEDIFFERENT_VALUE:TEST2:TEST3:TEST4'
+            'TEST4_SOMEDIFFERENT_VALUE'
         );
     });
 
     it('unsets when target environment variables sets null with debugTargetAdapter', async function () {
         const environment = {
             VARTEST1: 'TEST1',
-            VARTEST2: '$VARTEST1:TEST2',
-            VARTEST3: '%VARTEST2%:TEST3',
-            VARTEST4: '${env.VARTEST3}:TEST4',
+            VARTEST2: 'TEST2',
+            VARTEST3: 'TEST3',
+            VARTEST4: 'TEST4',
         };
         const targetEnvironment = {
             VARTEST1: 'TEST1_SOMEDIFFERENT_VALUE',
-            VARTEST2: '$VARTEST1:TEST2',
+            VARTEST2: 'TEST2_SOMEDIFFERENT_VALUE',
             VARTEST3: null,
             VARTEST4: null,
         };
@@ -215,7 +207,7 @@ describe('launch with environment', function () {
         verifyCharStringVariable(
             results.VARTEST2,
             'char *',
-            'TEST1_SOMEDIFFERENT_VALUE:TEST2'
+            'TEST2_SOMEDIFFERENT_VALUE'
         );
         verifyCharStringVariable(results.VARTEST3, 'char *', null);
         verifyCharStringVariable(results.VARTEST4, 'char *', null);
@@ -233,7 +225,7 @@ describe('launch with environment', function () {
     it('ensures that new entries could be injected to path', async function () {
         const pathToAppend = '/some/path/to/append';
         const environment = {
-            PATH: `${pathToAppend}${path.delimiter}$PATH`,
+            PATH: `${pathToAppend}${path.delimiter}${process.env.PATH}`,
         };
         const results = await runForEnvironmentTest(
             undefined,

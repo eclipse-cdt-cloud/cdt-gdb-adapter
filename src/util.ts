@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { execFile } from 'child_process';
+import { platform } from 'os';
 import { promisify } from 'util';
-
 /**
  * This method actually launches 'gdb --version' to determine the version of
  * the GDB that is being used.
@@ -115,65 +115,9 @@ export function compareVersions(v1: string, v2: string): number {
 }
 
 /**
- * This method builds string from given data dictionary and regex key formats.
- *
- * @param str
- * 		String contains keys to build.
- * @param data
- * 		Key-Value dictionary to contains lookup values.
- * @param keyRegexs
- * 		Regex rule definitions to capture the key information from the string.
- * @return
- * 		String build with provided data collection and key rules.
- */
-export function buildString(
-    str: string,
-    data: any,
-    ...keyRegexs: RegExp[]
-): string {
-    const resolveFromSourceHandler =
-        (source: any) => (m: string, n: string | undefined) => {
-            if (n && typeof n === 'string') {
-                const r = source[n.trim()];
-                return r ? r : m;
-            }
-            return m;
-        };
-
-    let r = str;
-    for (const regex of keyRegexs) {
-        r = r.replace(regex, resolveFromSourceHandler(data));
-    }
-    return r;
-}
-
-/**
  * This method is providing an automatic operation to including new variables to process.env.
  * Method is not injecting the new variables to current thread, rather it is returning a new
  * object with included parameters.
- *
- * This method also supports construction of new values with using the old values. This is a
- * common scenario for PATH environment variable. The following configuration will append a
- * new path to the PATH variable:
- *
- * PATH: '%PATH%;C:\some\new\path'
- *
- * or
- *
- * PATH: '$PATH:/some/new/path'
- *
- * New value construction is not limited to the PATH variable, the logic could be used in any
- * variable and the following formats are supported:
- *
- * %VAR_NAME% format:
- *  TEST_VAR: "%TEST_VAR%;Some other text"
- *
- * $VAR_NAME format:
- *  TEST_VAR: "$TEST_VAR;Some other text"
- *
- * ${env.VAR_NAME} format:
- *  TEST_VAR: "${env.TEST_VAR};Some other text"
- *
  *
  * @param source
  * 		Source environment variables to include.
@@ -186,18 +130,26 @@ export function createEnvValues(
     source: NodeJS.ProcessEnv,
     valuesToMerge: Record<string, string | null>
 ): NodeJS.ProcessEnv {
-    const result = { ...source };
-    for (const [k, v] of Object.entries(valuesToMerge)) {
-        if (v === null) {
-            delete result[k];
-        } else {
-            result[k] = buildString(
-                v,
-                result,
-                /%([^%]+)%/g,
-                /\${env.([^}]+)}/g,
-                /\$(\w+)/g
+    const findTarget = (obj: any, key: string) => {
+        if (platform() === 'win32') {
+            return (
+                Object.keys(obj).find(
+                    (i) =>
+                        i.localeCompare(key, undefined, {
+                            sensitivity: 'accent',
+                        }) === 0
+                ) || key
             );
+        }
+        return key;
+    };
+    const result = { ...source };
+    for (const [key, value] of Object.entries(valuesToMerge)) {
+        const target = findTarget(result, key);
+        if (value === null) {
+            delete result[target];
+        } else {
+            result[target] = value;
         }
     }
     return result;
