@@ -249,7 +249,7 @@ describe('launch with environment', function () {
         if (isHwBreakpointOn) {
             this.skip();
         }
-        const pathToAppend = '/some/path/to/append';
+        const pathToAppend = __dirname;
         const currentPathValue = process.env.PATH || process.env.Path;
         const environment = {
             PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
