@@ -277,10 +277,20 @@ export class GDBDebugSession extends LoggingDebugSession {
             // This custom request exists to allow tests in this repository to run arbitrary commands
             // Use at your own risk!
         } else if (command === 'cdt-gdb-tests/executeCommand') {
+            const consoleOutput: string[] = [];
+            const consoleOutputListener = (line: string) =>
+                consoleOutput.push(line);
+            // Listens the console output for test and controls purpose during the
+            // test command execution. Boundry of the console output not guaranteed.
+            this.gdb.addListener('consoleStreamOutput', consoleOutputListener);
             this.gdb
                 .sendCommand(args.command)
-                .then(() => {
-                    response.body = 'Ok';
+                .then((result) => {
+                    response.body = {
+                        status: 'Ok',
+                        result,
+                        console: consoleOutput,
+                    };
                     this.sendResponse(response);
                 })
                 .catch((e) => {
@@ -289,6 +299,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                             ? e.message
                             : `Encountered a problem executing ${args.command}`;
                     this.sendErrorResponse(response, 1, message);
+                })
+                .finally(() => {
+                    this.gdb.removeListener(
+                        'consoleStreamOutput',
+                        consoleOutputListener
+                    );
                 });
         } else {
             return super.customRequest(command, response, args);

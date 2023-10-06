@@ -16,20 +16,18 @@ import {
     fillDefaults,
     getCharStringVariableValue,
     getScopes,
+    hardwareBreakpoint,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
-    verifyCharStringVariable,
 } from './utils';
 import { platform } from 'os';
 
 const debugAdapter = 'debugAdapter.js';
 const debugTargetAdapter = 'debugTargetAdapter.js';
 
-export const isHwBreakpointOn: boolean =
-    process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
-
 describe('launch with environment', function () {
-    let dc: CdtDebugClient;
+    let dc: CdtDebugClient | undefined;
     const runForEnvironmentTest = async (
         adapter?: string,
         test?: Mocha.Runnable | undefined,
@@ -70,38 +68,87 @@ describe('launch with environment', function () {
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
-        const VARPATH = vars.body.variables.find((i) => i.name === 'path');
-        const VARTEST1 = vars.body.variables.find((i) => i.name === 'test1');
-        const VARTEST2 = vars.body.variables.find((i) => i.name === 'test2');
-        const VARTEST3 = vars.body.variables.find((i) => i.name === 'test3');
-        const VARTEST4 = vars.body.variables.find((i) => i.name === 'test4');
-        expect(VARPATH).not.equals(undefined, 'Variable `path` not found');
-        expect(VARTEST1).not.equals(undefined, 'Variable `test1` not found');
-        expect(VARTEST2).not.equals(undefined, 'Variable `test2` not found');
-        expect(VARTEST3).not.equals(undefined, 'Variable `test3` not found');
-        expect(VARTEST4).not.equals(undefined, 'Variable `test4` not found');
-        if (!VARPATH || !VARTEST1 || !VARTEST2 || !VARTEST3 || !VARTEST4) {
-            // This line is not expected to be executed
-            // This logic exists only for returning non null/non undefined values
-            throw new Error('One of the variables not found in vars_env.c');
-        }
+
+        // Getting the environment variables in running application process.
+        const varPATHInApp = vars.body.variables.find((i) => i.name === 'path');
+        const varTEST1InApp = vars.body.variables.find(
+            (i) => i.name === 'test1'
+        );
+        const varTEST2InApp = vars.body.variables.find(
+            (i) => i.name === 'test2'
+        );
+        const varTEST3InApp = vars.body.variables.find(
+            (i) => i.name === 'test3'
+        );
+        const varTEST4InApp = vars.body.variables.find(
+            (i) => i.name === 'test4'
+        );
+
+        // Getting the environment variables in GDB process.
+        const varTEST1InGDB = await dc?.send('cdt-gdb-tests/executeCommand', {
+            command: `show environment VARTEST1`,
+        });
+        const varTEST2InGDB = await dc?.send('cdt-gdb-tests/executeCommand', {
+            command: `show environment VARTEST2`,
+        });
+        const varTEST3InGDB = await dc?.send('cdt-gdb-tests/executeCommand', {
+            command: `show environment VARTEST3`,
+        });
+        const varTEST4InGDB = await dc?.send('cdt-gdb-tests/executeCommand', {
+            command: `show environment VARTEST4`,
+        });
+
+        // Control that application contains the variables to read.
+        expect(varPATHInApp).not.equals(undefined, 'Variable `path` not found');
+        expect(varTEST1InApp).not.equals(
+            undefined,
+            'Variable `test1` not found'
+        );
+        expect(varTEST2InApp).not.equals(
+            undefined,
+            'Variable `test2` not found'
+        );
+        expect(varTEST3InApp).not.equals(
+            undefined,
+            'Variable `test3` not found'
+        );
+        expect(varTEST4InApp).not.equals(
+            undefined,
+            'Variable `test4` not found'
+        );
+
+        // String values of environment variables read from the running application
+        const APP_PROC = {
+            ENV_PATH: getCharStringVariableValue(varPATHInApp!),
+            ENV_VARTEST1: getCharStringVariableValue(varTEST1InApp!),
+            ENV_VARTEST2: getCharStringVariableValue(varTEST2InApp!),
+            ENV_VARTEST3: getCharStringVariableValue(varTEST3InApp!),
+            ENV_VARTEST4: getCharStringVariableValue(varTEST4InApp!),
+        };
+
+        // Output of the "show variable <VARNAME>" command
+        // (gets value of 'undefined' in any unexpected error occured in test)
+        const GDB_PROC = {
+            SHOW_VARTEST1: varTEST1InGDB?.body?.console?.[1].trim(),
+            SHOW_VARTEST2: varTEST2InGDB?.body?.console?.[1].trim(),
+            SHOW_VARTEST3: varTEST3InGDB?.body?.console?.[1].trim(),
+            SHOW_VARTEST4: varTEST4InGDB?.body?.console?.[1].trim(),
+        };
 
         return {
-            VARPATH,
-            VARTEST1,
-            VARTEST2,
-            VARTEST3,
-            VARTEST4,
+            APP_PROC,
+            GDB_PROC,
         };
     };
 
     afterEach(async function () {
         // dc could be undefined if test is skipped.
         await dc?.stop();
+        dc = undefined;
     });
 
     it('sets environment variables passed to the process', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -111,20 +158,25 @@ describe('launch with environment', function () {
             VARTEST4: 'TEST4',
         };
 
-        const results = await runForEnvironmentTest(
+        const { APP_PROC, GDB_PROC } = await runForEnvironmentTest(
             undefined,
             this.test,
             environment
         );
 
-        verifyCharStringVariable(results.VARTEST1, 'char *', 'TEST1');
-        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST2');
-        verifyCharStringVariable(results.VARTEST3, 'char *', 'TEST3');
-        verifyCharStringVariable(results.VARTEST4, 'char *', 'TEST4');
+        expect(APP_PROC.ENV_VARTEST1).to.equals('TEST1');
+        expect(APP_PROC.ENV_VARTEST2).to.equals('TEST2');
+        expect(APP_PROC.ENV_VARTEST3).to.equals('TEST3');
+        expect(APP_PROC.ENV_VARTEST4).to.equals('TEST4');
+
+        expect(GDB_PROC.SHOW_VARTEST1).to.equals('VARTEST1 = TEST1');
+        expect(GDB_PROC.SHOW_VARTEST2).to.equals('VARTEST2 = TEST2');
+        expect(GDB_PROC.SHOW_VARTEST3).to.equals('VARTEST3 = TEST3');
+        expect(GDB_PROC.SHOW_VARTEST4).to.equals('VARTEST4 = TEST4');
     });
 
-    it('not sets target environment variables passed to the process when debugAdapter used', async function () {
-        if (isHwBreakpointOn) {
+    it('checks setting environment variables with debugAdapter', async function () {
+        if (hardwareBreakpoint || (platform() === 'win32' && !isRemoteTest)) {
             this.skip();
         }
         const environment = {
@@ -138,21 +190,30 @@ describe('launch with environment', function () {
             VARTEST4: 'TEST4_SOMEDIFFERENT_VALUE',
         };
 
-        const results = await runForEnvironmentTest(
+        const { APP_PROC, GDB_PROC } = await runForEnvironmentTest(
             undefined,
             this.test,
             environment,
             targetEnvironment
         );
 
-        verifyCharStringVariable(results.VARTEST1, 'char *', 'TEST1');
-        verifyCharStringVariable(results.VARTEST2, 'char *', 'TEST2');
-        verifyCharStringVariable(results.VARTEST3, 'char *', null);
-        verifyCharStringVariable(results.VARTEST4, 'char *', null);
+        expect(APP_PROC.ENV_VARTEST1).to.equals('TEST1');
+        expect(APP_PROC.ENV_VARTEST2).to.equals('TEST2');
+        expect(APP_PROC.ENV_VARTEST3).to.equals(null);
+        expect(APP_PROC.ENV_VARTEST4).to.equals(null);
+
+        expect(GDB_PROC.SHOW_VARTEST1).to.equals('VARTEST1 = TEST1');
+        expect(GDB_PROC.SHOW_VARTEST2).to.equals('VARTEST2 = TEST2');
+        expect(GDB_PROC.SHOW_VARTEST3).to.equals(
+            'Environment variable "VARTEST3" not defined.'
+        );
+        expect(GDB_PROC.SHOW_VARTEST4).to.equals(
+            'Environment variable "VARTEST4" not defined.'
+        );
     });
 
-    it('sets target environment variables with debugTargetAdapter', async function () {
-        if (isHwBreakpointOn) {
+    it('checks setting environment variables with debugTargetAdapter', async function () {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -166,37 +227,30 @@ describe('launch with environment', function () {
             VARTEST4: 'TEST4_SOMEDIFFERENT_VALUE',
         };
 
-        const results = await runForEnvironmentTest(
+        const { APP_PROC, GDB_PROC } = await runForEnvironmentTest(
             debugTargetAdapter,
             this.test,
             environment,
             targetEnvironment
         );
 
-        verifyCharStringVariable(
-            results.VARTEST1,
-            'char *',
-            'TEST1_SOMEDIFFERENT_VALUE'
+        expect(APP_PROC.ENV_VARTEST1).to.equals('TEST1_SOMEDIFFERENT_VALUE');
+        expect(APP_PROC.ENV_VARTEST2).to.equals('TEST2_SOMEDIFFERENT_VALUE');
+        expect(APP_PROC.ENV_VARTEST3).to.equals('TEST3_SOMEDIFFERENT_VALUE');
+        expect(APP_PROC.ENV_VARTEST4).to.equals('TEST4_SOMEDIFFERENT_VALUE');
+
+        expect(GDB_PROC.SHOW_VARTEST1).to.equals('VARTEST1 = TEST1');
+        expect(GDB_PROC.SHOW_VARTEST2).to.equals('VARTEST2 = TEST2');
+        expect(GDB_PROC.SHOW_VARTEST3).to.equals(
+            'Environment variable "VARTEST3" not defined.'
         );
-        verifyCharStringVariable(
-            results.VARTEST2,
-            'char *',
-            'TEST2_SOMEDIFFERENT_VALUE'
-        );
-        verifyCharStringVariable(
-            results.VARTEST3,
-            'char *',
-            'TEST3_SOMEDIFFERENT_VALUE'
-        );
-        verifyCharStringVariable(
-            results.VARTEST4,
-            'char *',
-            'TEST4_SOMEDIFFERENT_VALUE'
+        expect(GDB_PROC.SHOW_VARTEST4).to.equals(
+            'Environment variable "VARTEST4" not defined.'
         );
     });
 
     it('unsets when target environment variables sets null with debugTargetAdapter', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -212,41 +266,35 @@ describe('launch with environment', function () {
             VARTEST4: null,
         };
 
-        const results = await runForEnvironmentTest(
+        const { APP_PROC, GDB_PROC } = await runForEnvironmentTest(
             debugTargetAdapter,
             this.test,
             environment,
             targetEnvironment
         );
 
-        verifyCharStringVariable(
-            results.VARTEST1,
-            'char *',
-            'TEST1_SOMEDIFFERENT_VALUE'
-        );
-        verifyCharStringVariable(
-            results.VARTEST2,
-            'char *',
-            'TEST2_SOMEDIFFERENT_VALUE'
-        );
-        verifyCharStringVariable(results.VARTEST3, 'char *', null);
-        verifyCharStringVariable(results.VARTEST4, 'char *', null);
+        expect(APP_PROC.ENV_VARTEST1).to.equals('TEST1_SOMEDIFFERENT_VALUE');
+        expect(APP_PROC.ENV_VARTEST2).to.equals('TEST2_SOMEDIFFERENT_VALUE');
+        expect(APP_PROC.ENV_VARTEST3).to.equals(null);
+        expect(APP_PROC.ENV_VARTEST4).to.equals(null);
+
+        expect(GDB_PROC.SHOW_VARTEST1).to.equals('VARTEST1 = TEST1');
+        expect(GDB_PROC.SHOW_VARTEST2).to.equals('VARTEST2 = TEST2');
+        expect(GDB_PROC.SHOW_VARTEST3).to.equals('VARTEST3 = TEST3');
+        expect(GDB_PROC.SHOW_VARTEST4).to.equals('VARTEST4 = TEST4');
     });
 
     it('ensures that path is not null', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
-        const results = await runForEnvironmentTest(undefined, this.test);
+        const { APP_PROC } = await runForEnvironmentTest(undefined, this.test);
 
-        expect(
-            results.VARPATH.value,
-            `The value of Path is wrong`
-        ).not.to.equal('0x00');
+        expect(APP_PROC.ENV_PATH).not.to.equals(null);
     });
 
     it('ensures that new entries could be injected to path', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const pathToAppend = __dirname;
@@ -254,35 +302,44 @@ describe('launch with environment', function () {
         const environment = {
             PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
         };
-        const results = await runForEnvironmentTest(
+        const { APP_PROC } = await runForEnvironmentTest(
             undefined,
             this.test,
             environment
         );
 
-        expect(
-            results.VARPATH.value,
-            `The value of Path is wrong`
-        ).not.to.equal('0x00');
+        expect(APP_PROC.ENV_PATH).not.to.equals(null);
 
-        const valueOfPath = getCharStringVariableValue(results.VARPATH);
-        const firstEntry = valueOfPath?.split(path.delimiter).shift();
-        expect(firstEntry).to.equals(pathToAppend);
+        if (platform() === 'win32') {
+            // Win32 test platform auto inject another folder to the front of the list.
+            // So we have a little bit different test here.
+            const entriesInPath = APP_PROC.ENV_PATH!.split(path.delimiter).map(
+                (i) => i.replace(/\\\\/g, '\\')
+            );
+            expect(
+                entriesInPath,
+                'Path does not include appended folder'
+            ).to.includes(pathToAppend);
+        } else {
+            const entriesInPath = APP_PROC.ENV_PATH!.split(path.delimiter);
+            expect(entriesInPath[0]).to.equals(pathToAppend);
+        }
     });
 
     it('check setting null will delete the variable', async function () {
-        if (isHwBreakpointOn) {
+        if (platform() === 'win32' || hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
             PATH: null,
         };
-        const results = await runForEnvironmentTest(
+
+        const { APP_PROC } = await runForEnvironmentTest(
             undefined,
             this.test,
             environment
         );
 
-        verifyCharStringVariable(results.VARPATH, 'char *', null);
+        expect(APP_PROC.ENV_PATH).to.equals(null);
     });
 });
