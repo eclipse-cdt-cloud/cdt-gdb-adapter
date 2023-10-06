@@ -96,7 +96,8 @@ describe('launch with environment', function () {
     };
 
     afterEach(async function () {
-        await dc.stop();
+        // dc could be undefined if test is skipped.
+        await dc?.stop();
     });
 
     it('sets environment variables passed to the process', async function () {
