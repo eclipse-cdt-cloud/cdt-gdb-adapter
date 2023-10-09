@@ -112,21 +112,6 @@ export function verifyVariable(
 }
 
 /**
- * Parses and returns a given char* variable value
- */
-export function getCharStringVariableValue(
-    variable: DebugProtocol.Variable
-): string | null | undefined {
-    if (variable.value === '0x0') {
-        return null;
-    }
-    // IMPORTANT: When value of the string is long, it returns dots `...` at the end,
-    // We are getting as possible as we can, so this means for long strings, this function
-    // does not returning the whole value.
-    return /^0x[\da-f]+\s\"(?<value>.+)\"(\.\.\.)?$/gi.exec(variable.value)
-        ?.groups?.value;
-}
-/**
  * Test a given register variable returned from a variablesRequest against an expected name and/or value.
  */
 export function verifyRegister(
