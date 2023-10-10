@@ -15,14 +15,13 @@ import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
     getScopes,
-    hardwareBreakpoint,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
 import { platform } from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
-const debugAdapter = 'debugAdapter.js';
 const debugTargetAdapter = 'debugTargetAdapter.js';
 
 describe('launch with environment', function () {
@@ -52,7 +51,7 @@ describe('launch with environment', function () {
         environment?: Record<string, string | null> | undefined,
         targetEnvironment?: Record<string, string | null> | undefined
     ) => {
-        dc = await standardBeforeEach(adapter || debugAdapter);
+        dc = await standardBeforeEach(adapter);
         await dc.launchRequest(
             fillDefaults(test, {
                 program: path.join(testProgramsDir, 'vars_env'),
@@ -119,9 +118,6 @@ describe('launch with environment', function () {
     });
 
     it('sets environment variables passed to the process', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -147,9 +143,11 @@ describe('launch with environment', function () {
     });
 
     it('checks setting environment variables with debugAdapter', async function () {
-        if (hardwareBreakpoint) {
+        if (isRemoteTest) {
+            // checks setting environment variables with debugTargetAdapter is the test for when isRemoteTest
             this.skip();
         }
+
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -184,9 +182,6 @@ describe('launch with environment', function () {
     });
 
     it('checks setting environment variables with debugTargetAdapter', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -221,9 +216,6 @@ describe('launch with environment', function () {
     });
 
     it('unsets when target environment variables sets null with debugTargetAdapter', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const environment = {
             VARTEST1: 'TEST1',
             VARTEST2: 'TEST2',
@@ -256,18 +248,12 @@ describe('launch with environment', function () {
     });
 
     it('ensures that path is not null', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const { APP_PROC } = await runForEnvironmentTest(undefined, this.test);
 
         expect(APP_PROC.ENV_PATH).not.to.equals('');
     });
 
     it('ensures that new entries could be injected to path', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const pathToAppend = __dirname;
         const currentPathValue = process.env.PATH || process.env.Path;
         const environment = {
@@ -299,18 +285,12 @@ describe('launch with environment', function () {
     });
 
     it('ensures that ENV_TEST_VAR is not null', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const { APP_PROC } = await runForEnvironmentTest(undefined, this.test);
 
         expect(APP_PROC.ENV_TEST_VAR).not.to.equals('');
     });
 
     it('check setting null will delete the variable', async function () {
-        if (hardwareBreakpoint) {
-            this.skip();
-        }
         const environment = {
             ENV_TEST_VAR: null,
         };
