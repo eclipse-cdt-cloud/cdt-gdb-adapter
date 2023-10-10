@@ -16,6 +16,7 @@ import {
     fillDefaults,
     getScopes,
     isRemoteTest,
+    resolveLineTagLocations,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -26,6 +27,17 @@ const debugTargetAdapter = 'debugTargetAdapter.js';
 
 describe('launch with environment', function () {
     let dc: CdtDebugClient | undefined;
+
+    const lineTags = {
+        'STOP HERE': 0,
+    };
+
+    before(function () {
+        resolveLineTagLocations(
+            path.join(testProgramsDir, 'vars_env.c'),
+            lineTags
+        );
+    });
 
     const showGDBEnv = async (name: string): Promise<string | undefined> => {
         const value = await dc?.send('cdt-gdb-tests/executeCommand', {
@@ -70,7 +82,7 @@ describe('launch with environment', function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 22,
+                    line: lineTags['STOP HERE'],
                 },
             ],
         });

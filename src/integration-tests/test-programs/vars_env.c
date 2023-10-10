@@ -16,5 +16,5 @@ int main(int argc, char *argv[])
     printf("VARTEST3: %s\n", test3);
     printf("VARTEST4: %s\n", test4);
     printf("ENV_TEST_VAR: %s\n", envtest);
-    return 0;
+    return 0; // STOP HERE
 }
