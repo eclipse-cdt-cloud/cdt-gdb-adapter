@@ -255,7 +255,7 @@ describe('launch with environment', function () {
 
     it('ensures that new entries could be injected to path', async function () {
         const pathToAppend = __dirname;
-        const currentPathValue = process.env.PATH || process.env.Path;
+        const currentPathValue = process.env.PATH;
         const environment = {
             PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
         };
