@@ -5,9 +5,6 @@ int main(int argc, char *argv[])
 {
     char *path, *test1, *test2, *test3, *test4, *envtest;
     path = getenv("PATH");
-    if(path == NULL) {
-        path = getenv("Path");
-    }
     test1 = getenv("VARTEST1");
     test2 = getenv("VARTEST2");
     test3 = getenv("VARTEST3");
