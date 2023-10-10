@@ -33,17 +33,18 @@ describe('launch with environment', function () {
             command: `show environment ${name}`,
         });
         return value?.body?.console?.[1]?.trim();
-    }
+    };
 
-    const getAPPEnv = (vars: DebugProtocol.VariablesResponse, name: string): string => {
-        const variable =  vars.body.variables.find(
-            (i) => i.name === name
-        );
-        if(!variable) {
-            throw new Error(`Variable not found : ${name}`)
+    const getAPPEnv = (
+        vars: DebugProtocol.VariablesResponse,
+        name: string
+    ): string => {
+        const variable = vars.body.variables.find((i) => i.name === name);
+        if (!variable) {
+            throw new Error(`Variable not found : ${name}`);
         }
         return variable.value;
-    }
+    };
 
     const runForEnvironmentTest = async (
         adapter?: string,
@@ -54,10 +55,7 @@ describe('launch with environment', function () {
         dc = await standardBeforeEach(adapter || debugAdapter);
         await dc.launchRequest(
             fillDefaults(test, {
-                program: path.join(
-                    testProgramsDir,
-                    'vars_env'
-                ),
+                program: path.join(testProgramsDir, 'vars_env'),
                 environment: environment,
                 target: {
                     environment: targetEnvironment,
@@ -90,22 +88,22 @@ describe('launch with environment', function () {
         const vars = await dc.variablesRequest({ variablesReference: vr });
 
         const APP_PROC = {
-            ENV_PATH: getAPPEnv(vars, "path"),
-            ENV_VARTEST1: getAPPEnv(vars, "test1"),
-            ENV_VARTEST2: getAPPEnv(vars, "test2"),
-            ENV_VARTEST3: getAPPEnv(vars, "test3"),
-            ENV_VARTEST4: getAPPEnv(vars, "test4"),
-            ENV_TEST_VAR: getAPPEnv(vars, "envtest"),
+            ENV_PATH: getAPPEnv(vars, 'path'),
+            ENV_VARTEST1: getAPPEnv(vars, 'test1'),
+            ENV_VARTEST2: getAPPEnv(vars, 'test2'),
+            ENV_VARTEST3: getAPPEnv(vars, 'test3'),
+            ENV_VARTEST4: getAPPEnv(vars, 'test4'),
+            ENV_TEST_VAR: getAPPEnv(vars, 'envtest'),
         };
 
         // Output of the "show variable <VARNAME>" command
         // (gets value of 'undefined' in any unexpected error occured in test)
         const GDB_PROC = {
-            SHOW_VARTEST1: await showGDBEnv("VARTEST1"),
-            SHOW_VARTEST2: await showGDBEnv("VARTEST2"),
-            SHOW_VARTEST3: await showGDBEnv("VARTEST3"),
-            SHOW_VARTEST4: await showGDBEnv("VARTEST4"),
-            SHOW_ENV_TEST_VAR: await showGDBEnv("ENV_TEST_VAR"),
+            SHOW_VARTEST1: await showGDBEnv('VARTEST1'),
+            SHOW_VARTEST2: await showGDBEnv('VARTEST2'),
+            SHOW_VARTEST3: await showGDBEnv('VARTEST3'),
+            SHOW_VARTEST4: await showGDBEnv('VARTEST4'),
+            SHOW_ENV_TEST_VAR: await showGDBEnv('ENV_TEST_VAR'),
         };
 
         return {
@@ -283,13 +281,14 @@ describe('launch with environment', function () {
 
         expect(APP_PROC.ENV_PATH).not.to.equals('');
 
-        const entries = APP_PROC.ENV_PATH.substring(1, APP_PROC.ENV_PATH.length - 1).split(path.delimiter);
+        const entries = APP_PROC.ENV_PATH.substring(
+            1,
+            APP_PROC.ENV_PATH.length - 1
+        ).split(path.delimiter);
         if (platform() === 'win32') {
             // Win32 test platform auto inject another folder to the front of the list.
             // So we have a little bit different test here.
-            const winEntries = entries.map(
-                (i) => i.replace(/\\\\/g, '\\')
-            );
+            const winEntries = entries.map((i) => i.replace(/\\\\/g, '\\'));
             expect(
                 winEntries,
                 'Path does not include appended folder'
