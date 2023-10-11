@@ -130,6 +130,9 @@ class ThreadWithStatus implements DebugProtocol.Thread {
 const ignoreCountRegex = /\s|>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
 const arrayChildRegex = /[\d]+/;
+const numberRegex = /^-?\d+(?:\.\d*)?$/; // match only numbers (integers and floats)
+const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C number types
+const cBoolRegex = /\bbool$/; // match boolean
 
 export function hexToBase64(hex: string): string {
     // The buffer will ignore incomplete bytes (unpaired digits), so we need to catch that early
@@ -1371,8 +1374,12 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
             }
             if (varobj) {
+                const result =
+                    args.context === 'variables' && Number(varobj.numchild)
+                        ? await this.getChildElements(varobj, args.frameId)
+                        : varobj.value;
                 response.body = {
-                    result: varobj.value,
+                    result,
                     type: varobj.type,
                     variablesReference:
                         parseInt(varobj.numchild, 10) > 0
@@ -1392,6 +1399,49 @@ export class GDBDebugSession extends LoggingDebugSession {
                 1,
                 err instanceof Error ? err.message : String(err)
             );
+        }
+    }
+
+    protected async getChildElements(varobj: VarObjType, frameHandle: number) {
+        if (Number(varobj.numchild) > 0) {
+            const objRef: ObjectVariableReference = {
+                type: 'object',
+                frameHandle: frameHandle,
+                varobjName: varobj.varname,
+            };
+            const childVariables: DebugProtocol.Variable[] =
+                await this.handleVariableRequestObject(objRef);
+            const value = arrayChildRegex.test(varobj.type)
+                ? childVariables.map<string | number | boolean>((child) =>
+                      this.convertValue(child)
+                  )
+                : childVariables.reduce<
+                      Record<string, string | number | boolean>
+                  >(
+                      (accum, child) => (
+                          (accum[child.name] = this.convertValue(child)), accum
+                      ),
+                      {}
+                  );
+            return JSON.stringify(value, null, 2);
+        }
+        return varobj.value;
+    }
+
+    protected convertValue(variable: DebugProtocol.Variable) {
+        const varValue = variable.value;
+        const varType = String(variable.type);
+        if (cNumberTypeRegex.test(varType)) {
+            if (numberRegex.test(varValue)) {
+                return Number(varValue);
+            } else {
+                // probably a string/other representation
+                return String(varValue);
+            }
+        } else if (cBoolRegex.test(varType)) {
+            return Boolean(varValue);
+        } else {
+            return varValue;
         }
     }
 
@@ -1896,6 +1946,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         }
                         variables.push({
                             name: varobj.expression,
+                            evaluateName: varobj.expression,
                             value,
                             type: varobj.type,
                             memoryReference: `&(${varobj.expression})`,
@@ -1968,6 +2019,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
                 variables.push({
                     name: varobj.expression,
+                    evaluateName: varobj.expression,
                     value,
                     type: varobj.type,
                     memoryReference: `&(${varobj.expression})`,
@@ -2024,6 +2076,10 @@ export class GDBDebugSession extends LoggingDebugSession {
                 printValues: mi.MIVarPrintValues.all,
             });
         }
+        // Grab the full path of parent.
+        const topLevelPathExpression =
+            varobj?.expression ??
+            (await this.getFullPathExpression(parentVarname));
 
         // iterate through the children
         for (const child of children.children) {
@@ -2035,10 +2091,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                     name,
                     printValues: mi.MIVarPrintValues.all,
                 });
+                // Append the child path to the top level full path.
+                const parentClassName = `${topLevelPathExpression}.${child.exp}`;
                 for (const objChild of objChildren.children) {
                     const childName = `${name}.${objChild.exp}`;
                     variables.push({
                         name: objChild.exp,
+                        evaluateName: `${parentClassName}.${objChild.exp}`,
                         value: objChild.value ? objChild.value : objChild.type,
                         type: objChild.type,
                         variablesReference:
@@ -2069,8 +2128,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 if (isArrayParent || isArrayChild) {
                     // can't use a relative varname (eg. var1.a.b.c) to create/update a new var so fetch and track these
                     // vars by evaluating their path expression from GDB
-                    const exprResponse = await mi.sendVarInfoPathExpression(
-                        this.gdb,
+                    const fullPath = await this.getFullPathExpression(
                         child.name
                     );
                     // create or update the var in GDB
@@ -2078,13 +2136,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                         frame.frameId,
                         frame.threadId,
                         depth,
-                        exprResponse.path_expr
+                        fullPath
                     );
                     if (!arrobj) {
                         const varCreateResponse = await mi.sendVarCreate(
                             this.gdb,
                             {
-                                expression: exprResponse.path_expr,
+                                expression: fullPath,
                                 frameId: frame.frameId,
                                 threadId: frame.threadId,
                             }
@@ -2093,7 +2151,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                             frame.frameId,
                             frame.threadId,
                             depth,
-                            exprResponse.path_expr,
+                            fullPath,
                             true,
                             false,
                             varCreateResponse
@@ -2114,8 +2172,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                     varobjName = arrobj.varname;
                 }
                 const variableName = isArrayChild ? name : child.exp;
+                const evaluateName =
+                    isArrayParent || isArrayChild
+                        ? await this.getFullPathExpression(child.name)
+                        : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
+                    evaluateName,
                     value,
                     type: child.type,
                     variablesReference:
@@ -2130,6 +2193,16 @@ export class GDBDebugSession extends LoggingDebugSession {
             }
         }
         return Promise.resolve(variables);
+    }
+
+    /** Query GDB using varXX name to get complete variable name */
+    protected async getFullPathExpression(inputVarName: string) {
+        const exprResponse = await mi.sendVarInfoPathExpression(
+            this.gdb,
+            inputVarName
+        );
+        // result from GDB looks like (parentName).field so remove ().
+        return exprResponse.path_expr.replace(/[()]/g, '');
     }
 
     // Register view

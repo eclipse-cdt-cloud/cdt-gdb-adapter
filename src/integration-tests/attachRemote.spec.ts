@@ -40,13 +40,15 @@ describe('attach remote', function () {
             }
         );
         port = await new Promise<number>((resolve, reject) => {
+            let accumulatedStderr = '';
             if (gdbserver.stderr) {
                 gdbserver.stderr.on('data', (data) => {
                     const line = String(data);
+                    accumulatedStderr += line;
                     const LISTENING_ON_PORT = 'Listening on port ';
-                    const index = line.indexOf(LISTENING_ON_PORT);
+                    const index = accumulatedStderr.indexOf(LISTENING_ON_PORT);
                     if (index >= 0) {
-                        const portStr = line
+                        const portStr = accumulatedStderr
                             .substr(index + LISTENING_ON_PORT.length, 6)
                             .trim();
                         resolve(parseInt(portStr, 10));
