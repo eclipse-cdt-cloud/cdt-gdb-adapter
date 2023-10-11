@@ -7,8 +7,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { compareVersions, parseGdbVersionOutput } from '../util';
+import {
+    compareVersions,
+    createEnvValues,
+    parseGdbVersionOutput,
+} from '../util';
 import { expect } from 'chai';
+import * as os from 'os';
 
 describe('util', async () => {
     it('compareVersions', async () => {
@@ -56,5 +61,84 @@ describe('util', async () => {
                 'GNU gdb (GDB) STMicroelectronics/Linux Base 7.4-71 [build Mar  1 2013]'
             )
         ).to.eq('7.4');
+    });
+});
+
+describe('createEnvValues', () => {
+    const initialENV = {
+        VAR1: 'TEST1',
+        VAR2: 'TEST2',
+    };
+
+    it('should not change source', () => {
+        const copyOfInitialValues = {
+            ...initialENV,
+        };
+        const valuesToInject = {
+            VAR3: 'TEST3',
+        };
+        const result = createEnvValues(copyOfInitialValues, valuesToInject);
+
+        expect(initialENV).to.deep.equals(copyOfInitialValues);
+        expect(result).to.deep.equals({ ...initialENV, ...valuesToInject });
+    });
+    it('should injects basic values', () => {
+        const valuesToInject = {
+            VAR4: 'TEST4',
+        };
+        const result = createEnvValues(initialENV, valuesToInject);
+
+        expect(result).to.deep.equals({ ...initialENV, ...valuesToInject });
+    });
+    it('should not change existing case', function () {
+        if (os.platform() !== 'win32') {
+            // Skip the test if not Windows (Run only for Windows)
+            this.skip();
+        }
+        const initialENV = {
+            VAR1: 'TEST1',
+        };
+        const valuesToInject = {
+            var1: 'TEST2',
+        };
+        const result = createEnvValues(initialENV, valuesToInject);
+
+        expect(result).to.deep.equals({ VAR1: 'TEST2' });
+    });
+    it('should inject both variable name cases', function () {
+        if (os.platform() === 'win32') {
+            // Skip the test for Windows
+            this.skip();
+        }
+        const initialENV = {
+            VAR1: 'TEST1',
+        };
+        const valuesToInject = {
+            var1: 'TEST2',
+        };
+        const result = createEnvValues(initialENV, valuesToInject);
+
+        expect(result).to.deep.equals({ VAR1: 'TEST1', var1: 'TEST2' });
+    });
+    it('should perform delete operations', () => {
+        const sourceENV = {
+            VAR1: 'TEST1',
+            VAR2: 'TEST2',
+            VAR3: 'TEST3',
+            VAR4: 'TEST4',
+        };
+
+        const expectedResult = {
+            VAR2: 'TEST2',
+            VAR4: 'TEST4',
+        };
+        const valuesToInject = {
+            VAR1: null,
+            VAR3: null,
+        };
+
+        const result = createEnvValues(sourceENV, valuesToInject);
+
+        expect(result).to.deep.equals(expectedResult);
     });
 });

@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { execFile } from 'child_process';
+import { platform } from 'os';
 import { promisify } from 'util';
-
 /**
  * This method actually launches 'gdb --version' to determine the version of
  * the GDB that is being used.
@@ -17,10 +17,18 @@ import { promisify } from 'util';
  * @param gdbPath the path to the GDB executable to be called
  * @return the detected version of GDB at gdbPath
  */
-export async function getGdbVersion(gdbPath: string): Promise<string> {
-    const { stdout, stderr } = await promisify(execFile)(gdbPath, [
-        '--version',
-    ]);
+export async function getGdbVersion(
+    gdbPath: string,
+    environment?: Record<string, string | null>
+): Promise<string> {
+    const gdbEnvironment = environment
+        ? createEnvValues(process.env, environment)
+        : process.env;
+    const { stdout, stderr } = await promisify(execFile)(
+        gdbPath,
+        ['--version'],
+        { env: gdbEnvironment }
+    );
 
     const gdbVersion = parseGdbVersionOutput(stdout);
     if (!gdbVersion) {
@@ -104,4 +112,45 @@ export function compareVersions(v1: string, v2: string): number {
     }
 
     return 0;
+}
+
+/**
+ * This method is providing an automatic operation to including new variables to process.env.
+ * Method is not injecting the new variables to current thread, rather it is returning a new
+ * object with included parameters.
+ *
+ * @param source
+ * 		Source environment variables to include.
+ * @param valuesToMerge
+ * 		Key-Value dictionary to include.
+ * @return
+ * 		New environment variables dictionary.
+ */
+export function createEnvValues(
+    source: NodeJS.ProcessEnv,
+    valuesToMerge: Record<string, string | null>
+): NodeJS.ProcessEnv {
+    const findTarget = (obj: any, key: string) => {
+        if (platform() === 'win32') {
+            return (
+                Object.keys(obj).find(
+                    (i) =>
+                        i.localeCompare(key, undefined, {
+                            sensitivity: 'accent',
+                        }) === 0
+                ) || key
+            );
+        }
+        return key;
+    };
+    const result = { ...source };
+    for (const [key, value] of Object.entries(valuesToMerge)) {
+        const target = findTarget(result, key);
+        if (value === null) {
+            delete result[target];
+        } else {
+            result[target] = value;
+        }
+    }
+    return result;
 }
