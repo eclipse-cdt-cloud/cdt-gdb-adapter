@@ -10,6 +10,9 @@
 import { execFile } from 'child_process';
 import { platform } from 'os';
 import { promisify } from 'util';
+import { dirname } from 'path';
+import { existsSync } from 'fs';
+
 /**
  * This method actually launches 'gdb --version' to determine the version of
  * the GDB that is being used.
@@ -19,6 +22,7 @@ import { promisify } from 'util';
  */
 export async function getGdbVersion(
     gdbPath: string,
+    gdbCwd?: string,
     environment?: Record<string, string | null>
 ): Promise<string> {
     const gdbEnvironment = environment
@@ -27,7 +31,7 @@ export async function getGdbVersion(
     const { stdout, stderr } = await promisify(execFile)(
         gdbPath,
         ['--version'],
-        { env: gdbEnvironment }
+        { cwd: gdbCwd, env: gdbEnvironment }
     );
 
     const gdbVersion = parseGdbVersionOutput(stdout);
@@ -153,4 +157,26 @@ export function createEnvValues(
         }
     }
     return result;
+}
+
+/**
+ * Calculate the CWD that should be used to launch gdb based on the program
+ * being debugged or the explicitly set cwd in the launch arguments.
+ *
+ * Note that launchArgs.program is optional here in preparation for
+ * debugging where no program is specified. See #262
+ *
+ * @param launchArgs Launch Arguments to compute GDB cwd from
+ * @returns effective cwd to use
+ */
+export function getGdbCwd(launchArgs: {
+    program?: string;
+    cwd?: string;
+}): string {
+    const cwd =
+        launchArgs.cwd ||
+        (launchArgs.program && existsSync(launchArgs.program)
+            ? dirname(launchArgs.program)
+            : process.cwd());
+    return existsSync(cwd) ? cwd : process.cwd();
 }
