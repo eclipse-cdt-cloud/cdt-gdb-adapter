@@ -34,16 +34,18 @@ import {
 } from './mi/data';
 import { StoppedEvent } from './stoppedEvent';
 import { VarObjType } from './varManager';
-import { createEnvValues } from './util';
+import { createEnvValues, getGdbCwd } from './util';
 
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
     gdbAsync?: boolean;
     gdbNonStop?: boolean;
+    // defaults to the environment of the process of the adapter
     environment?: Record<string, string | null>;
     program: string;
-    cwd?: string; // TODO not implemented
+    // defaults to dirname of the program, if present or the cwd of the process of the adapter
+    cwd?: string;
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
@@ -442,7 +444,11 @@ export class GDBDebugSession extends LoggingDebugSession {
                     'cdt-gdb-adapter: openGdbConsole is not supported on this platform'
                 );
             } else if (
-                !(await this.gdb.supportsNewUi(args.gdb, args.environment))
+                !(await this.gdb.supportsNewUi(
+                    args.gdb,
+                    getGdbCwd(args),
+                    args.environment
+                ))
             ) {
                 logger.warn(
                     `cdt-gdb-adapter: new-ui command not detected (${
@@ -478,7 +484,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         'runInTerminal',
                         {
                             kind: 'integrated',
-                            cwd: process.cwd(),
+                            cwd: getGdbCwd(requestArgs),
                             env: gdbEnvironment,
                             args: command,
                         } as DebugProtocol.RunInTerminalRequestArguments,

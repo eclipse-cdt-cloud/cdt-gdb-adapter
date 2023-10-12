@@ -21,7 +21,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { spawn, ChildProcess } from 'child_process';
 import { SerialPort, ReadlineParser } from 'serialport';
 import { Socket } from 'net';
-import { createEnvValues } from './util';
+import { createEnvValues, getGdbCwd } from './util';
 
 interface UARTArguments {
     // Path to the serial port connected to the UART on the board.
@@ -63,6 +63,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // defaults to 'gdbserver --once :0 ${args.program}' (requires gdbserver >= 7.3)
     server?: string;
     serverParameters?: string[];
+    // Specifies the working directory of gdbserver, defaults to environment in RequestArguments
     environment?: Record<string, string | null>;
     // Regular expression to extract port from by examinging stdout/err of server.
     // Once server is launched, port will be set to this if port is not set.
@@ -74,7 +75,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     serverStartupDelay?: number;
     // Automatically kill the launched server when client issues a disconnect (default: true)
     automaticallyKillServer?: boolean;
-    // Specifies the working directory of gdbserver
+    // Specifies the working directory of gdbserver, defaults to cwd in RequestArguments
     cwd?: string;
 }
 
@@ -209,7 +210,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         const target = args.target;
         const serverExe =
             target.server !== undefined ? target.server : 'gdbserver';
-        const serverCwd = target.cwd !== undefined ? target.cwd : args.cwd;
+        const serverCwd =
+            target.cwd !== undefined ? target.cwd : getGdbCwd(args);
         const serverParams =
             target.serverParameters !== undefined
                 ? target.serverParameters

@@ -19,7 +19,12 @@ import * as mi from './mi';
 import { MIResponse } from './mi';
 import { MIParser } from './MIParser';
 import { VarManager } from './varManager';
-import { compareVersions, getGdbVersion, createEnvValues } from './util';
+import {
+    compareVersions,
+    getGdbVersion,
+    createEnvValues,
+    getGdbCwd,
+} from './util';
 
 export interface MIExecNextRequest {
     reverse?: boolean;
@@ -73,7 +78,11 @@ export class GDBBackend extends events.EventEmitter {
         requestArgs: LaunchRequestArguments | AttachRequestArguments
     ) {
         const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(gdbPath, requestArgs.environment);
+        this.gdbVersion = await getGdbVersion(
+            gdbPath,
+            getGdbCwd(requestArgs),
+            requestArgs.environment
+        );
         let args = ['--interpreter=mi2'];
         if (requestArgs.gdbArguments) {
             args = args.concat(requestArgs.gdbArguments);
@@ -81,7 +90,10 @@ export class GDBBackend extends events.EventEmitter {
         const gdbEnvironment = requestArgs.environment
             ? createEnvValues(process.env, requestArgs.environment)
             : process.env;
-        this.proc = spawn(gdbPath, args, { env: gdbEnvironment });
+        this.proc = spawn(gdbPath, args, {
+            cwd: getGdbCwd(requestArgs),
+            env: gdbEnvironment,
+        });
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -103,7 +115,11 @@ export class GDBBackend extends events.EventEmitter {
         cb: (args: string[]) => Promise<void>
     ) {
         const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(gdbPath, requestArgs.environment);
+        this.gdbVersion = await getGdbVersion(
+            gdbPath,
+            getGdbCwd(requestArgs),
+            requestArgs.environment
+        );
         // Use dynamic import to remove need for natively building this adapter
         // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
         const { Pty } = await import('./native/pty');
@@ -201,9 +217,14 @@ export class GDBBackend extends events.EventEmitter {
 
     public async supportsNewUi(
         gdbPath?: string,
+        gdbCwd?: string,
         environment?: Record<string, string | null>
     ): Promise<boolean> {
-        this.gdbVersion = await getGdbVersion(gdbPath || 'gdb', environment);
+        this.gdbVersion = await getGdbVersion(
+            gdbPath || 'gdb',
+            gdbCwd,
+            environment
+        );
         return this.gdbVersionAtLeast('7.12');
     }
 
