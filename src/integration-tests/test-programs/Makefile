@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp vars_env mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试 cwd.exe
+BINS = empty empty\ space evaluate vars vars_cpp vars_env mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试 cwd.exe stepping
 
 .PHONY: all
 all: $(BINS)
@@ -84,6 +84,9 @@ MultiThreadRunControl: MultiThreadRunControl.o
 	$(LINK_CXX)
 
 stderr: stderr.o
+	$(LINK)
+
+stepping: stepping.o
 	$(LINK)
 
 %.o: %.c
