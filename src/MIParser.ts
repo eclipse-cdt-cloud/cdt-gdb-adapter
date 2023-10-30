@@ -11,10 +11,16 @@ import { Readable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from './GDBBackend';
 import * as utf8 from 'utf8';
+
+type CommandQueue = {
+    [key: string]: (resultClass: string, resultData: any) => void;
+};
+
 export class MIParser {
     protected line = '';
     protected pos = 0;
-    protected commandQueue: any = {};
+
+    protected commandQueue: CommandQueue = {};
     protected waitReady?: (value?: void | PromiseLike<void>) => void;
 
     constructor(protected gdb: GDBBackend) {}
