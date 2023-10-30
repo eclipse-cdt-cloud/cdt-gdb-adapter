@@ -341,6 +341,9 @@ export class MIParser {
                 break;
             }
             case '(':
+                // this is the (gdb) prompt and used
+                // to know that GDB has started and is ready
+                // for commands
                 if (this.waitReady) {
                     this.waitReady();
                     this.waitReady = undefined;
