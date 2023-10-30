@@ -6,3 +6,5 @@ node_modules
 /test-reports/
 *.tgz
 yarn-error.log
+coverage/
+.nyc_output/

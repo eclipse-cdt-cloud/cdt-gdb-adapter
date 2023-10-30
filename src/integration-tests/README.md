@@ -10,6 +10,22 @@ session. It uses the `gdb` in your `PATH`.
 2. Build the package as usual: run `yarn` in the top-level directory
 3. Run the tests: run `yarn test:integration` in the top-level directory
 
+## Test coverage
+
+There are many scripts to run test, see the `test:*` scripts in package.json.
+To run test coverage, run the test script with nyc, e.g.:
+
+```sh
+# run all the tests with nyc
+yarn run nyc yarn test
+# or run the main subset
+yarn run nyc yarn test:integration
+# or run any specific subset
+yarn run nyc yarn test:integration-gdb-async-off-remote-target
+```
+
+When the test run is complete, see the report in the `coverage` directory.
+
 ## Running the tests using Docker
 
 The tests can be run on a docker container. This is useful to run the testsuite
