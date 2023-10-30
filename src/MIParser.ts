@@ -32,14 +32,19 @@ export class MIParser {
                 }
                 buff += newChunk;
                 while (regexArray) {
-                    this.line = buff.slice(0, regexArray.index);
-                    this.pos = 0;
-                    this.handleLine();
+                    const line = buff.slice(0, regexArray.index);
+                    this.parseLine(line);
                     buff = buff.slice(regexArray.index + regexArray[0].length);
                     regexArray = lineBreakRegex.exec(buff);
                 }
             });
         });
+    }
+
+    public parseLine(line: string) {
+        this.line = line;
+        this.pos = 0;
+        this.handleLine();
     }
 
     public queueCommand(
