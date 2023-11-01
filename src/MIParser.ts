@@ -162,7 +162,7 @@ export class MIParser {
     protected handleString() {
         let str = '';
         for (let c = this.next(); c; c = this.next()) {
-            if (c === '=' || c === ',') {
+            if (c === '=' || c === ',' || c === '}') {
                 this.back();
                 return str;
             } else {
@@ -177,6 +177,7 @@ export class MIParser {
         const result: any = {};
         if (c === '{') {
             c = this.next();
+            let key = 0;
             while (c !== '}') {
                 if (c !== ',') {
                     this.back();
@@ -184,6 +185,13 @@ export class MIParser {
                 const name = this.handleString();
                 if (this.next() === '=') {
                     result[name] = this.handleValue();
+                } else {
+                    /**
+                     * e.g. script={"p 123","p 321","p 789"} will be parsed into object
+                     * { script: { '0': 'p 123', '1': 'p 321', '2': 'p 789' } }
+                     */
+                    result[key++] = name.slice(1, name.length - 1); // Remove the surrounding quotation marks.
+                    this.back();
                 }
                 c = this.next();
             }
