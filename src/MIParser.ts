@@ -191,20 +191,12 @@ export class MIParser {
                 }
             } else {
                 // "object" contains just values
-                c = this.next();
+                this.back();
                 let key = 0;
                 while (c !== '}') {
-                    let value = '';
-                    while (c !== '"') {
-                        value += c;
-                        c = this.next();
-                    }
-                    result[key++] = value;
+                    let value = this.handleCString();
+                    if (value) result[key++] = value;
                     c = this.next();
-                    if (c === ',') {
-                        c = this.next();
-                        c = this.next();
-                    }
                 }
             }
         }
