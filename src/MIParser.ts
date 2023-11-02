@@ -177,7 +177,8 @@ export class MIParser {
         const result: any = {};
         if (c === '{') {
             c = this.next();
-            if (c !== '"') { // oject contains name-value pairs
+            if (c !== '"') {
+                // oject contains name-value pairs
                 while (c !== '}') {
                     if (c !== ',') {
                         this.back();
@@ -188,11 +189,12 @@ export class MIParser {
                     }
                     c = this.next();
                 }
-            } else { // "object" contains just values
+            } else {
+                // "object" contains just values
                 c = this.next();
                 let key = 0;
                 while (c !== '}') {
-                    let value = "";
+                    let value = '';
                     while (c !== '"') {
                         value += c;
                         c = this.next();
