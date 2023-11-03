@@ -1,4 +1,5 @@
 {
   "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
-  "eslint.packageManager": "yarn"
+  "eslint.packageManager": "yarn",
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }
