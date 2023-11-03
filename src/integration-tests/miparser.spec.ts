@@ -154,4 +154,23 @@ describe('MI Parser Test Suite', function () {
             'stdout'
         );
     });
+
+    it('structure that starts with a curly bracket and contains values but not keys', async function () {
+        parser.parseLine(
+            '+message,bkpt={number="1",type="breakpoint",thread-groups=["i1"],script={"p }123","p 321","p 789"}}'
+        );
+        sinon.assert.calledOnceWithExactly(
+            gdbBackendMock.emit as sinon.SinonStub,
+            'statusAsync',
+            'message',
+            {
+                bkpt: {
+                    number: '1',
+                    type: 'breakpoint',
+                    'thread-groups': ['i1'],
+                    script: { '0': 'p }123', '1': 'p 321', '2': 'p 789' },
+                },
+            }
+        );
+    });
 });

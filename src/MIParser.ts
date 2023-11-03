@@ -177,15 +177,27 @@ export class MIParser {
         const result: any = {};
         if (c === '{') {
             c = this.next();
-            while (c !== '}') {
-                if (c !== ',') {
-                    this.back();
+            if (c !== '"') {
+                // oject contains name-value pairs
+                while (c !== '}') {
+                    if (c !== ',') {
+                        this.back();
+                    }
+                    const name = this.handleString();
+                    if (this.next() === '=') {
+                        result[name] = this.handleValue();
+                    }
+                    c = this.next();
                 }
-                const name = this.handleString();
-                if (this.next() === '=') {
-                    result[name] = this.handleValue();
+            } else {
+                // "object" contains just values
+                this.back();
+                let key = 0;
+                while (c !== '}') {
+                    let value = this.handleCString();
+                    if (value) result[key++] = value;
+                    c = this.next();
                 }
-                c = this.next();
             }
         }
 
