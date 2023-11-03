@@ -335,6 +335,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         response.body.supportsDisassembleRequest = true;
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
+        response.body.supportsSteppingGranularity = true;
         this.sendResponse(response);
     }
 
@@ -1003,7 +1004,9 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.NextArguments
     ): Promise<void> {
         try {
-            await mi.sendExecNext(this.gdb, args.threadId);
+            await (args.granularity === 'instruction'
+                ? mi.sendExecNextInstruction(this.gdb, args.threadId)
+                : mi.sendExecNext(this.gdb, args.threadId));
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -1019,7 +1022,9 @@ export class GDBDebugSession extends LoggingDebugSession {
         args: DebugProtocol.StepInArguments
     ): Promise<void> {
         try {
-            await mi.sendExecStep(this.gdb, args.threadId);
+            await (args.granularity === 'instruction'
+                ? mi.sendExecStepInstruction(this.gdb, args.threadId)
+                : mi.sendExecStep(this.gdb, args.threadId));
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
