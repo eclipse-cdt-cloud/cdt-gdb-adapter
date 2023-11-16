@@ -1,5 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const net = require('net');
+const os = require('os');
 
 // Create socket echo server.
 const socketServer = new net.Server();
@@ -12,7 +13,7 @@ socketServer.on('connection', (connection) => {
     });
 
     // Echo "Hello World!"
-    connection.write('Hello World!\n');
+    connection.write(`Hello World!${os.EOL}`);
 });
 
 socketServer.on('close', () => {
