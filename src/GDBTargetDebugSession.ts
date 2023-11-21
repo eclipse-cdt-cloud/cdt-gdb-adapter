@@ -391,15 +391,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.socket = new Socket();
             this.socket.setEncoding('utf-8');
 
-            const eolChar: string =
-                uart.eolCharacter === 'CRLF' ? '\r\n' : '\n';
-
             let tcpUartData = '';
             this.socket.on('data', (data: string) => {
                 for (const char of data) {
-                    if (char === eolChar) {
+                    if (char === '\n') {
                         this.sendEvent(
-                            new OutputEvent(tcpUartData + os.EOL, 'Socket')
+                            new OutputEvent(tcpUartData + '\n', 'Socket')
                         );
                         tcpUartData = '';
                     } else {
