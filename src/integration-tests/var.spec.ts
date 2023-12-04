@@ -12,6 +12,7 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
+    expectRejection,
     getScopes,
     resolveLineTagLocations,
     Scope,
@@ -553,6 +554,45 @@ describe('Variables Test Suite', function () {
         });
         expect(res.body.result).eq(
             '[\n  "104 \'h\'",\n  "101 \'e\'",\n  "108 \'l\'",\n  "108 \'l\'",\n  "111 \'o\'",\n  "0 \'\\\\000\'"\n]'
+        );
+    });
+
+    it('catch error from casting of struct to a character array', async function () {
+        // skip ahead to array initialization
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsSrc },
+            breakpoints: [{ line: lineTags['char string setup'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: lineTags['char string setup'],
+            path: varsSrc,
+        });
+        // step the program and see that the values were passed to the program and evaluated.
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsSrc, line: lineTags['char string setup'] + 1 }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // Setup the new variable to be evaluated.
+        const res2 = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '(char[])k',
+            frameId: scope.frame.id,
+        });
+        expect(res2.body.result).eq('[6]');
+        // Call handleVariableRequestObject() on above using returned variablesReference.
+        const error = await expectRejection(
+            dc.variablesRequest({
+                variablesReference: res2.body.variablesReference,
+            })
+        );
+        expect(error.message).contains(
+            '-var-create: unable to create variable object'
         );
     });
 });
