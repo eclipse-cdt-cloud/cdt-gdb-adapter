@@ -79,18 +79,32 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     cwd?: string;
 }
 
-export interface ImageAndSymbolArguments {
+export interface SymbolFileAndOffset {
     // If specified, a symbol file to load at the given (optional) offset
+    file: string;
+    offset?: string;
+}
+
+export interface ImageFileAndOffset {
+    // If specified, an image file to load at the given (optional) offset
+    file: string;
+    offset?: string;
+}
+
+export interface ImageAndSymbolsArguments {
+    symbolFilesAndOffset?: SymbolFileAndOffset[];
+    imageFilesAndOffset?: ImageFileAndOffset[];
+    // Deprecated, use symbolFilesAndOffset instead. If specified, a symbol file to load at the given (optional) offset
     symbolFileName?: string;
     symbolOffset?: string;
-    // If specified, an image file to load at the given (optional) offset
+    // Deprecated, use imageFilesAndOffset instead. If specified, an image file to load at the given (optional) offset
     imageFileName?: string;
     imageOffset?: string;
 }
 
 export interface TargetAttachRequestArguments extends RequestArguments {
     target?: TargetAttachArguments;
-    imageAndSymbols?: ImageAndSymbolArguments;
+    imageAndSymbols?: ImageAndSymbolsArguments;
     // Optional commands to issue between loading image and resuming target
     preRunCommands?: string[];
 }
@@ -98,7 +112,7 @@ export interface TargetAttachRequestArguments extends RequestArguments {
 export interface TargetLaunchRequestArguments
     extends TargetAttachRequestArguments {
     target?: TargetLaunchArguments;
-    imageAndSymbols?: ImageAndSymbolArguments;
+    imageAndSymbols?: ImageAndSymbolsArguments;
     // Optional commands to issue between loading image and resuming target
     preRunCommands?: string[];
 }
@@ -453,6 +467,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.gdb.sendEnablePrettyPrint();
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.symbolFileName) {
+                    // Deprecated
                     if (args.imageAndSymbols.symbolOffset) {
                         await this.gdb.sendAddSymbolFile(
                             args.imageAndSymbols.symbolFileName,
@@ -462,6 +477,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         await this.gdb.sendFileSymbolFile(
                             args.imageAndSymbols.symbolFileName
                         );
+                    }
+                } else {
+                    const symFiles: SymbolFileAndOffset[] =
+                        args.imageAndSymbols.symbolFilesAndOffset ?? [];
+                    for (const symF of symFiles) {
+                        const offset: string = symF.offset ? symF.offset : '';
+                        await this.gdb.sendAddSymbolFile(symF.file, offset);
                     }
                 }
             }
@@ -511,10 +533,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
+                    // Deprecated
                     await this.gdb.sendLoad(
                         args.imageAndSymbols.imageFileName,
                         args.imageAndSymbols.imageOffset
                     );
+                } else {
+                    const imgFiles: ImageFileAndOffset[] =
+                        args.imageAndSymbols.imageFilesAndOffset ?? [];
+                    for (const imgF of imgFiles) {
+                        await this.gdb.sendLoad(imgF.file, imgF.offset);
+                    }
                 }
             }
             await this.gdb.sendCommands(args.preRunCommands);
