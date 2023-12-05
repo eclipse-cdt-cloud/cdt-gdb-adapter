@@ -32,5 +32,6 @@ int main()
     int rax = 1;
     const unsigned char h[] = {0x01, 0x10, 0x20};
     const unsigned char k[] = "hello"; // char string setup
+    r.z.a = 10;     // update embedded int
     return 0;
 }

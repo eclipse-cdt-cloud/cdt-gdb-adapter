@@ -2088,9 +2088,14 @@ export class GDBDebugSession extends LoggingDebugSession {
             });
         }
         // Grab the full path of parent.
-        const topLevelPathExpression =
+        const tempTopLevelPathExpression =
             varobj?.expression ??
             (await this.getFullPathExpression(parentVarname));
+
+        // In the case of Expressions, there might be casting, so add outer ()
+        const topLevelPathExpression = varobj?.isVar
+            ? tempTopLevelPathExpression
+            : `(${tempTopLevelPathExpression})`;
 
         // iterate through the children
         for (const child of children.children) {
@@ -2123,8 +2128,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
             } else {
                 // check if we're dealing with an array
-                let name = `${ref.varobjName}.${child.exp}`;
-                let varobjName = name;
+                let variableName = child.exp;
+                let varobjName = `${ref.varobjName}.${child.exp}`;
+                let fullPath = `${topLevelPathExpression}.${variableName}`;
                 let value = child.value ? child.value : child.type;
                 const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild =
@@ -2132,16 +2138,14 @@ export class GDBDebugSession extends LoggingDebugSession {
                         ? arrayRegex.test(varobj.type) &&
                           arrayChildRegex.test(child.exp)
                         : false;
-                if (isArrayChild) {
-                    // update the display name for array elements to have square brackets
-                    name = `[${child.exp}]`;
-                }
                 if (isArrayParent || isArrayChild) {
                     // can't use a relative varname (eg. var1.a.b.c) to create/update a new var so fetch and track these
                     // vars by evaluating their path expression from GDB
-                    const fullPath = await this.getFullPathExpression(
-                        child.name
-                    );
+                    if (isArrayChild) {
+                        // update the display name for array elements to have square brackets
+                        variableName = `[${child.exp}]`;
+                        fullPath = `(${topLevelPathExpression})${variableName}`;
+                    }
                     // create or update the var in GDB
                     let arrobj = this.gdb.varManager.getVar(
                         frame.frameId,
@@ -2182,14 +2186,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                     arrobj.isChild = true;
                     varobjName = arrobj.varname;
                 }
-                const variableName = isArrayChild ? name : child.exp;
-                const evaluateName =
-                    isArrayParent || isArrayChild
-                        ? await this.getFullPathExpression(child.name)
-                        : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
-                    evaluateName,
+                    evaluateName: fullPath,
                     value,
                     type: child.type,
                     variablesReference:
@@ -2212,8 +2211,8 @@ export class GDBDebugSession extends LoggingDebugSession {
             this.gdb,
             inputVarName
         );
-        // result from GDB looks like (parentName).field so remove ().
-        return exprResponse.path_expr.replace(/[()]/g, '');
+        // GDB result => (parentName).field
+        return exprResponse.path_expr;
     }
 
     // Register view
