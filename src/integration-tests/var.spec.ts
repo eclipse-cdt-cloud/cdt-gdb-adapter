@@ -36,6 +36,7 @@ describe('Variables Test Suite', function () {
         'STOP HERE': 0,
         'After array init': 0,
         'char string setup': 0,
+        'update embedded int': 0,
     };
 
     const hexValueRegex = /^0x[\da-fA-F]+$/;
@@ -554,5 +555,119 @@ describe('Variables Test Suite', function () {
         expect(res.body.result).eq(
             '[\n  "104 \'h\'",\n  "101 \'e\'",\n  "108 \'l\'",\n  "108 \'l\'",\n  "111 \'o\'",\n  "0 \'\\\\000\'"\n]'
         );
+    });
+
+    it('support watch a character array', async function () {
+        // skip ahead to array initialization
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsSrc },
+            breakpoints: [{ line: lineTags['char string setup'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: lineTags['char string setup'],
+            path: varsSrc,
+        });
+        // step the program and see that the values were passed to the program and evaluated.
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsSrc, line: lineTags['char string setup'] + 1 }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // Setup the new variable to be evaluated.
+        const res2 = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '(char[])k',
+            frameId: scope.frame.id,
+        });
+        expect(res2.body.result).eq('[6]');
+        // Call handleVariableRequestObject() on above using returned variablesReference.
+        const vars = await dc.variablesRequest({
+            variablesReference: res2.body.variablesReference,
+        });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(6);
+        verifyVariable(vars.body.variables[0], '[0]', 'char', "104 'h'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(vars.body.variables[1], '[1]', 'char', "101 'e'", {
+            hasMemoryReference: false,
+        });
+    });
+
+    it.only('support watch of char cast of an int in complex structure', async function () {
+        // skip ahead to array initialization
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsSrc },
+            breakpoints: [{ line: lineTags['update embedded int'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: lineTags['update embedded int'],
+            path: varsSrc,
+        });
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // Setup the new variable to be evaluated.
+        const res = await dc.evaluateRequest({
+            context: 'watch',
+            expression: '(char[])r.z.a',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('[4]');
+        // Call handleVariableRequestObject() on above using returned variablesReference.
+        let vars = await dc.variablesRequest({
+            variablesReference: res.body.variablesReference,
+        });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(4);
+        verifyVariable(vars.body.variables[0], '[0]', 'char', "3 '\\003'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(vars.body.variables[1], '[1]', 'char', "0 '\\000'", {
+            hasMemoryReference: false,
+        });
+        // step the program and see that the values were passed to the program and evaluated.
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsSrc, line: lineTags['update embedded int'] + 1 }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // Setup the updated embedded variable to be evaluated.
+        const res2 = await dc.evaluateRequest({
+            context: 'watch',
+            expression: '(char[])r.z.a',
+            frameId: scope.frame.id,
+        });
+        expect(res2.body.result).eq('[4]');
+        // Call handleVariableRequestObject() on above using returned variablesReference.
+        vars = await dc.variablesRequest({
+            variablesReference: res2.body.variablesReference,
+        });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(4);
+        verifyVariable(vars.body.variables[0], '[0]', 'char', "10 '\\n'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(vars.body.variables[1], '[1]', 'char', "0 '\\000'", {
+            hasMemoryReference: false,
+        });
     });
 });
