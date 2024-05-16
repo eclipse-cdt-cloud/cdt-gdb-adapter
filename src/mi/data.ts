@@ -54,21 +54,37 @@ export function sendDataReadMemoryBytes(
     gdb: GDBBackend,
     address: string,
     size: number,
-    offset = 0
+    offset = 0,
+    threadId?: number,
+    frameId?: number
 ): Promise<MIDataReadMemoryBytesResponse> {
-    return gdb.sendCommand(
-        `-data-read-memory-bytes -o ${offset} "${address}" ${size}`
-    );
+    let command = `-data-read-memory-bytes`;
+    if (threadId !== undefined) {
+        command += ` --thread ${threadId}`;
+    }
+    if (frameId !== undefined) {
+        command += ` --frame ${frameId}`;
+    }
+    command += ` -o ${offset} "${address}" ${size}`;
+    return gdb.sendCommand(command);
 }
 
 export function sendDataWriteMemoryBytes(
     gdb: GDBBackend,
     memoryReference: string,
-    data: string
+    data: string,
+    threadId?: number,
+    frameId?: number
 ): Promise<void> {
-    return gdb.sendCommand(
-        `-data-write-memory-bytes "${memoryReference}" "${data}"`
-    );
+    let command = `-data-write-memory-bytes`;
+    if (threadId !== undefined) {
+        command += ` --thread ${threadId}`;
+    }
+    if (frameId !== undefined) {
+        command += ` --frame ${frameId}`;
+    }
+    command += ` "${memoryReference}" "${data}"`;
+    return gdb.sendCommand(command);
 }
 
 export function sendDataEvaluateExpression(

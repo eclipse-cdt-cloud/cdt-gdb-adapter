@@ -142,9 +142,17 @@ export function sendVarUpdate(
             | MIVarPrintValues.no
             | MIVarPrintValues.all
             | MIVarPrintValues.simple;
+        threadId?: number;
+        frameId?: number;
     }
 ): Promise<MIVarUpdateResponse> {
     let command = '-var-update';
+    if (params.threadId !== undefined) {
+        command += ` --thread ${params.threadId}`;
+    }
+    if (params.frameId !== undefined) {
+        command += ` --frame ${params.frameId}`;
+    }
     if (params.printValues) {
         command += ` ${params.printValues}`;
     } else {
@@ -162,9 +170,18 @@ export function sendVarDelete(
     gdb: GDBBackend,
     params: {
         varname: string;
+        threadId?: number;
+        frameId?: number;
     }
 ): Promise<void> {
-    const command = `-var-delete ${params.varname}`;
+    let command = `-var-delete`;
+    if (params.threadId !== undefined) {
+        command += ` --thread ${params.threadId}`;
+    }
+    if (params.frameId !== undefined) {
+        command += ` --frame ${params.frameId}`;
+    }
+    command += ` ${params.varname}`;
     return gdb.sendCommand(command);
 }
 
@@ -183,9 +200,18 @@ export function sendVarEvaluateExpression(
     gdb: GDBBackend,
     params: {
         varname: string;
+        threadId?: number;
+        frameId?: number;
     }
 ): Promise<MIVarEvalResponse> {
-    const command = `-var-evaluate-expression ${params.varname}`;
+    let command = '-var-evaluate-expression';
+    if (params.threadId !== undefined) {
+        command += ` --thread ${params.threadId}`;
+    }
+    if (params.frameId !== undefined) {
+        command += ` --frame ${params.frameId}`;
+    }
+    command += ` ${params.varname}`;
     return gdb.sendCommand(command);
 }
 
