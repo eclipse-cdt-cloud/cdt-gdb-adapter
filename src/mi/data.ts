@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 import { MIResponse, MIRegisterValueInfo } from './base';
 
 interface MIDataReadMemoryBytesResponse {
@@ -51,7 +51,7 @@ export interface MIGDBDataEvaluateExpressionResponse extends MIResponse {
 }
 
 export function sendDataReadMemoryBytes(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     address: string,
     size: number,
     offset = 0
@@ -62,7 +62,7 @@ export function sendDataReadMemoryBytes(
 }
 
 export function sendDataWriteMemoryBytes(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     memoryReference: string,
     data: string
 ): Promise<void> {
@@ -72,7 +72,7 @@ export function sendDataWriteMemoryBytes(
 }
 
 export function sendDataEvaluateExpression(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     expr: string
 ): Promise<MIGDBDataEvaluateExpressionResponse> {
     return gdb.sendCommand(`-data-evaluate-expression "${expr}"`);
@@ -80,7 +80,7 @@ export function sendDataEvaluateExpression(
 
 // https://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Data-Manipulation.html#The-_002ddata_002ddisassemble-Command
 export async function sendDataDisassemble(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     startAddress: string,
     endAddress: string
 ): Promise<MIDataDisassembleResponse> {
@@ -120,7 +120,7 @@ export async function sendDataDisassemble(
 }
 
 export function sendDataListRegisterNames(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         regno?: number[];
         frameId: number;
@@ -137,7 +137,7 @@ export function sendDataListRegisterNames(
 }
 
 export function sendDataListRegisterValues(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         fmt: string;
         regno?: number[];

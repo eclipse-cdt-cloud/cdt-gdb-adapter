@@ -9,9 +9,20 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { logger } from '@vscode/debugadapter/lib/logger';
-import { GDBBackend } from '../../../GDBBackend';
-import { GDBTargetDebugSession } from '../../../GDBTargetDebugSession';
+import { GDBBackend } from '../../../gdb/GDBBackend';
+import { GDBTargetDebugSession } from '../../../desktop/GDBTargetDebugSession';
 import { MIBreakpointLocation, MIBreakpointInsertOptions } from '../../../mi';
+import { GDBFileSystemProcessManager } from '../../../desktop/processManagers/GDBFileSystemProcessManager';
+import {
+    AttachRequestArguments,
+    LaunchRequestArguments,
+} from '../../../types/session';
+import {
+    IGDBBackend,
+    IGDBBackendFactory,
+    IGDBProcessManager,
+} from '../../../types/gdb';
+import { GDBDebugSessionBase } from '../../../gdb/GDBDebugSessionBase';
 
 process.on('uncaughtException', (err: any) => {
     logger.error(JSON.stringify(err));
@@ -45,10 +56,26 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
     }
 }
 
+class DynamicBreakpointBackendFactory implements IGDBBackendFactory {
+    async createGDBManager(
+        session: GDBDebugSessionBase,
+        args: LaunchRequestArguments | AttachRequestArguments
+    ): Promise<IGDBProcessManager> {
+        return new GDBFileSystemProcessManager();
+    }
+
+    async createBackend(
+        session: GDBDebugSessionBase,
+        manager: IGDBProcessManager,
+        args: LaunchRequestArguments | AttachRequestArguments
+    ): Promise<IGDBBackend> {
+        return new DynamicBreakpointOptionsGDBBackend(manager);
+    }
+}
+
 class DynamicBreakpointOptionsGDBDebugSession extends GDBTargetDebugSession {
-    gdb = this.createBackend();
-    protected createBackend(): GDBBackend {
-        return new DynamicBreakpointOptionsGDBBackend();
+    constructor() {
+        super(new DynamicBreakpointBackendFactory());
     }
 }
 

@@ -9,7 +9,7 @@
  *********************************************************************/
 import { Readable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
-import { GDBBackend } from './GDBBackend';
+import { IGDBBackend } from './types/gdb';
 import * as utf8 from 'utf8';
 
 type CommandQueue = {
@@ -23,7 +23,7 @@ export class MIParser {
     protected commandQueue: CommandQueue = {};
     protected waitReady?: (value?: void | PromiseLike<void>) => void;
 
-    constructor(protected gdb: GDBBackend) {}
+    constructor(protected gdb: IGDBBackend) {}
 
     public parse(stream: Readable): Promise<void> {
         return new Promise((resolve) => {

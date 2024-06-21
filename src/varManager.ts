@@ -1,4 +1,4 @@
-import { GDBBackend } from './GDBBackend';
+import { IGDBBackend } from './types/gdb';
 import { MIVarCreateResponse } from './mi/var';
 import { sendVarCreate, sendVarDelete, sendVarUpdate } from './mi/var';
 
@@ -20,7 +20,7 @@ export class VarManager {
         VarObjType[]
     >();
 
-    constructor(protected gdb: GDBBackend) {
+    constructor(protected gdb: IGDBBackend) {
         this.gdb = gdb;
     }
 

@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 import { MIResponse } from './base';
 
 export enum MIVarPrintValues {
@@ -71,7 +71,7 @@ function quote(expression: string) {
 }
 
 export function sendVarCreate(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         name?: string;
         frameAddr?: string;
@@ -111,7 +111,7 @@ export function sendVarCreate(
 }
 
 export function sendVarListChildren(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         printValues?:
             | MIVarPrintValues.no
@@ -135,7 +135,7 @@ export function sendVarListChildren(
 }
 
 export function sendVarUpdate(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         name?: string;
         printValues?:
@@ -159,7 +159,7 @@ export function sendVarUpdate(
 }
 
 export function sendVarDelete(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         varname: string;
     }
@@ -169,7 +169,7 @@ export function sendVarDelete(
 }
 
 export function sendVarAssign(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         varname: string;
         expression: string;
@@ -180,7 +180,7 @@ export function sendVarAssign(
 }
 
 export function sendVarEvaluateExpression(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         varname: string;
     }
@@ -190,7 +190,7 @@ export function sendVarEvaluateExpression(
 }
 
 export function sendVarInfoPathExpression(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     name: string
 ): Promise<MIVarPathInfoResponse> {
     const command = `-var-info-path-expression ${name}`;
@@ -198,7 +198,7 @@ export function sendVarInfoPathExpression(
 }
 
 export function sendVarSetFormatToHex(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     name: string
 ): Promise<void> {
     const command = `-var-set-format ${name} hexadecimal`;

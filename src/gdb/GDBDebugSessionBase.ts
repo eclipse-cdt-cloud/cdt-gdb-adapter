@@ -9,113 +9,35 @@
  *********************************************************************/
 import * as os from 'os';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as mi from '../mi';
 import {
-    DebugSession,
     Handles,
     InitializedEvent,
     Logger,
     logger,
     LoggingDebugSession,
     OutputEvent,
-    Response,
     Scope,
     Source,
     StackFrame,
     TerminatedEvent,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import { GDBBackend } from './GDBBackend';
-import * as mi from './mi';
+import { StoppedEvent } from '../stoppedEvent';
+import { VarObjType } from '../varManager';
 import {
-    sendDataReadMemoryBytes,
-    sendDataDisassemble,
-    sendDataWriteMemoryBytes,
-} from './mi/data';
-import { StoppedEvent } from './stoppedEvent';
-import { VarObjType } from './varManager';
-import { createEnvValues, getGdbCwd } from './util';
-
-export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
-    gdb?: string;
-    gdbArguments?: string[];
-    gdbAsync?: boolean;
-    gdbNonStop?: boolean;
-    // defaults to the environment of the process of the adapter
-    environment?: Record<string, string | null>;
-    program: string;
-    // defaults to dirname of the program, if present or the cwd of the process of the adapter
-    cwd?: string;
-    verbose?: boolean;
-    logFile?: string;
-    openGdbConsole?: boolean;
-    initCommands?: string[];
-    hardwareBreakpoint?: boolean;
-}
-
-export interface LaunchRequestArguments extends RequestArguments {
-    arguments?: string;
-}
-
-export interface AttachRequestArguments extends RequestArguments {
-    processId: string;
-}
-
-export interface FrameReference {
-    threadId: number;
-    frameId: number;
-}
-
-export interface FrameVariableReference {
-    type: 'frame';
-    frameHandle: number;
-}
-
-export interface ObjectVariableReference {
-    type: 'object';
-    frameHandle: number;
-    varobjName: string;
-}
-
-export interface RegisterVariableReference {
-    type: 'registers';
-    frameHandle: number;
-    regname?: string;
-}
-
-export type VariableReference =
-    | FrameVariableReference
-    | ObjectVariableReference
-    | RegisterVariableReference;
-
-export interface MemoryRequestArguments {
-    address: string;
-    length: number;
-    offset?: number;
-}
-
-/**
- * Response for our custom 'cdt-gdb-adapter/Memory' request.
- */
-export interface MemoryContents {
-    /* Hex-encoded string of bytes.  */
-    data: string;
-    address: string;
-}
-
-export interface MemoryResponse extends Response {
-    body: MemoryContents;
-}
-
-export interface CDTDisassembleArguments
-    extends DebugProtocol.DisassembleArguments {
-    /**
-     * Memory reference to the end location containing the instructions to disassemble. When this
-     * optional setting is provided, the minimum number of lines needed to get to the endMemoryReference
-     * is used.
-     */
-    endMemoryReference: string;
-}
+    FrameReference,
+    VariableReference,
+    LaunchRequestArguments,
+    AttachRequestArguments,
+    MemoryResponse,
+    FrameVariableReference,
+    RegisterVariableReference,
+    ObjectVariableReference,
+    MemoryRequestArguments,
+    CDTDisassembleArguments,
+} from '../types/session';
+import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 
 class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
@@ -159,7 +81,7 @@ export function base64ToHex(base64: string): string {
     return buffer.toString('hex');
 }
 
-export class GDBDebugSession extends LoggingDebugSession {
+export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Initial (aka default) configuration for launch/attach request
      * typically supplied with the --config command line argument.
@@ -172,13 +94,13 @@ export class GDBDebugSession extends LoggingDebugSession {
      */
     protected static frozenRequestArguments?: { request?: string };
 
-    protected gdb: GDBBackend = this.createBackend();
+    protected gdb!: IGDBBackend;
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
     protected isRunning = false;
 
     protected supportsRunInTerminalRequest = false;
-    protected supportsGdbConsole = false;
+    public supportsGdbConsole = false;
 
     /* A reference to the logger to be used by subclasses */
     protected logger: Logger.Logger;
@@ -199,44 +121,9 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected waitPausedNeeded = false;
     protected isInitialized = false;
 
-    constructor() {
+    constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
-    }
-
-    /**
-     * Main entry point
-     */
-    public static run(debugSession: typeof GDBDebugSession) {
-        GDBDebugSession.processArgv(process.argv.slice(2));
-        DebugSession.run(debugSession);
-    }
-
-    /**
-     * Parse an optional config file which is a JSON string of launch/attach request arguments.
-     * The config can be a response file by starting with an @.
-     */
-    public static processArgv(args: string[]) {
-        args.forEach(function (val, _index, _array) {
-            const configMatch = /^--config(-frozen)?=(.*)$/.exec(val);
-            if (configMatch) {
-                let configJson;
-                const configStr = configMatch[2];
-                if (configStr.startsWith('@')) {
-                    const configFile = configStr.slice(1);
-                    configJson = JSON.parse(
-                        fs.readFileSync(configFile).toString('utf8')
-                    );
-                } else {
-                    configJson = JSON.parse(configStr);
-                }
-                if (configMatch[1]) {
-                    GDBDebugSession.frozenRequestArguments = configJson;
-                } else {
-                    GDBDebugSession.defaultRequestArguments = configJson;
-                }
-            }
-        });
     }
 
     /**
@@ -249,23 +136,12 @@ export class GDBDebugSession extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
-        const frozenRequest = GDBDebugSession.frozenRequestArguments?.request;
-        if (frozenRequest === 'launch' || frozenRequest === 'attach') {
-            request = frozenRequest;
-        }
-
         return [
             request,
             {
-                ...GDBDebugSession.defaultRequestArguments,
                 ...args,
-                ...GDBDebugSession.frozenRequestArguments,
             },
         ];
-    }
-
-    protected createBackend(): GDBBackend {
-        return new GDBBackend();
     }
 
     /**
@@ -287,9 +163,9 @@ export class GDBDebugSession extends LoggingDebugSession {
                 consoleOutput.push(line);
             // Listens the console output for test and controls purpose during the
             // test command execution. Boundry of the console output not guaranteed.
-            this.gdb.addListener('consoleStreamOutput', consoleOutputListener);
+            this.gdb?.addListener('consoleStreamOutput', consoleOutputListener);
             this.gdb
-                .sendCommand(args.command)
+                ?.sendCommand(args.command)
                 .then((result) => {
                     response.body = {
                         status: 'Ok',
@@ -306,7 +182,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                     this.sendErrorResponse(response, 1, message);
                 })
                 .finally(() => {
-                    this.gdb.removeListener(
+                    this.gdb?.removeListener(
                         'consoleStreamOutput',
                         consoleOutputListener
                     );
@@ -339,15 +215,16 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
-    protected async attachOrLaunchRequest(
-        response: DebugProtocol.Response,
-        request: 'launch' | 'attach',
+    protected async setupCommonLoggerAndBackends(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
         logger.setup(
             args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
             args.logFile || false
         );
+
+        const manager = await this.backendFactory.createGDBManager(this, args);
+        this.gdb = await this.backendFactory.createBackend(this, manager, args);
 
         this.gdb.on('consoleStreamOutput', (output, category) => {
             this.sendEvent(new OutputEvent(output, category));
@@ -359,6 +236,14 @@ export class GDBDebugSession extends LoggingDebugSession {
         this.gdb.on('notifyAsync', (resultClass, resultData) =>
             this.handleGDBNotify(resultClass, resultData)
         );
+    }
+
+    protected async attachOrLaunchRequest(
+        response: DebugProtocol.Response,
+        request: 'launch' | 'attach',
+        args: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        await this.setupCommonLoggerAndBackends(args);
 
         await this.spawn(args);
         if (!args.program) {
@@ -439,66 +324,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     protected async spawn(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
-        if (args.openGdbConsole) {
-            if (!this.supportsGdbConsole) {
-                logger.warn(
-                    'cdt-gdb-adapter: openGdbConsole is not supported on this platform'
-                );
-            } else if (
-                !(await this.gdb.supportsNewUi(
-                    args.gdb,
-                    getGdbCwd(args),
-                    args.environment
-                ))
-            ) {
-                logger.warn(
-                    `cdt-gdb-adapter: new-ui command not detected (${
-                        args.gdb || 'gdb'
-                    })`
-                );
-            } else {
-                logger.verbose(
-                    'cdt-gdb-adapter: spawning gdb console in client terminal'
-                );
-                return this.spawnInClientTerminal(args);
-            }
-        }
-        return this.gdb.spawn(args);
-    }
-
-    protected async spawnInClientTerminal(
-        args:
-            | DebugProtocol.LaunchRequestArguments
-            | DebugProtocol.AttachRequestArguments
-    ) {
-        const requestArgs = args as
-            | LaunchRequestArguments
-            | AttachRequestArguments;
-        const gdbEnvironment = requestArgs.environment
-            ? createEnvValues(process.env, requestArgs.environment)
-            : process.env;
-
-        return this.gdb.spawnInClientTerminal(requestArgs, async (command) => {
-            const response = await new Promise<DebugProtocol.Response>(
-                (resolve) =>
-                    this.sendRequest(
-                        'runInTerminal',
-                        {
-                            kind: 'integrated',
-                            cwd: getGdbCwd(requestArgs),
-                            env: gdbEnvironment,
-                            args: command,
-                        } as DebugProtocol.RunInTerminalRequestArguments,
-                        5000,
-                        resolve
-                    )
-            );
-            if (!response.success) {
-                const message = `could not start the terminal on the client: ${response.message}`;
-                logger.error(message);
-                throw new Error(message);
-            }
-        });
+        return this.gdb?.spawn(args);
     }
 
     protected async setBreakPointsRequest(
@@ -1485,7 +1311,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const typedArgs = args as MemoryRequestArguments;
 
-            const result = await sendDataReadMemoryBytes(
+            const result = await mi.sendDataReadMemoryBytes(
                 this.gdb,
                 typedArgs.address,
                 typedArgs.length,
@@ -1540,7 +1366,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                         stepEndAddress = args.endMemoryReference;
                         oneIterationOnly = true;
                     }
-                    const result = await sendDataDisassemble(
+                    const result = await mi.sendDataDisassemble(
                         this.gdb,
                         stepStartAddress,
                         stepEndAddress
@@ -1628,7 +1454,7 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): Promise<void> {
         try {
             if (args.count) {
-                const result = await sendDataReadMemoryBytes(
+                const result = await mi.sendDataReadMemoryBytes(
                     this.gdb,
                     args.memoryReference,
                     args.count,
@@ -1673,7 +1499,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 );
             }
             const hexContent = base64ToHex(data);
-            await sendDataWriteMemoryBytes(
+            await mi.sendDataWriteMemoryBytes(
                 this.gdb,
                 memoryReference,
                 hexContent

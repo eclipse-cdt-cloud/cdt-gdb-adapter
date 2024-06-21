@@ -7,68 +7,38 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { spawn, ChildProcess } from 'child_process';
 import * as events from 'events';
 import { Writable } from 'stream';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import {
     AttachRequestArguments,
     LaunchRequestArguments,
-} from './GDBDebugSession';
-import * as mi from './mi';
-import { MIResponse } from './mi';
-import { MIParser } from './MIParser';
-import { VarManager } from './varManager';
+} from '../types/session';
 import {
-    compareVersions,
-    getGdbVersion,
-    createEnvValues,
-    getGdbCwd,
-} from './util';
+    MIBreakpointInsertOptions,
+    MIBreakpointLocation,
+    MIShowResponse,
+    sendExecInterrupt,
+} from '../mi';
+import { VarManager } from '../varManager';
+import { IGDBBackend, IGDBProcessManager, IStdioProcess } from '../types/gdb';
+import { MIParser } from '../MIParser';
+import { compareVersions } from '../util/compareVersions';
 
-export interface MIExecNextRequest {
-    reverse?: boolean;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface MIExecNextResponse extends MIResponse {}
-
-export interface MIGDBShowResponse extends MIResponse {
-    value?: string;
-}
-
-export declare interface GDBBackend {
-    on(
-        event: 'consoleStreamOutput',
-        listener: (output: string, category: string) => void
-    ): this;
-    on(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
-        listener: (asyncClass: string, data: any) => void
-    ): this;
-
-    emit(
-        event: 'consoleStreamOutput',
-        output: string,
-        category: string
-    ): boolean;
-    emit(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
-        asyncClass: string,
-        data: any
-    ): boolean;
-}
-
-export class GDBBackend extends events.EventEmitter {
+export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     protected parser = new MIParser(this);
     protected varMgr = new VarManager(this);
     protected out?: Writable;
     protected token = 0;
-    protected proc?: ChildProcess;
+    protected proc?: IStdioProcess;
     private gdbVersion?: string;
     protected gdbAsync = false;
     protected gdbNonStop = false;
     protected hardwareBreakpoint = false;
+
+    constructor(protected readonly processManager: IGDBProcessManager) {
+        super();
+    }
 
     get varManager(): VarManager {
         return this.varMgr;
@@ -77,23 +47,8 @@ export class GDBBackend extends events.EventEmitter {
     public async spawn(
         requestArgs: LaunchRequestArguments | AttachRequestArguments
     ) {
-        const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(
-            gdbPath,
-            getGdbCwd(requestArgs),
-            requestArgs.environment
-        );
-        let args = ['--interpreter=mi2'];
-        if (requestArgs.gdbArguments) {
-            args = args.concat(requestArgs.gdbArguments);
-        }
-        const gdbEnvironment = requestArgs.environment
-            ? createEnvValues(process.env, requestArgs.environment)
-            : process.env;
-        this.proc = spawn(gdbPath, args, {
-            cwd: getGdbCwd(requestArgs),
-            env: gdbEnvironment,
-        });
+        this.gdbVersion = await this.processManager.getVersion(requestArgs);
+        this.proc = await this.processManager.start(requestArgs);
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -106,31 +61,6 @@ export class GDBBackend extends events.EventEmitter {
                 this.emit('consoleStreamOutput', newChunk, 'stderr');
             });
         }
-        await this.setNonStopMode(requestArgs.gdbNonStop);
-        await this.setAsyncMode(requestArgs.gdbAsync);
-    }
-
-    public async spawnInClientTerminal(
-        requestArgs: LaunchRequestArguments | AttachRequestArguments,
-        cb: (args: string[]) => Promise<void>
-    ) {
-        const gdbPath = requestArgs.gdb || 'gdb';
-        this.gdbVersion = await getGdbVersion(
-            gdbPath,
-            getGdbCwd(requestArgs),
-            requestArgs.environment
-        );
-        // Use dynamic import to remove need for natively building this adapter
-        // Useful when 'spawnInClientTerminal' isn't needed, but adapter is distributed on multiple OS's
-        const { Pty } = await import('./native/pty');
-        const pty = new Pty();
-        let args = [gdbPath, '-ex', `new-ui mi2 ${pty.slave_name}`];
-        if (requestArgs.gdbArguments) {
-            args = args.concat(requestArgs.gdbArguments);
-        }
-        await cb(args);
-        this.out = pty.writer;
-        await this.parser.parse(pty.reader);
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
@@ -193,9 +123,9 @@ export class GDBBackend extends events.EventEmitter {
     // breakpoint insert options. If an error thrown from this method, then
     // the breakpoint will not be inserted.
     public async getBreakpointOptions(
-        _: mi.MIBreakpointLocation,
-        initialOptions: mi.MIBreakpointInsertOptions
-    ): Promise<mi.MIBreakpointInsertOptions> {
+        _: MIBreakpointLocation,
+        initialOptions: MIBreakpointInsertOptions
+    ): Promise<MIBreakpointInsertOptions> {
         return initialOptions;
     }
 
@@ -205,7 +135,7 @@ export class GDBBackend extends events.EventEmitter {
 
     public pause(threadId?: number) {
         if (this.gdbAsync) {
-            mi.sendExecInterrupt(this, threadId);
+            sendExecInterrupt(this, threadId);
         } else {
             if (!this.proc) {
                 throw new Error('GDB is not running, nothing to interrupt');
@@ -213,19 +143,6 @@ export class GDBBackend extends events.EventEmitter {
             logger.verbose(`GDB signal: SIGINT to pid ${this.proc.pid}`);
             this.proc.kill('SIGINT');
         }
-    }
-
-    public async supportsNewUi(
-        gdbPath?: string,
-        gdbCwd?: string,
-        environment?: Record<string, string | null>
-    ): Promise<boolean> {
-        this.gdbVersion = await getGdbVersion(
-            gdbPath || 'gdb',
-            gdbCwd,
-            environment
-        );
-        return this.gdbVersionAtLeast('7.12');
     }
 
     public gdbVersionAtLeast(targetVersion: string): boolean {
@@ -328,7 +245,7 @@ export class GDBBackend extends events.EventEmitter {
         return this.sendCommand(`-gdb-set ${params}`);
     }
 
-    public sendGDBShow(params: string): Promise<MIGDBShowResponse> {
+    public sendGDBShow(params: string): Promise<MIShowResponse> {
         return this.sendCommand(`-gdb-show ${params}`);
     }
 

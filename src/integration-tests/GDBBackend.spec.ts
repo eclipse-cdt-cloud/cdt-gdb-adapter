@@ -9,14 +9,15 @@
  *********************************************************************/
 
 import { expect } from 'chai';
-import { LaunchRequestArguments } from '..';
-import { GDBBackend } from '..';
+import { LaunchRequestArguments } from '../types/session';
+import { GDBBackend } from '../gdb/GDBBackend';
+import { GDBFileSystemProcessManager } from '../desktop/processManagers/GDBFileSystemProcessManager';
 
 describe('GDB Backend Test Suite', function () {
     let gdb: GDBBackend;
 
     beforeEach(async function () {
-        gdb = new GDBBackend();
+        gdb = new GDBBackend(new GDBFileSystemProcessManager());
         const args: LaunchRequestArguments = {
             program: 'foo',
         };

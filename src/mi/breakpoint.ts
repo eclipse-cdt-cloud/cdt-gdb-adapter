@@ -7,7 +7,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
+import { standardEscape } from '../util/standardEscape';
 import { MIBreakpointInfo, MIResponse } from './base';
 
 /**
@@ -85,7 +86,7 @@ function cleanupBreakpointResponse(
 }
 
 export function sourceBreakpointLocation(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     source: string,
     line = '',
     forInsert = false
@@ -93,11 +94,11 @@ export function sourceBreakpointLocation(
     const version8 = gdb.gdbVersionAtLeast('8.0');
     if (forInsert) {
         if (version8) {
-            return `--source ${gdb.standardEscape(source)} --line ${line}`;
+            return `--source ${standardEscape(source)} --line ${line}`;
         } else {
             // double-escaping/quoting needed for old GDBs
             const location = `"${source}:${line}"`;
-            return `${gdb.standardEscape(location, true)}`;
+            return `${standardEscape(location, true)}`;
         }
     } else {
         return version8
@@ -107,7 +108,7 @@ export function sourceBreakpointLocation(
 }
 
 export function functionBreakpointLocation(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     fn: string,
     forInsert = false
 ): string {
@@ -120,7 +121,7 @@ export function functionBreakpointLocation(
 }
 
 export async function sendBreakpointInsert(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     location: string,
     options?: MIBreakpointInsertOptions
 ): Promise<MIBreakInsertResponse> {
@@ -144,7 +145,7 @@ export async function sendBreakpointInsert(
 }
 
 export function sendBreakDelete(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     request: {
         breakpoints: string[];
     }
@@ -152,12 +153,12 @@ export function sendBreakDelete(
     return gdb.sendCommand(`-break-delete ${request.breakpoints.join(' ')}`);
 }
 
-export function sendBreakList(gdb: GDBBackend): Promise<MIBreakListResponse> {
+export function sendBreakList(gdb: IGDBBackend): Promise<MIBreakListResponse> {
     return gdb.sendCommand('-break-list');
 }
 
 export async function sendFunctionBreakpointInsert(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     fn: string,
     options?: MIBreakpointInsertOptions
 ): Promise<MIBreakInsertResponse> {
@@ -166,7 +167,7 @@ export async function sendFunctionBreakpointInsert(
 }
 
 export async function sendSourceBreakpointInsert(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     source: string,
     line?: string,
     options?: MIBreakpointInsertOptions

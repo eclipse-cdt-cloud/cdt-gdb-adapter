@@ -12,7 +12,7 @@ import * as path from 'path';
 import {
     TargetLaunchRequestArguments,
     TargetLaunchArguments,
-} from '../GDBTargetDebugSession';
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 

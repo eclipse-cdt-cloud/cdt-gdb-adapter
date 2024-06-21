@@ -8,109 +8,26 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { GDBDebugSession, RequestArguments } from './GDBDebugSession';
-import {
-    InitializedEvent,
-    Logger,
-    logger,
-    OutputEvent,
-} from '@vscode/debugadapter';
-import * as mi from './mi';
-import * as os from 'os';
+import { GDBDebugSession } from './GDBDebugSession';
+import { InitializedEvent, logger, OutputEvent } from '@vscode/debugadapter';
+import * as mi from '../mi';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import { spawn, ChildProcess } from 'child_process';
-import { SerialPort, ReadlineParser } from 'serialport';
-import { Socket } from 'net';
-import { createEnvValues, getGdbCwd } from './util';
-
-interface UARTArguments {
-    // Path to the serial port connected to the UART on the board.
-    serialPort?: string;
-    // Target TCP port on the host machine to attach socket to print UART output (defaults to 3456)
-    socketPort?: string;
-    // Baud Rate (in bits/s) of the serial port to be opened (defaults to 115200).
-    baudRate?: number;
-    // The number of bits in each character of data sent across the serial line (defaults to 8).
-    characterSize?: 5 | 6 | 7 | 8;
-    // The type of parity check enabled with the transmitted data (defaults to "none" - no parity bit sent)
-    parity?: 'none' | 'even' | 'odd' | 'mark' | 'space';
-    // The number of stop bits sent to allow the receiver to detect the end of characters and resynchronize with the character stream (defaults to 1).
-    stopBits?: 1 | 1.5 | 2;
-    // The handshaking method used for flow control across the serial line (defaults to "none" - no handshaking)
-    handshakingMethod?: 'none' | 'XON/XOFF' | 'RTS/CTS';
-    // The EOL character used to parse the UART output line-by-line.
-    eolCharacter?: 'LF' | 'CRLF';
-}
-
-export interface TargetAttachArguments {
-    // Target type default is "remote"
-    type?: string;
-    // Target parameters would be something like "localhost:12345", defaults
-    // to [`${host}:${port}`]
-    parameters?: string[];
-    // Target host to connect to, defaults to 'localhost', ignored if parameters is set
-    host?: string;
-    // Target port to connect to, ignored if parameters is set
-    port?: string;
-    // Target connect commands - if specified used in preference of type, parameters, host, target
-    connectCommands?: string[];
-    // Settings related to displaying UART output in the debug console
-    uart?: UARTArguments;
-}
-
-export interface TargetLaunchArguments extends TargetAttachArguments {
-    // The executable for the target server to launch (e.g. gdbserver or JLinkGDBServerCLExe),
-    // defaults to 'gdbserver --once :0 ${args.program}' (requires gdbserver >= 7.3)
-    server?: string;
-    serverParameters?: string[];
-    // Specifies the working directory of gdbserver, defaults to environment in RequestArguments
-    environment?: Record<string, string | null>;
-    // Regular expression to extract port from by examinging stdout/err of server.
-    // Once server is launched, port will be set to this if port is not set.
-    // defaults to matching a string like 'Listening on port 41551' which is what gdbserver provides
-    // Ignored if port or parameters is set
-    serverPortRegExp?: string;
-    // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
-    // provided, it is the delay after that regexp is seen.
-    serverStartupDelay?: number;
-    // Automatically kill the launched server when client issues a disconnect (default: true)
-    automaticallyKillServer?: boolean;
-    // Specifies the working directory of gdbserver, defaults to cwd in RequestArguments
-    cwd?: string;
-}
-
-export interface ImageAndSymbolArguments {
-    // If specified, a symbol file to load at the given (optional) offset
-    symbolFileName?: string;
-    symbolOffset?: string;
-    // If specified, an image file to load at the given (optional) offset
-    imageFileName?: string;
-    imageOffset?: string;
-}
-
-export interface TargetAttachRequestArguments extends RequestArguments {
-    target?: TargetAttachArguments;
-    imageAndSymbols?: ImageAndSymbolArguments;
-    // Optional commands to issue between loading image and resuming target
-    preRunCommands?: string[];
-}
-
-export interface TargetLaunchRequestArguments
-    extends TargetAttachRequestArguments {
-    target?: TargetLaunchArguments;
-    imageAndSymbols?: ImageAndSymbolArguments;
-    // Optional commands to issue between loading image and resuming target
-    preRunCommands?: string[];
-}
+import {
+    TargetLaunchRequestArguments,
+    TargetAttachRequestArguments,
+} from '../types/session';
+import {
+    IGDBBackendFactory,
+    IGDBServerFactory,
+    IGDBServerProcessManager,
+    IStdioProcess,
+} from '../types/gdb';
 
 export class GDBTargetDebugSession extends GDBDebugSession {
-    protected gdbserver?: ChildProcess;
+    protected gdbserver?: IStdioProcess;
+    protected gdbserverFactory?: IGDBServerFactory;
+    protected gdbserverProcessManager?: IGDBServerProcessManager;
     protected killGdbServer = true;
-
-    // Serial Port to capture UART output across the serial line
-    protected serialPort?: SerialPort;
-    // Socket to listen on a TCP port to capture UART output
-    protected socket?: Socket;
 
     /**
      * Define the target type here such that we can run the "disconnect"
@@ -119,12 +36,30 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      */
     protected targetType?: string;
 
+    constructor(
+        backendFactory?: IGDBBackendFactory,
+        gdbserverFactory?: IGDBServerFactory
+    ) {
+        super(backendFactory);
+        this.gdbserverFactory = gdbserverFactory;
+        this.logger = logger;
+    }
+
+    protected override async setupCommonLoggerAndBackends(
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ) {
+        await super.setupCommonLoggerAndBackends(args);
+
+        this.gdbserverProcessManager =
+            await this.gdbserverFactory?.createGDBServerManager(args);
+    }
+
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
-        this.setupCommonLoggerAndHandlers(args);
+        await this.setupCommonLoggerAndBackends(args);
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
@@ -183,24 +118,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    protected setupCommonLoggerAndHandlers(args: TargetLaunchRequestArguments) {
-        logger.setup(
-            args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
-            args.logFile || false
-        );
-
-        this.gdb.on('consoleStreamOutput', (output, category) => {
-            this.sendEvent(new OutputEvent(output, category));
-        });
-
-        this.gdb.on('execAsync', (resultClass, resultData) =>
-            this.handleGDBAsync(resultClass, resultData)
-        );
-        this.gdb.on('notifyAsync', (resultClass, resultData) =>
-            this.handleGDBNotify(resultClass, resultData)
-        );
-    }
-
     protected async startGDBServer(
         args: TargetLaunchRequestArguments
     ): Promise<void> {
@@ -208,29 +125,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             args.target = {};
         }
         const target = args.target;
-        const serverExe =
-            target.server !== undefined ? target.server : 'gdbserver';
-        const serverCwd =
-            target.cwd !== undefined ? target.cwd : getGdbCwd(args);
-        const serverParams =
-            target.serverParameters !== undefined
-                ? target.serverParameters
-                : ['--once', ':0', args.program];
 
         this.killGdbServer = target.automaticallyKillServer !== false;
 
-        const gdbEnvironment = args.environment
-            ? createEnvValues(process.env, args.environment)
-            : process.env;
-        const serverEnvironment = target.environment
-            ? createEnvValues(gdbEnvironment, target.environment)
-            : gdbEnvironment;
         // Wait until gdbserver is started and ready to receive connections.
-        await new Promise<void>((resolve, reject) => {
-            this.gdbserver = spawn(serverExe, serverParams, {
-                cwd: serverCwd,
-                env: serverEnvironment,
-            });
+        await new Promise<void>(async (resolve, reject) => {
+            if (!this.gdbserverProcessManager) {
+                throw new Error(
+                    'GDBServer process manager is not initialised!'
+                );
+            }
+            this.gdbserver = await this.gdbserverProcessManager.start(args);
             let gdbserverStartupResolved = false;
             let accumulatedStdout = '';
             let accumulatedStderr = '';
@@ -301,9 +206,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.gdbserver.on('exit', (code, signal) => {
                 let exitmsg: string;
                 if (code === null) {
-                    exitmsg = `${serverExe} is killed by signal ${signal}`;
+                    exitmsg = `gdbserver is killed by signal ${signal}`;
                 } else {
-                    exitmsg = `${serverExe} has exited with code ${code}`;
+                    exitmsg = `gdbserver has exited with code ${code}`;
                 }
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
@@ -313,7 +218,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             this.gdbserver.on('error', (err) => {
-                const errmsg = `${serverExe} has hit error ${err}`;
+                const errmsg = `gdbserver has hit error ${err}`;
                 this.sendEvent(new OutputEvent(errmsg, 'server'));
                 if (!gdbserverStartupResolved) {
                     gdbserverStartupResolved = true;
@@ -321,121 +226,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
             });
         });
-    }
-
-    protected initializeUARTConnection(
-        uart: UARTArguments,
-        host: string | undefined
-    ): void {
-        if (uart.serialPort !== undefined) {
-            // Set the path to the serial port
-            this.serialPort = new SerialPort({
-                path: uart.serialPort,
-                // If the serial port path is defined, then so will the baud rate.
-                baudRate: uart.baudRate ?? 115200,
-                // If the serial port path is deifned, then so will the number of data bits.
-                dataBits: uart.characterSize ?? 8,
-                // If the serial port path is defined, then so will the number of stop bits.
-                stopBits: uart.stopBits ?? 1,
-                // If the serial port path is defined, then so will the parity check type.
-                parity: uart.parity ?? 'none',
-                // If the serial port path is defined, then so will the type of handshaking method.
-                rtscts: uart.handshakingMethod === 'RTS/CTS' ? true : false,
-                xon: uart.handshakingMethod === 'XON/XOFF' ? true : false,
-                xoff: uart.handshakingMethod === 'XON/XOFF' ? true : false,
-                autoOpen: false,
-            });
-
-            this.serialPort.on('open', () => {
-                this.sendEvent(
-                    new OutputEvent(
-                        `listening on serial port ${this.serialPort?.path}${os.EOL}`,
-                        'Serial Port'
-                    )
-                );
-            });
-
-            const SerialUartParser = new ReadlineParser({
-                delimiter: uart.eolCharacter === 'CRLF' ? '\r\n' : '\n',
-                encoding: 'utf8',
-            });
-
-            this.serialPort
-                .pipe(SerialUartParser)
-                .on('data', (line: string) => {
-                    this.sendEvent(
-                        new OutputEvent(line + os.EOL, 'Serial Port')
-                    );
-                });
-
-            this.serialPort.on('close', () => {
-                this.sendEvent(
-                    new OutputEvent(
-                        `closing serial port connection${os.EOL}`,
-                        'Serial Port'
-                    )
-                );
-            });
-
-            this.serialPort.on('error', (err) => {
-                this.sendEvent(
-                    new OutputEvent(
-                        `error on serial port connection${os.EOL} - ${err}`,
-                        'Serial Port'
-                    )
-                );
-            });
-
-            this.serialPort.open();
-        } else if (uart.socketPort !== undefined) {
-            this.socket = new Socket();
-            this.socket.setEncoding('utf-8');
-
-            let tcpUartData = '';
-            this.socket.on('data', (data: string) => {
-                for (const char of data) {
-                    if (char === '\n') {
-                        this.sendEvent(
-                            new OutputEvent(tcpUartData + '\n', 'Socket')
-                        );
-                        tcpUartData = '';
-                    } else {
-                        tcpUartData += char;
-                    }
-                }
-            });
-            this.socket.on('close', () => {
-                this.sendEvent(new OutputEvent(tcpUartData + os.EOL, 'Socket'));
-                this.sendEvent(
-                    new OutputEvent(
-                        `closing socket connection${os.EOL}`,
-                        'Socket'
-                    )
-                );
-            });
-            this.socket.on('error', (err) => {
-                this.sendEvent(
-                    new OutputEvent(
-                        `error on socket connection${os.EOL} - ${err}`,
-                        'Socket'
-                    )
-                );
-            });
-            this.socket.connect(
-                // Putting a + (unary plus operator) infront of the string converts it to a number.
-                +uart.socketPort,
-                // Default to localhost if target.host is undefined.
-                host ?? 'localhost',
-                () => {
-                    this.sendEvent(
-                        new OutputEvent(
-                            `listening on tcp port ${uart?.socketPort}${os.EOL}`,
-                            'Socket'
-                        )
-                    );
-                }
-            );
-        }
     }
 
     protected async startGDBAndAttachToTarget(
@@ -505,10 +295,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             await this.gdb.sendCommands(args.initCommands);
 
-            if (target.uart !== undefined) {
-                this.initializeUARTConnection(target.uart, target.host);
-            }
-
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
                     await this.gdb.sendLoad(
@@ -531,19 +317,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async stopGDBServer(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            if (!this.gdbserver || this.gdbserver.exitCode !== null) {
-                resolve();
-            } else {
-                this.gdbserver.on('exit', () => {
-                    resolve();
-                });
-                this.gdbserver?.kill();
-            }
-            setTimeout(() => {
-                reject();
-            }, 1000);
-        });
+        return this.gdbserverProcessManager?.stop();
     }
 
     protected async disconnectRequest(
@@ -551,9 +325,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            if (this.serialPort !== undefined && this.serialPort.isOpen)
-                this.serialPort.close();
-
             if (this.targetType === 'remote') {
                 if (this.gdb.getAsyncMode() && this.isRunning) {
                     // See #295 - this use of "then" is to try to slightly delay the

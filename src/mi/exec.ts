@@ -7,11 +7,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 import { MIResponse } from './base';
 
 export function sendExecArguments(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         arguments: string;
     }
@@ -19,11 +19,11 @@ export function sendExecArguments(
     return gdb.sendCommand(`-exec-arguments ${params.arguments}`);
 }
 
-export function sendExecRun(gdb: GDBBackend) {
+export function sendExecRun(gdb: IGDBBackend) {
     return gdb.sendCommand('-exec-run');
 }
 
-export function sendExecContinue(gdb: GDBBackend, threadId?: number) {
+export function sendExecContinue(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-continue';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -31,7 +31,7 @@ export function sendExecContinue(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecNext(gdb: GDBBackend, threadId?: number) {
+export function sendExecNext(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-next';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -39,7 +39,7 @@ export function sendExecNext(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecNextInstruction(gdb: GDBBackend, threadId?: number) {
+export function sendExecNextInstruction(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-next-instruction';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -47,7 +47,7 @@ export function sendExecNextInstruction(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecStep(gdb: GDBBackend, threadId?: number) {
+export function sendExecStep(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-step';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -55,7 +55,7 @@ export function sendExecStep(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecStepInstruction(gdb: GDBBackend, threadId?: number) {
+export function sendExecStepInstruction(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-step-instruction';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -63,7 +63,7 @@ export function sendExecStepInstruction(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecFinish(gdb: GDBBackend, threadId?: number) {
+export function sendExecFinish(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-finish';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
@@ -71,7 +71,7 @@ export function sendExecFinish(gdb: GDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecInterrupt(gdb: GDBBackend, threadId?: number) {
+export function sendExecInterrupt(gdb: IGDBBackend, threadId?: number) {
     let command = '-exec-interrupt';
 
     if (threadId !== undefined) {
