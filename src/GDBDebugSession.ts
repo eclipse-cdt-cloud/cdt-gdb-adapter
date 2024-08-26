@@ -117,6 +117,11 @@ export interface CDTDisassembleArguments
     endMemoryReference: string;
 }
 
+export interface ThreadContext {
+    threadId: number;
+    frameId: number;
+}
+
 class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
     name: string;
@@ -279,6 +284,11 @@ export class GDBDebugSession extends LoggingDebugSession {
     ): void {
         if (command === 'cdt-gdb-adapter/Memory') {
             this.memoryRequest(response as MemoryResponse, args);
+        } else if (command === 'cdt-gdb-adapter/readMemoryWithContext') {
+            this.readMemoryWithContextRequest(
+                response as DebugProtocol.ReadMemoryResponse,
+                args
+            );
             // This custom request exists to allow tests in this repository to run arbitrary commands
             // Use at your own risk!
         } else if (command === 'cdt-gdb-tests/executeCommand') {
@@ -1177,6 +1187,7 @@ export class GDBDebugSession extends LoggingDebugSession {
                 args.name.replace(/^\[(\d+)\]/, '$1');
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
+                threadId: frame.threadId,
             });
             const depth = parseInt(stackDepth.depth, 10);
             let varobj = this.gdb.varManager.getVar(
@@ -1321,6 +1332,7 @@ export class GDBDebugSession extends LoggingDebugSession {
 
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
+                threadId: frame.threadId,
             });
             const depth = parseInt(stackDepth.depth, 10);
             let varobj = this.gdb.varManager.getVar(
@@ -1622,17 +1634,20 @@ export class GDBDebugSession extends LoggingDebugSession {
         }
     }
 
-    protected async readMemoryRequest(
+    protected async readMemoryWithContextRequest(
         response: DebugProtocol.ReadMemoryResponse,
-        args: DebugProtocol.ReadMemoryArguments
+        fullArgs: [DebugProtocol.ReadMemoryArguments, ThreadContext?]
     ): Promise<void> {
+        const [args, context] = fullArgs;
         try {
             if (args.count) {
                 const result = await sendDataReadMemoryBytes(
                     this.gdb,
                     args.memoryReference,
                     args.count,
-                    args.offset
+                    args.offset,
+                    context?.threadId,
+                    context?.frameId
                 );
                 response.body = {
                     data: hexToBase64(result.memory[0].contents),
@@ -1649,6 +1664,13 @@ export class GDBDebugSession extends LoggingDebugSession {
                 err instanceof Error ? err.message : String(err)
             );
         }
+    }
+
+    protected async readMemoryRequest(
+        response: DebugProtocol.ReadMemoryResponse,
+        args: DebugProtocol.ReadMemoryArguments
+    ): Promise<void> {
+        return this.readMemoryWithContextRequest(response, [args, undefined]);
     }
 
     /**
@@ -1908,6 +1930,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         // stack depth necessary for differentiating between similarly named variables at different stack depths
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
+            threadId: frame.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
 
@@ -2061,6 +2084,7 @@ export class GDBDebugSession extends LoggingDebugSession {
         // fetch stack depth to obtain frameId/threadId/depth tuple
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
+            threadId: frame.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
         // we need to keep track of children and the parent varname in GDB

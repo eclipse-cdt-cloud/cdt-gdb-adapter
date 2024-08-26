@@ -124,7 +124,11 @@ export class VarManager {
                 }
             }
             if (deleteme) {
-                await sendVarDelete(this.gdb, { varname: deleteme.varname });
+                await sendVarDelete(this.gdb, {
+                    varname: deleteme.varname,
+                    threadId,
+                    frameId,
+                });
                 vars.splice(vars.indexOf(deleteme), 1);
                 for (const child of deleteme.children) {
                     await this.removeVar(
@@ -145,7 +149,11 @@ export class VarManager {
         varobj: VarObjType
     ): Promise<VarObjType> {
         let returnVar = varobj;
-        const vup = await sendVarUpdate(this.gdb, { name: varobj.varname });
+        const vup = await sendVarUpdate(this.gdb, {
+            name: varobj.varname,
+            threadId,
+            frameId,
+        });
         const update = vup.changelist[0];
         if (update) {
             if (update.in_scope === 'true') {
@@ -155,7 +163,11 @@ export class VarManager {
                 }
             } else {
                 this.removeVar(frameId, threadId, depth, varobj.varname);
-                await sendVarDelete(this.gdb, { varname: varobj.varname });
+                await sendVarDelete(this.gdb, {
+                    varname: varobj.varname,
+                    threadId,
+                    frameId,
+                });
                 const createResponse = await sendVarCreate(this.gdb, {
                     frame: 'current',
                     expression: varobj.expression,

@@ -14,6 +14,7 @@ import * as path from 'path';
 import { defaultAdapter } from './utils';
 import * as os from 'os';
 import { expect } from 'chai';
+import { ThreadContext } from '../GDBDebugSession';
 
 export type ReverseRequestHandler<
     A = any,
@@ -333,6 +334,12 @@ export class CdtDebugClient extends DebugClient {
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<DebugProtocol.ReadMemoryResponse> {
         return this.send('readMemory', args);
+    }
+
+    public readMemoryWithContextRequest(
+        args: [DebugProtocol.ReadMemoryArguments, ThreadContext?]
+    ): Promise<DebugProtocol.ReadMemoryResponse> {
+        return this.send('cdt-gdb-adapter/readMemoryWithContext', args);
     }
 
     public writeMemoryRequest(

@@ -20,6 +20,15 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { fail } from 'assert';
 import * as os from 'os';
+import { ThreadContext, base64ToHex } from '../GDBDebugSession';
+import { DebugProtocol } from '@vscode/debugprotocol';
+
+interface VariableContext {
+    name: string;
+    threadId: number;
+    varAddress: number;
+    stackFramePosition: number;
+}
 
 describe('multithread', async function () {
     let dc: CdtDebugClient;
@@ -49,6 +58,29 @@ describe('multithread', async function () {
     afterEach(async () => {
         await dc.stop();
     });
+
+    /**
+     * Verify that `resp` contains the bytes `expectedBytes` and the
+     * `expectedAddress` start address matches. In this case we know
+     * we're searching for a string so truncate after 0 byte.
+     *
+     */
+    function verifyReadMemoryResponse(
+        resp: DebugProtocol.ReadMemoryResponse,
+        expectedBytes: string,
+        expectedAddress: number
+    ) {
+        const memData = base64ToHex(resp.body?.data ?? '').toString();
+        const memString = Buffer.from(memData.toString(), 'hex').toString();
+        // Only use the data before the 0 byte (truncate after)
+        const simpleString = memString.substring(0, memString.search(/\0/));
+        expect(simpleString).eq(expectedBytes);
+        expect(resp.body?.address).match(/^0x[0-9a-fA-F]+$/);
+        if (resp.body?.address) {
+            const actualAddress = parseInt(resp.body?.address);
+            expect(actualAddress).eq(expectedAddress);
+        }
+    }
 
     it('sees all threads', async function () {
         if (!gdbNonStop && os.platform() === 'win32' && isRemoteTest) {
@@ -180,6 +212,87 @@ describe('multithread', async function () {
                     expect(varnameToValue.get('thread_id')).to.be.undefined;
                 }
             }
+        }
+    });
+
+    it('verify threadId,frameID for multiple threads', async function () {
+        if (!gdbNonStop && os.platform() === 'win32' && isRemoteTest) {
+            // The way thread names are set in remote tests on windows is unsupported
+            this.skip();
+        }
+
+        await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: program,
+            }),
+            {
+                path: source,
+                line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+            }
+        );
+
+        const variableContextArray: VariableContext[] = [];
+        const threads = await dc.threadsRequest();
+        // cycle through the threads and create an index for later
+        for (const threadInfo of threads.body.threads) {
+            // threadId is the id of the thread in DAP
+            const threadId = threadInfo.id;
+            if (threadId === undefined) {
+                // Shouldn't have undefined thread.
+                fail('unreachable');
+            }
+            if (!(threadInfo.name in threadNames)) {
+                continue;
+            }
+
+            if (gdbNonStop) {
+                const waitForStopped = dc.waitForEvent('stopped');
+                const pr = dc.pauseRequest({ threadId });
+                await Promise.all([pr, waitForStopped]);
+            }
+
+            const stack = await dc.stackTraceRequest({ threadId });
+            let nameAddress: number | undefined = undefined;
+            let stackFramePosition = 0;
+            // Frame Reference ID starts at 1000 but actual stack frame # is index.
+            for (const frame of stack.body.stackFrames) {
+                if (frame.name === 'PrintHello') {
+                    // Grab the address for "name" in this thread now because
+                    // gdb-non-stop doesn't have different frame.id's for threads.
+                    const addrOfVariableResp = await dc.evaluateRequest({
+                        expression: 'name',
+                        frameId: frame.id,
+                    });
+                    nameAddress = parseInt(addrOfVariableResp.body.result, 16);
+                    break;
+                }
+                stackFramePosition++;
+            }
+            if (nameAddress === undefined) {
+                fail("Failed to find address of name in 'PrintHello'");
+            }
+
+            variableContextArray.push({
+                name: threadInfo.name.toString(),
+                threadId: threadInfo.id,
+                varAddress: nameAddress,
+                stackFramePosition,
+            });
+        }
+        // cycle through the threads and confirm each thread name (different for each thread)
+        for (const context of variableContextArray) {
+            // Get the address of the variable.
+            const mem = await dc.readMemoryWithContextRequest([
+                {
+                    memoryReference: '0x' + context.varAddress.toString(16),
+                    count: 10,
+                },
+                {
+                    threadId: context.threadId,
+                    frameId: context.stackFramePosition,
+                } as ThreadContext,
+            ]);
+            verifyReadMemoryResponse(mem, context.name, context.varAddress);
         }
     });
 });
