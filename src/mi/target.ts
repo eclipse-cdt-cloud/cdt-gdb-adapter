@@ -7,11 +7,11 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 import { MIResponse } from './base';
 
 export function sendTargetAttachRequest(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         pid: string;
     }
@@ -20,7 +20,7 @@ export function sendTargetAttachRequest(
 }
 
 export function sendTargetSelectRequest(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         type: string;
         parameters: string[];

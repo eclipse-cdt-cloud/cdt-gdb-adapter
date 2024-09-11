@@ -7,14 +7,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 
 export interface MIResponse {
     _class: string;
 }
 
+export interface MIShowResponse extends MIResponse {
+    value?: string;
+}
+
 export abstract class MIRequest<R> {
-    public abstract send(backend: GDBBackend): Promise<R>;
+    public abstract send(backend: IGDBBackend): Promise<R>;
 }
 
 // Shared types

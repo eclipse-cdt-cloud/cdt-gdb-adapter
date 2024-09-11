@@ -11,7 +11,7 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
-import { MemoryResponse } from '../GDBDebugSession';
+import { MemoryResponse } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,

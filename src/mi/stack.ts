@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 import { MIFrameInfo, MIResponse, MIVariableInfo } from './base';
 
 export interface MIStackInfoDepthResponse extends MIResponse {
@@ -19,7 +19,7 @@ export interface MIStackListVariablesResponse extends MIResponse {
 }
 
 export function sendStackInfoDepth(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         maxDepth: number;
         threadId?: number;
@@ -36,7 +36,7 @@ export function sendStackInfoDepth(
 }
 
 export function sendStackListFramesRequest(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         noFrameFilters?: boolean;
         lowFrame?: number;
@@ -63,7 +63,7 @@ export function sendStackListFramesRequest(
 }
 
 export function sendStackSelectFrame(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         framenum: number;
     }
@@ -72,7 +72,7 @@ export function sendStackSelectFrame(
 }
 
 export function sendStackListVariables(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         thread?: number;
         frame?: number;

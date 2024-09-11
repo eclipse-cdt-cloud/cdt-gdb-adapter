@@ -10,7 +10,7 @@
 
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments } from '../GDBDebugSession';
+import { LaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,

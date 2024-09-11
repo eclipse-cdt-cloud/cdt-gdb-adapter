@@ -15,9 +15,10 @@ import * as path from 'path';
 import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { CdtDebugClient } from './debugClient';
-import { compareVersions, getGdbVersion } from '../util';
+import { getGdbVersion } from '../util/getGdbVersion';
+import { compareVersions } from '../util/compareVersions';
 import { Runnable } from 'mocha';
-import { RequestArguments } from '../GDBDebugSession';
+import { RequestArguments } from '../types/session';
 
 export interface Scope {
     thread: DebugProtocol.Thread;

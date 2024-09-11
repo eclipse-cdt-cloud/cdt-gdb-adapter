@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import {
     LaunchRequestArguments,
     AttachRequestArguments,
-} from '../GDBDebugSession';
+} from '../types/session';
 import {
     debugServerPort,
     defaultAdapter,

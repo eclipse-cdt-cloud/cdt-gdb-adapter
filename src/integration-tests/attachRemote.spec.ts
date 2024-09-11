@@ -13,7 +13,7 @@ import * as path from 'path';
 import {
     TargetAttachRequestArguments,
     TargetAttachArguments,
-} from '../GDBTargetDebugSession';
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     standardBeforeEach,

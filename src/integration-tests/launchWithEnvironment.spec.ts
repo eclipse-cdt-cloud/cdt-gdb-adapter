@@ -10,7 +10,7 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '../GDBDebugSession';
+import { LaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,

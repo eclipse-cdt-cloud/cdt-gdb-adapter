@@ -7,9 +7,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { GDBBackend } from '../GDBBackend';
+import { IGDBBackend } from '../types/gdb';
 export function sendInterpreterExecConsole(
-    gdb: GDBBackend,
+    gdb: IGDBBackend,
     params: {
         threadId: number;
         frameId: number;

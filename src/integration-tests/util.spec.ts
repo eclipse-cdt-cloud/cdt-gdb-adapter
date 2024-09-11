@@ -7,11 +7,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import {
-    compareVersions,
-    createEnvValues,
-    parseGdbVersionOutput,
-} from '../util';
+import { compareVersions } from '../util/compareVersions';
+import { parseGdbVersionOutput } from '../util/parseGdbVersionOutput';
+import { createEnvValues } from '../util/createEnvValues';
 import { expect } from 'chai';
 import * as os from 'os';
 

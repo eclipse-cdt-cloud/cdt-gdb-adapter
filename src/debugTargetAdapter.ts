@@ -10,10 +10,16 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { logger } from '@vscode/debugadapter/lib/logger';
-import { GDBTargetDebugSession } from './GDBTargetDebugSession';
+import { GDBTargetDebugSession } from './desktop/GDBTargetDebugSession';
 
 process.on('uncaughtException', (err: any) => {
     logger.error(JSON.stringify(err));
 });
 
-GDBTargetDebugSession.run(GDBTargetDebugSession);
+class GDBTargetDebugSessionToRun extends GDBTargetDebugSession {
+    constructor() {
+        super();
+    }
+}
+
+GDBTargetDebugSessionToRun.run(GDBTargetDebugSessionToRun);

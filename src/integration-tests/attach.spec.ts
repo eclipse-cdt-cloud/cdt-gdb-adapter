@@ -10,7 +10,7 @@
 
 import * as cp from 'child_process';
 import * as path from 'path';
-import { AttachRequestArguments } from '../GDBDebugSession';
+import { AttachRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,

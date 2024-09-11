@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { GDBBackend } from '../GDBBackend';
+import { GDBBackend } from '../gdb/GDBBackend';
 import { MIParser } from '../MIParser';
 import * as sinon from 'sinon';
 import { logger } from '@vscode/debugadapter/lib/logger';

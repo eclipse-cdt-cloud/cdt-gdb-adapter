@@ -9,6 +9,9 @@
  *********************************************************************/
 
 export * from './mi';
-export * from './GDBBackend';
-export * from './GDBDebugSession';
-export * from './GDBTargetDebugSession';
+export * from './types/gdb';
+export * from './types/session';
+export * from './gdb/GDBBackend';
+export * from './gdb/GDBDebugSessionBase';
+export * from './desktop/GDBDebugSession';
+export * from './desktop/GDBTargetDebugSession';
