@@ -118,3 +118,25 @@ The _MSYS2 MinGW 64-bit_ shell can be integrated into VSCode.
 ```json
 "terminal.integrated.defaultProfile.windows": "MSYS2 MinGW 64-bit",
 ```
+
+### Test Logs and Test Reports
+
+Running a test or series of tests can generate a lot of output.
+By default, the adapter runs with [verbose on](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/590fea58cfb2ee4984d766cd1b2140738d3ff110/src/integration-tests/utils.ts#L206-L207) and those logs are saved to the `test-logs` directory in the root of the adapter.
+Within `test-logs` each test has its own directory (derived from the `describe`d name), and under that is a directory for the set of parameters used to run the tests (see below), and finally under that is a directory for each test (derived from the `it` name).
+
+For example running the [`can launch and hit a breakpoint` test](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/590fea58cfb2ee4984d766cd1b2140738d3ff110/src/integration-tests/launch.spec.ts#L42-L52) with the default settings places the log in `test-logs/launch/defaults/can launch and hit a breakpoint.log`
+
+#### Test Parameters
+
+All the tests are run repeatedly, but with different high level parameters, such as running all tests in remote and local debugging.
+These parameters are [automatically prefixed](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/590fea58cfb2ee4984d766cd1b2140738d3ff110/src/integration-tests/utils.ts#L252-L275) onto the name of the test.
+
+#### Test Reports
+
+Running tests also saves the summaries in JUnit style, suitable for integrating with other tools like Jenkins, in the `test-reports` directory.
+
+#### GitHub Actions
+
+The test reports and test logs from all tests [are saved](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/93a7ce9721b2510af2350c94f4bfc773dd966a8a/.github/workflows/build-pr.yml#L31-L43) in the GitHub actions as artifacts.
+This is useful to help diagnose why a test fails on GitHub actions, but passes on local development.

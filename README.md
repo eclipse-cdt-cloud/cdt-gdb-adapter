@@ -71,6 +71,7 @@ for more details, including how to setup a Windows machine with msys2 to run the
 
 Pull Requests built using GitHub actions.
 In the GitHub actions result you can examine test report and download the `test-logs` artifacts which are the verbose logs of each test that was run.
+See [Integration Tests readme](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/main/src/integration-tests/README.md) for more details
 
 ## Debugging
 
