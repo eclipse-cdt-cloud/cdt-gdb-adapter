@@ -15,7 +15,7 @@ import {
     getScopes,
     gdbNonStop,
 } from './utils';
-import { expect } from 'chai';
+import { expect, assert } from 'chai';
 import * as path from 'path';
 
 describe('continues', async function () {
@@ -54,5 +54,37 @@ describe('continues', async function () {
             threadId: scope.thread.id,
         });
         expect(continueResponse.body.allThreadsContinued).to.eq(!gdbNonStop);
+    });
+
+    it('handles async continued events', async function () {
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        dc.continueRequest({
+            threadId: scope.thread.id,
+        });
+        const event = await dc.waitForEvent('continued');
+
+        assert.deepEqual<any>(
+            event.body,
+            gdbNonStop
+                ? {
+                      threadId: 1,
+                      allThreadsContinued: false,
+                  }
+                : { threadId: 1, allThreadsContinued: true }
+        );
     });
 });
