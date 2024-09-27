@@ -23,7 +23,8 @@ import {
     TerminatedEvent,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import { StoppedEvent } from '../stoppedEvent';
+import { ContinuedEvent } from '../events/continuedEvent';
+import { StoppedEvent } from '../events/stoppedEvent';
 import { VarObjType } from '../varManager';
 import {
     FrameReference,
@@ -1601,6 +1602,40 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    protected sendContinuedEvent(
+        threadId: number,
+        allThreadsContinued?: boolean
+    ) {
+        // Reset frame handles and variables for new context
+        this.frameHandles.reset();
+        this.variableHandles.reset();
+        // Send the event
+        this.sendEvent(new ContinuedEvent(threadId, allThreadsContinued));
+    }
+
+    protected handleGDBResume(result: any) {
+        const getThreadId = (resultData: any) => {
+            return parseInt(resultData['thread-id'], 10);
+        };
+        const getAllThreadsContinued = (resultData: any) => {
+            return (
+                !!resultData['thread-id'] && resultData['thread-id'] === 'all'
+            );
+        };
+
+        const isAllThreadsContinued = getAllThreadsContinued(result);
+        if (isAllThreadsContinued) {
+            // If all threads continued, then the value of the 'thread-id' is 'all',
+            // hence, there isn't a thread id number. We are sending the id of the first
+            // thread in the thread list along with the allThreadsContinued=true information.
+            // Theoratically, at least we need to have a single thread; for any unexpected case,
+            // we are sending thread id as '1'.
+            const id = this.threads[0]?.id;
+            return this.sendContinuedEvent(id !== undefined ? id : 1, true);
+        }
+        return this.sendContinuedEvent(getThreadId(result));
+    }
+
     protected handleGDBAsync(resultClass: string, resultData: any) {
         const updateIsRunning = () => {
             this.isRunning = this.threads.length ? true : false;
@@ -1613,9 +1648,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         switch (resultClass) {
             case 'running':
                 if (this.gdb.isNonStopMode()) {
-                    const id = parseInt(resultData['thread-id'], 10);
+                    const rawId = resultData['thread-id'];
+                    const id = parseInt(rawId, 10);
                     for (const thread of this.threads) {
-                        if (thread.id === id) {
+                        if (thread.id === id || rawId === 'all') {
                             thread.running = true;
                         }
                     }
@@ -1625,6 +1661,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
                 updateIsRunning();
+                if (this.isInitialized) {
+                    this.handleGDBResume(resultData);
+                }
                 break;
             case 'stopped': {
                 let suppressHandleGDBStopped = false;

@@ -15,8 +15,9 @@ import {
     isRemoteTest,
     gdbNonStop,
     fillDefaults,
+    gdbAsync,
 } from './utils';
-import { expect } from 'chai';
+import { assert, expect } from 'chai';
 import * as path from 'path';
 import { fail } from 'assert';
 import * as os from 'os';
@@ -36,6 +37,7 @@ describe('multithread', async function () {
 
     const lineTags = {
         LINE_MAIN_ALL_THREADS_STARTED: 0,
+        LINE_THREAD_IN_HELLO: 0,
     };
 
     before(function () {
@@ -180,6 +182,100 @@ describe('multithread', async function () {
                     expect(varnameToValue.get('thread_id')).to.be.undefined;
                 }
             }
+        }
+    });
+
+    it('async resume for gdb-non-stop off', async function () {
+        if (gdbNonStop) {
+            // This test is covering only gdb-non-stop off mode
+            this.skip();
+        } else if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
+            // Only supported in win32 host with remote + mi-async targets
+            this.skip();
+        }
+
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program,
+            })
+        );
+        await dc.setBreakpointsRequest({
+            source: {
+                path: source,
+            },
+            breakpoints: [
+                {
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                },
+                {
+                    line: lineTags['LINE_THREAD_IN_HELLO'],
+                },
+            ],
+        });
+
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+
+        const threads = await dc.threadsRequest();
+
+        // make sure that there is at least 2 threads.
+        expect(threads.body.threads).length.greaterThanOrEqual(2);
+
+        // Send continue to thread 2
+        dc.send('cdt-gdb-tests/executeCommand', {
+            command: '-exec-continue --thread 2',
+        });
+
+        const event = await dc.waitForEvent('continued');
+
+        // In allThreadsContinued:true case we are expecting id of the first thread no matter which thread is continued
+        assert.deepEqual(event.body, {
+            threadId: threads.body.threads[0].id,
+            allThreadsContinued: true,
+        });
+    });
+
+    it('async resume for gdb-non-stop on', async function () {
+        if (!gdbNonStop) {
+            // This test is covering only gdb-non-stop on
+            this.skip();
+        }
+
+        await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: program,
+            }),
+            {
+                path: source,
+                line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+            }
+        );
+
+        const threads = await dc.threadsRequest();
+
+        // make sure that there is at least 6 threads.
+        expect(threads.body.threads).length.greaterThanOrEqual(6);
+
+        // stop the running threads
+        const runningThreads = threads.body.threads.filter(
+            (t) => (t as unknown as { running?: boolean }).running
+        );
+        for (const thread of runningThreads) {
+            await dc.pauseRequest({ threadId: thread.id });
+            await dc.waitForEvent('stopped');
+        }
+
+        for (const thread of threads.body.threads) {
+            // Send an async continue request and wait for the continue event.
+            dc.send('cdt-gdb-tests/executeCommand', {
+                command: `-exec-continue --thread ${thread.id}`,
+            });
+            const event = await dc.waitForEvent('continued');
+
+            assert.deepEqual<any>(event.body, {
+                threadId: thread.id,
+                allThreadsContinued: false,
+            });
         }
     });
 });
