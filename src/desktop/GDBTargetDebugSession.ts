@@ -471,13 +471,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.serialPort.close();
 
             if (this.targetType === 'remote') {
-                if (this.gdb.getAsyncMode() && this.isRunning) {
-                    // See #295 - this use of "await" is to try to slightly delay the
-                    // call to disconnect. A proper solution that waits for the
-                    // interrupt to be successful is needed to avoid future
-                    // "Cannot execute this command while the target is running"
-                    // errors
-                    await this.gdb.sendCommand('interrupt');
+                this.waitPausedNeeded =
+                    this.gdb.getAsyncMode() && this.isRunning;
+
+                if (this.waitPausedNeeded) {
+                    // Need to pause first, then disconnect and exit
+                    await this.pause();
                 }
 
                 await this.gdb.sendCommand('disconnect');
