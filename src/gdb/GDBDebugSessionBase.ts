@@ -354,7 +354,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         await waitPromise;
     }
 
-    protected async continue(): Promise<void> {
+    protected async continuePausedThread(): Promise<void> {
         if (this.gdb.isNonStopMode()) {
             await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
         } else {
@@ -538,7 +538,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         if (this.waitPausedNeeded) {
-            await this.continue();
+            await this.continuePausedThread();
         }
     }
 
@@ -647,7 +647,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         if (this.waitPausedNeeded) {
-            await this.continue();
+            await this.continuePausedThread();
         }
     }
 
