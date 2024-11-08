@@ -333,7 +333,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * actually paused. The paused thread ID is saved to `this.waitPausedThreadId`.
      */
     protected async pauseIfNeeded(): Promise<void> {
-        this.waitPausedNeeded = this.isRunning && this.gdb.getAsyncMode();
+        this.waitPausedNeeded = this.isRunning;
 
         if (this.waitPausedNeeded) {
             const waitPromise = new Promise<void>((resolve) => {
