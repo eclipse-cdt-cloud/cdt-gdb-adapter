@@ -330,35 +330,41 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     /**
      * Sends a pause command to GDBBackend, and resolves when the debugger is
-     * actually paused
+     * actually paused. The paused thread ID is saved to `this.waitPausedThreadId`.
      */
-    protected async pause(): Promise<void> {
-        const waitPromise = new Promise<void>((resolve) => {
-            this.waitPaused = resolve;
-        });
-        if (this.gdb.isNonStopMode()) {
-            const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+    protected async pauseIfNeeded(): Promise<void> {
+        this.waitPausedNeeded = this.isRunning && this.gdb.getAsyncMode();
 
-            this.waitPausedThreadId = parseInt(
-                threadInfo['current-thread-id'],
-                10
-            );
-            this.gdb.pause(this.waitPausedThreadId);
-        } else {
-            this.gdb.pause();
+        if (this.waitPausedNeeded) {
+            const waitPromise = new Promise<void>((resolve) => {
+                this.waitPaused = resolve;
+            });
+            if (this.gdb.isNonStopMode()) {
+                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+
+                this.waitPausedThreadId = parseInt(
+                    threadInfo['current-thread-id'],
+                    10
+                );
+                this.gdb.pause(this.waitPausedThreadId);
+            } else {
+                this.gdb.pause();
+            }
+
+            // This promise resolves when handling GDBAsync for the "stopped"
+            // result class, which indicates that the call to `GDBBackend::pause`
+            // is actually finished.
+            await waitPromise;
         }
-
-        // This promise resolves when handling GDBAsync for the "stopped"
-        // result class, which indicates that the call to `GDBBackend::pause`
-        // is actually finished.
-        await waitPromise;
     }
 
-    protected async continuePausedThread(): Promise<void> {
-        if (this.gdb.isNonStopMode()) {
-            await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
-        } else {
-            await mi.sendExecContinue(this.gdb);
+    protected async continueIfNeeded(): Promise<void> {
+        if (this.waitPausedNeeded) {
+            if (this.gdb.isNonStopMode()) {
+                await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+            } else {
+                await mi.sendExecContinue(this.gdb);
+            }
         }
     }
 
@@ -366,10 +372,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
-        this.waitPausedNeeded = this.isRunning;
-        if (this.waitPausedNeeded) {
-            await this.pause();
-        }
+        await this.pauseIfNeeded();
 
         try {
             // Need to get the list of current breakpoints in the file and then make sure
@@ -537,20 +540,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             );
         }
 
-        if (this.waitPausedNeeded) {
-            await this.continuePausedThread();
-        }
+        await this.continueIfNeeded();
     }
 
     protected async setFunctionBreakPointsRequest(
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
-        this.waitPausedNeeded = this.isRunning;
-        if (this.waitPausedNeeded) {
-            // Need to pause first
-            await this.pause();
-        }
+        await this.pauseIfNeeded();
 
         try {
             const result = await mi.sendBreakList(this.gdb);
@@ -646,9 +643,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             );
         }
 
-        if (this.waitPausedNeeded) {
-            await this.continuePausedThread();
-        }
+        await this.continueIfNeeded();
     }
 
     /**
