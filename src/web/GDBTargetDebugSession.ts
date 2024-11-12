@@ -327,7 +327,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         try {
             if (this.targetType === 'remote') {
                 // Need to pause first, then disconnect and exit
-                await this.pauseIfNeeded();
+                await this.pauseIfNeeded(true);
                 await this.gdb.sendCommand('disconnect');
             }
 

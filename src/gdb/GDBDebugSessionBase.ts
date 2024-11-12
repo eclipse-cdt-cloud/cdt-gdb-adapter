@@ -331,9 +331,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Sends a pause command to GDBBackend, and resolves when the debugger is
      * actually paused. The paused thread ID is saved to `this.waitPausedThreadId`.
+     *
+     * @param requireAsync - require gdb to be in async mode to pause
      */
-    protected async pauseIfNeeded(): Promise<void> {
-        this.waitPausedNeeded = this.isRunning;
+    protected async pauseIfNeeded(requireAsync = false): Promise<void> {
+        this.waitPausedNeeded =
+            this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
 
         if (this.waitPausedNeeded) {
             const waitPromise = new Promise<void>((resolve) => {
