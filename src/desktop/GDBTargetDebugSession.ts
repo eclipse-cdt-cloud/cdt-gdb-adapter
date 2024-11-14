@@ -462,6 +462,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
+    /**
+     * WARNING: `disconnectRequest` is unreliable in sync mode.
+     * @see {@link https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/339#discussion_r1840549671}
+     */
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
         _args: DebugProtocol.DisconnectArguments
