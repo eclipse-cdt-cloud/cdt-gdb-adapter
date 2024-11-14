@@ -320,21 +320,18 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         return this.gdbserverProcessManager?.stop();
     }
 
+    /**
+     * WARNING: `disconnectRequest` is unreliable in sync mode.
+     * @see {@link https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/339#discussion_r1840549671}
+     */
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
             if (this.targetType === 'remote') {
-                if (this.gdb.getAsyncMode() && this.isRunning) {
-                    // See #295 - this use of "await" is to try to slightly delay the
-                    // call to disconnect. A proper solution that waits for the
-                    // interrupt to be successful is needed to avoid future
-                    // "Cannot execute this command while the target is running"
-                    // errors
-                    await this.gdb.sendCommand('interrupt');
-                }
-
+                // Need to pause first, then disconnect and exit
+                await this.pauseIfNeeded(true);
                 await this.gdb.sendCommand('disconnect');
             }
 
