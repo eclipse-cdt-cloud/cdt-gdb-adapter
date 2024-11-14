@@ -331,9 +331,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Sends a pause command to GDBBackend, and resolves when the debugger is
      * actually paused. The paused thread ID is saved to `this.waitPausedThreadId`.
-     *
      * @param requireAsync - require gdb to be in async mode to pause
      */
+    protected async pauseIfNeeded(requireAsync?: false): Promise<void>;
+
+    /**
+     * Sends a pause command to GDBBackend, and resolves when the debugger is
+     * actually paused. The paused thread ID is saved to `this.waitPausedThreadId`.
+     *
+     * @param requireAsync - require gdb to be in async mode to pause
+     * @deprecated the `requireAsync` parameter should not be used and will be
+     * removed in the future.
+     * See {@link https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/339#discussion_r1840549671}
+     */
+    protected async pauseIfNeeded(requireAsync: true): Promise<void>;
+
     protected async pauseIfNeeded(requireAsync = false): Promise<void> {
         this.waitPausedNeeded =
             this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
