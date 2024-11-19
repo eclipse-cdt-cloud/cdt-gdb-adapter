@@ -12,6 +12,13 @@ import { parseGdbVersionOutput } from '../util/parseGdbVersionOutput';
 import { createEnvValues } from '../util/createEnvValues';
 import { expect } from 'chai';
 import * as os from 'os';
+import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
+import { MIDataDisassembleAsmInsn } from '../mi';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import {
+    getDisassembledInstruction,
+    getEmptyInstructions,
+} from '../util/disassembly';
 
 describe('util', async () => {
     it('compareVersions', async () => {
@@ -138,5 +145,210 @@ describe('createEnvValues', () => {
         const result = createEnvValues(sourceENV, valuesToInject);
 
         expect(result).to.deep.equals(expectedResult);
+    });
+});
+
+describe('calculateMemoryOffset', () => {
+    it('should expect to calculate basic operations', () => {
+        expect(calculateMemoryOffset('0x0000ff00', 2)).to.eq('0x0000ff02');
+        expect(calculateMemoryOffset('0x0000ff00', 8)).to.eq('0x0000ff08');
+        expect(calculateMemoryOffset('0x0000ff00', 64)).to.eq('0x0000ff40');
+        expect(calculateMemoryOffset('0x0000ff00', -2)).to.eq('0x0000fefe');
+        expect(calculateMemoryOffset('0x0000ff00', -8)).to.eq('0x0000fef8');
+        expect(calculateMemoryOffset('0x0000ff00', -64)).to.eq('0x0000fec0');
+    });
+
+    it('should expect to handle 64bit address operations ', () => {
+        expect(calculateMemoryOffset('0x0000ff00', '0xff')).to.eq('0x0000ffff');
+        expect(calculateMemoryOffset('0x0000ff00', '0x0100')).to.eq(
+            '0x00010000'
+        );
+    });
+
+    it('should expect to handle reference address operations ', () => {
+        expect(calculateMemoryOffset('main', 2)).to.eq('main+2');
+        expect(calculateMemoryOffset('main', -2)).to.eq('main-2');
+        expect(calculateMemoryOffset('main+4', 6)).to.eq('main+10');
+        expect(calculateMemoryOffset('main+4', -6)).to.eq('main-2');
+        expect(calculateMemoryOffset('main+4', 6)).to.eq('main+10');
+        expect(calculateMemoryOffset('main-4', -6)).to.eq('main-10');
+        expect(calculateMemoryOffset('main-4', 6)).to.eq('main+2');
+    });
+
+    it('should expect to handle 64bit address operations ', () => {
+        expect(calculateMemoryOffset('0xffeeddcc0000ff00', '0xff')).to.eq(
+            '0xffeeddcc0000ffff'
+        );
+        expect(calculateMemoryOffset('0xffeeddcc0000ff00', '0x0100')).to.eq(
+            '0xffeeddcc00010000'
+        );
+    });
+});
+
+describe('getDisassembledInstruction', () => {
+    it('should map properly', () => {
+        const asmInst: MIDataDisassembleAsmInsn = {
+            'func-name': 'fn_test',
+            offset: '2',
+            address: '0x1fff',
+            inst: 'mov r10, r6',
+            opcodes: 'b2 46',
+        };
+        const expected: DebugProtocol.DisassembledInstruction = {
+            address: '0x1fff',
+            instructionBytes: 'b2 46',
+            instruction: 'mov r10, r6',
+            symbol: 'fn_test+2',
+        };
+
+        const result = getDisassembledInstruction(asmInst);
+        expect(result).to.deep.equal(expected);
+    });
+    it('should work without offset', () => {
+        const asmInst: MIDataDisassembleAsmInsn = {
+            'func-name': 'fn_test',
+            address: '0x1fff',
+            inst: 'mov r10, r6',
+            opcodes: 'b2 46',
+        } as unknown as MIDataDisassembleAsmInsn;
+        const expected: DebugProtocol.DisassembledInstruction = {
+            address: '0x1fff',
+            instructionBytes: 'b2 46',
+            instruction: 'mov r10, r6',
+            symbol: 'fn_test',
+        };
+
+        const result = getDisassembledInstruction(asmInst);
+        expect(result).to.deep.equal(expected);
+    });
+
+    it('should work without function name', () => {
+        const asmInst: MIDataDisassembleAsmInsn = {
+            address: '0x1fff',
+            inst: 'mov r10, r6',
+            opcodes: 'b2 46',
+        } as unknown as MIDataDisassembleAsmInsn;
+        const expected: DebugProtocol.DisassembledInstruction = {
+            address: '0x1fff',
+            instructionBytes: 'b2 46',
+            instruction: 'mov r10, r6',
+        };
+
+        const result = getDisassembledInstruction(asmInst);
+        expect(result).to.deep.equal(expected);
+    });
+});
+
+describe('getEmptyInstructions', () => {
+    it('should return forward instructions', () => {
+        const instructions = getEmptyInstructions('0x0000f000', 10, 4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('0x0000f000', ix * 4)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return reverse instructions', () => {
+        const instructions = getEmptyInstructions('0x0000f000', 10, -4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('0x0000f000', ix * 4 - 40)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return forward instructions with function reference', () => {
+        const instructions = getEmptyInstructions('main', 10, 4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                ix === 0 ? 'main' : calculateMemoryOffset('main', ix * 4)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return reverse instructions with function reference', () => {
+        const instructions = getEmptyInstructions('main', 10, -4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('main', ix * 4 - 40)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return forward instructions with function reference and positive offset', () => {
+        const instructions = getEmptyInstructions('main+20', 10, 4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('main+20', ix * 4)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return reverse instructions with function reference and positive offset', () => {
+        const instructions = getEmptyInstructions('main+20', 10, -4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('main+20', ix * 4 - 40)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return forward instructions with function reference and negative offset', () => {
+        const instructions = getEmptyInstructions('main-20', 10, 4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('main-20', ix * 4)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+
+    it('should return reverse instructions with function reference and negative offset', () => {
+        const instructions = getEmptyInstructions('main-20', 10, -4);
+        expect(instructions.length).to.eq(10);
+        instructions.forEach((instruction, ix) => {
+            expect(instruction.address).to.eq(
+                calculateMemoryOffset('main-20', ix * 4 - 40)
+            );
+            expect(instruction.instruction).to.eq(
+                'failed to retrieve instruction'
+            );
+            expect(instruction.presentationHint).to.eq('invalid');
+        });
     });
 });
