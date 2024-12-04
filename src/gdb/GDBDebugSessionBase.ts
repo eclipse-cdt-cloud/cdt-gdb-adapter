@@ -2008,56 +2008,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     // update the display name for array elements to have square brackets
                     name = `[${child.exp}]`;
                 }
-                if (isArrayParent || isArrayChild) {
-                    // can't use a relative varname (eg. var1.a.b.c) to create/update a new var so fetch and track these
-                    // vars by evaluating their path expression from GDB
-                    const fullPath = await this.getFullPathExpression(
-                        child.name
-                    );
-                    // create or update the var in GDB
-                    let arrobj = this.gdb.varManager.getVar(
-                        frame.frameId,
-                        frame.threadId,
-                        depth,
-                        fullPath
-                    );
-                    if (!arrobj) {
-                        const varCreateResponse = await mi.sendVarCreate(
-                            this.gdb,
-                            {
-                                expression: fullPath,
-                                frameId: frame.frameId,
-                                threadId: frame.threadId,
-                            }
-                        );
-                        arrobj = this.gdb.varManager.addVar(
-                            frame.frameId,
-                            frame.threadId,
-                            depth,
-                            fullPath,
-                            true,
-                            false,
-                            varCreateResponse
-                        );
-                    } else {
-                        arrobj = await this.gdb.varManager.updateVar(
-                            frame.frameId,
-                            frame.threadId,
-                            depth,
-                            arrobj
-                        );
-                    }
-                    // if we have an array parent entry, we need to display the address.
-                    if (isArrayParent) {
-                        value = await this.getAddr(arrobj);
-                    }
-                    arrobj.isChild = true;
-                    varobjName = arrobj.varname;
-                }
                 const variableName = isArrayChild ? name : child.exp;
                 const evaluateName =
                     isArrayParent || isArrayChild
-                        ? await this.getFullPathExpression(child.name)
+                        ? `${topLevelPathExpression}[${child.exp}]`
                         : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
