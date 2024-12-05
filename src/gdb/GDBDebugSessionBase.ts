@@ -1346,6 +1346,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         args: CDTDisassembleArguments
     ) {
         try {
+            if (!args.memoryReference) {
+                throw new Error('Target memory reference is not specified!');
+            }
             const instructionStartOffset = args.instructionOffset ?? 0;
             const instructionEndOffset =
                 args.instructionCount + instructionStartOffset;

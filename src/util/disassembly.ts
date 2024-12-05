@@ -8,11 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { DebugProtocol } from '@vscode/debugprotocol';
-import {
-    MIDataDisassembleAsmInsn,
-    MIDataDisassembleResponse,
-    sendDataDisassemble,
-} from '../mi';
+import { MIDataDisassembleAsmInsn, sendDataDisassemble } from '../mi';
 import { IGDBBackend } from '../types/gdb';
 import { calculateMemoryOffset } from './calculateMemoryOffset';
 
@@ -115,85 +111,98 @@ export const getInstructions = async (
 ) => {
     const list: DebugProtocol.DisassembledInstruction[] = [];
     const meanSizeOfInstruction = 4;
+    const isReverseFetch = length < 0;
     const absLength = Math.abs(length);
 
-    let result: MIDataDisassembleResponse | undefined = undefined;
+    const formatMemoryAddress = (offset: number) => {
+        return `(${memoryReference})${offset < 0 ? '-' : '+'}${Math.abs(
+            offset
+        )}`;
+    };
+
+    const sendDataDisassembleWrapper = async (lower: number, upper: number) => {
+        const list: DebugProtocol.DisassembledInstruction[] = [];
+
+        const result = await sendDataDisassemble(
+            gdb,
+            formatMemoryAddress(lower),
+            formatMemoryAddress(upper)
+        );
+        for (const asmInsn of result.asm_insns) {
+            const line: number | undefined = asmInsn.line
+                ? parseInt(asmInsn.line, 10)
+                : undefined;
+            const location = {
+                name: asmInsn.file,
+                path: asmInsn.fullname,
+            } as DebugProtocol.Source;
+            for (const asmLine of asmInsn.line_asm_insn) {
+                list.push({
+                    ...getDisassembledInstruction(asmLine),
+                    location,
+                    line,
+                });
+            }
+        }
+        return list;
+    };
+
+    const target = { lower: 0, higher: 0 };
+    const recalculateTargetBounds = (length: number) => {
+        if (isReverseFetch) {
+            target.higher = target.lower;
+            target.lower += length * meanSizeOfInstruction;
+        } else {
+            target.lower = target.higher;
+            target.higher += length * meanSizeOfInstruction;
+        }
+    };
+    const remainingLength = () =>
+        Math.sign(length) * Math.max(absLength - list.length, 0);
+    const pushToList = (
+        instructions: DebugProtocol.DisassembledInstruction[]
+    ) => {
+        if (isReverseFetch) {
+            list.unshift(...instructions);
+        } else {
+            list.push(...instructions);
+        }
+    };
     try {
-        result =
-            length < 0
-                ? await sendDataDisassemble(
-                      gdb,
-                      `(${memoryReference})-${
-                          absLength * meanSizeOfInstruction
-                      }`,
-                      `(${memoryReference})+0`
-                  )
-                : await sendDataDisassemble(
-                      gdb,
-                      `(${memoryReference})+0`,
-                      `(${memoryReference})+${
-                          absLength * meanSizeOfInstruction
-                      }`
-                  );
+        while (absLength > list.length) {
+            recalculateTargetBounds(remainingLength());
+            const result = await sendDataDisassembleWrapper(
+                target.lower,
+                target.higher
+            );
+            if (result.length === 0) {
+                // If cannot retrieve more instructions, break the loop, go to catch
+                // and fill the remaining instructions with empty instruction information
+                throw new Error('Cannot retrieve more instructions!');
+            }
+            pushToList(result);
+        }
     } catch (e) {
-        // Do nothing in case of memory error.
-        result = undefined;
+        // Fill with empty instructions in case of memory error.
+        const lastMemoryAddress =
+            list.length === 0
+                ? memoryReference
+                : list[isReverseFetch ? 0 : list.length - 1].address;
+        const emptyInstuctions = getEmptyInstructions(
+            lastMemoryAddress,
+            remainingLength(),
+            2
+        );
+        pushToList(emptyInstuctions);
     }
 
-    if (result === undefined) {
-        // result is undefined in case of error,
-        // then return empty instructions list
-        return getEmptyInstructions(memoryReference, length, 2);
-    }
-
-    for (const asmInsn of result.asm_insns) {
-        const line: number | undefined = asmInsn.line
-            ? parseInt(asmInsn.line, 10)
-            : undefined;
-        const location = {
-            name: asmInsn.file,
-            path: asmInsn.fullname,
-        } as DebugProtocol.Source;
-        for (const asmLine of asmInsn.line_asm_insn) {
-            list.push({
-                ...getDisassembledInstruction(asmLine),
-                location,
-                line,
-            });
-        }
-    }
-
-    if (length < 0) {
-        // Remove the heading, if necessary
-        if (absLength < list.length) {
+    if (absLength < list.length) {
+        if (length < 0) {
+            // Remove the heading, if necessary
             list.splice(0, list.length - absLength);
-        }
-
-        // Add empty instructions, if necessary
-        if (list.length < absLength) {
-            const startAddress = list[0].address;
-            const filling = getEmptyInstructions(
-                startAddress,
-                absLength - list.length,
-                -2
-            );
-            list.unshift(...filling);
-        }
-    } else {
-        // Remove the tail, if necessary
-        if (absLength < list.length) {
+        } else {
+            // Remove the tail, if necessary
             list.splice(absLength, list.length - absLength);
-        }
-
-        // Add empty instructions, if necessary
-        if (list.length < absLength) {
-            const startAddress = list[list.length - 1].address;
-            const filling = getEmptyInstructions(
-                startAddress,
-                absLength - list.length,
-                2
-            );
-            list.push(...filling);
         }
     }
 

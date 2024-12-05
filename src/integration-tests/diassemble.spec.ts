@@ -14,6 +14,7 @@ import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
+import { assert } from 'sinon';
 
 describe('Disassembly Test Suite', function () {
     let dc: CdtDebugClient;
@@ -99,8 +100,6 @@ describe('Disassembly Test Suite', function () {
     });
 
     it('can disassemble with negative offsets', async function () {
-        // In this case we attempt to read from where there is no source,
-        // GDB returns data in a different format in that case
         const disassemble = (await dc.send('disassemble', {
             memoryReference: 'main',
             instructionOffset: -20,
@@ -108,6 +107,21 @@ describe('Disassembly Test Suite', function () {
         } as DebugProtocol.DisassembleArguments)) as DebugProtocol.DisassembleResponse;
 
         expectsGeneralDisassemble(disassemble, 20, true);
+    });
+
+    it('send error response handle on empty memory reference', async function () {
+        try {
+            await dc.send('disassemble', {
+                memoryReference: '',
+                instructionOffset: -20,
+                instructionCount: 20,
+            } as DebugProtocol.DisassembleArguments);
+            assert.fail('Should throw error!');
+        } catch (e) {
+            expect(e).to.be.deep.equal(
+                new Error('Target memory reference is not specified!')
+            );
+        }
     });
 
     it('can disassemble with correct boundries', async function () {
@@ -130,8 +144,6 @@ describe('Disassembly Test Suite', function () {
             expect(instruction1.address).to.eq(instruction2.address, message);
         };
 
-        // In this case we attempt to read from where there is no source,
-        // GDB returns data in a different format in that case
         const disassembleLower = (await dc.send('disassemble', {
             memoryReference: 'main',
             instructionOffset: -20,
@@ -152,6 +164,9 @@ describe('Disassembly Test Suite', function () {
         expectsGeneralDisassemble(disassembleMiddle, 20, true);
         expectsGeneralDisassemble(disassembleHigher, 20, true);
 
+        // Current implementation have known edge cases, possibly instruction misaligning while
+        // handling the negative offsets, please refer to the discussion at the following link:
+        // https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/341#discussion_r1857422980
         expectsInstructionEquals(
             get(disassembleLower, 15),
             get(disassembleMiddle, 5),

@@ -182,6 +182,12 @@ describe('calculateMemoryOffset', () => {
         expect(calculateMemoryOffset('0xffeeddcc0000ff00', '0x0100')).to.eq(
             '0xffeeddcc00010000'
         );
+        expect(
+            calculateMemoryOffset('0xefeeddcc0000ff00', '0x10000000000000ff')
+        ).to.eq('0xffeeddcc0000ffff');
+        expect(
+            calculateMemoryOffset('0xefeeddcc0000ff00', '0x1000000000000100')
+        ).to.eq('0xffeeddcc00010000');
     });
 });
 
