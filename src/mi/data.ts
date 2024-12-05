@@ -19,7 +19,7 @@ interface MIDataReadMemoryBytesResponse {
         contents: string;
     }>;
 }
-interface MIDataDisassembleAsmInsn {
+export interface MIDataDisassembleAsmInsn {
     address: string;
     // func-name in MI
     'func-name': string;
@@ -28,13 +28,13 @@ interface MIDataDisassembleAsmInsn {
     inst: string;
 }
 
-interface MIDataDisassembleSrcAndAsmLine {
+export interface MIDataDisassembleSrcAndAsmLine {
     line: string;
     file: string;
     fullname: string;
     line_asm_insn: MIDataDisassembleAsmInsn[];
 }
-interface MIDataDisassembleResponse {
+export interface MIDataDisassembleResponse {
     asm_insns: MIDataDisassembleSrcAndAsmLine[];
 }
 
