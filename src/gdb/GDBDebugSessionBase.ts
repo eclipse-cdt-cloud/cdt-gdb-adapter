@@ -1387,11 +1387,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const message = err instanceof Error ? err.message : String(err);
+            this.sendEvent(new OutputEvent(`Error: ${message}`));
+            this.sendErrorResponse(response, 1, message);
         }
     }
 

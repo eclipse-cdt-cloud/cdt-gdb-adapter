@@ -13,7 +13,6 @@ import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
-import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { assert } from 'sinon';
 
 describe('Disassembly Test Suite', function () {
@@ -180,28 +179,17 @@ describe('Disassembly Test Suite', function () {
         );
     });
 
-    it('can handle disassemble at bad address', async function () {
-        const disassemble = (await dc.send('disassemble', {
-            memoryReference: '0x0',
-            instructionCount: 10,
-        })) as DebugProtocol.DisassembleResponse;
-
-        expect(disassemble).not.eq(undefined);
-        expect(disassemble.body).not.eq(undefined);
-        if (disassemble.body) {
-            const instructions = disassemble.body.instructions;
-            expect(instructions).to.have.lengthOf(10);
-            // Checking the invalid instructions content
-            instructions.forEach((inst, ix) => {
-                expect(inst.address).to.eq(
-                    calculateMemoryOffset('0x0', ix * 2)
-                );
-                expect(inst.address).to.have.lengthOf.greaterThan(0);
-                expect(inst.instruction).to.eq(
-                    'failed to retrieve instruction'
-                );
-                expect(inst.presentationHint).to.eq('invalid');
-            });
+    it('return error at bad address', async function () {
+        try {
+            await dc.send('disassemble', {
+                memoryReference: '0x0',
+                instructionCount: 10,
+            } as DebugProtocol.DisassembleArguments);
+            assert.fail('Should throw error!');
+        } catch (e) {
+            expect(e).to.be.deep.equal(
+                new Error('Cannot access memory at address 0x0')
+            );
         }
     });
 });

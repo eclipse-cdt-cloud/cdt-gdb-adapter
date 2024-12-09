@@ -178,22 +178,16 @@ export const getInstructions = async (
             if (result.length === 0) {
                 // If cannot retrieve more instructions, break the loop, go to catch
                 // and fill the remaining instructions with empty instruction information
-                throw new Error('Cannot retrieve more instructions!');
+                break;
             }
             pushToList(result);
         }
     } catch (e) {
-        // Fill with empty instructions in case of memory error.
-        const lastMemoryAddress =
-            list.length === 0
-                ? memoryReference
-                : list[isReverseFetch ? 0 : list.length - 1].address;
-        const emptyInstuctions = getEmptyInstructions(
-            lastMemoryAddress,
-            remainingLength(),
-            2
-        );
-        pushToList(emptyInstuctions);
+        // If error occured in the first iteration and no items can be read
+        // throw the original error, otherwise continue and fill the empty instructions.
+        if (list.length === 0) {
+            throw e;
+        }
     }
 
     if (absLength < list.length) {
@@ -204,6 +198,24 @@ export const getInstructions = async (
             // Remove the tail, if necessary
             list.splice(absLength, list.length - absLength);
         }
+    }
+
+    // Fill with empty instructions in case couldn't read desired length
+    if (absLength > list.length) {
+        if (list.length === 0) {
+            // In case of memory read error, where no instructions read before you cannot be sure about the memory offsets
+            // Avoid sending empty instructions, which is overriding the previous disassembled instructions in the VSCode
+            // Instead, send error message and fail the request.
+            throw new Error(`Cannot retrieve instructions!`);
+        }
+        const lastMemoryAddress =
+            list[isReverseFetch ? 0 : list.length - 1].address;
+        const emptyInstuctions = getEmptyInstructions(
+            lastMemoryAddress,
+            absLength - list.length,
+            Math.sign(length) * 2
+        );
+        pushToList(emptyInstuctions);
     }
 
     return list;
