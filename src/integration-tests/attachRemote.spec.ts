@@ -26,7 +26,7 @@ import { expect } from 'chai';
 describe('attach remote', function () {
     let dc: CdtDebugClient;
     let gdbserver: cp.ChildProcess;
-    let port: number;
+    let port: string;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
 
@@ -39,19 +39,18 @@ describe('attach remote', function () {
                 cwd: testProgramsDir,
             }
         );
-        port = await new Promise<number>((resolve, reject) => {
+        port = await new Promise<string>((resolve, reject) => {
+            const regex = new RegExp(/Listening on port ([0-9]+)\r?\n/);
             let accumulatedStderr = '';
             if (gdbserver.stderr) {
                 gdbserver.stderr.on('data', (data) => {
-                    const line = String(data);
-                    accumulatedStderr += line;
-                    const LISTENING_ON_PORT = 'Listening on port ';
-                    const index = accumulatedStderr.indexOf(LISTENING_ON_PORT);
-                    if (index >= 0) {
-                        const portStr = accumulatedStderr
-                            .substr(index + LISTENING_ON_PORT.length, 6)
-                            .trim();
-                        resolve(parseInt(portStr, 10));
+                    if (!port) {
+                        const line = String(data);
+                        accumulatedStderr += line;
+                        const m = regex.exec(accumulatedStderr);
+                        if (m !== null) {
+                            resolve(m[1]);
+                        }
                     }
                 });
             } else {

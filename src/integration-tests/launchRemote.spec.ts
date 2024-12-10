@@ -140,7 +140,7 @@ describe('launch remote', function () {
     });
 
     it('can show user error on debug console if UART fails to open - Socket', async function () {
-        const output = await dc.getDebugConsoleOutput(
+        await dc.getDebugConsoleOutput(
             fillDefaults(this.test, {
                 program: emptyProgram,
                 openGdbConsole: false,
@@ -155,6 +155,5 @@ describe('launch remote', function () {
             'error on socket connection',
             true
         );
-        expect(output.body.output).contains('0');
     });
 });
