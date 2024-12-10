@@ -8,10 +8,10 @@ jobs:
     name: Build & Test on Ubuntu
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '14'
+          node-version: '20'
       - name: Install GCC & GDB & other build essentials
         run: |
           sudo apt-get update
@@ -29,13 +29,13 @@ jobs:
       - name: Test
         run: yarn test-ci
       - name: Log file artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-logs-ubuntu
           path: test-logs/
       - name: Upload Test Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-results-ubuntu
@@ -49,10 +49,10 @@ jobs:
     name: Build & Test on Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '14'
+          node-version: '20'
       - name: Install GCC & GDB & other build essentials
         run: |
           choco install mingw
@@ -70,13 +70,13 @@ jobs:
       - name: Test
         run: yarn test-ci
       - name: Log file artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-logs-windows
           path: test-logs/
       - name: Upload Test Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-results-windows

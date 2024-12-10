@@ -16,21 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Test Report
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v7
         with:
           name: test-results-ubuntu
           path: ubuntu
           workflow: ${{ github.event.workflow.id }}
           run_id: ${{ github.event.workflow_run.id }}
       - name: Download Test Report
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v7
         with:
           name: test-results-windows
           path: windows
           workflow: ${{ github.event.workflow.id }}
           run_id: ${{ github.event.workflow_run.id }}
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v3
+        uses: mikepenz/action-junit-report@v5
         with:
           commit: ${{github.event.workflow_run.head_sha}}
           report_paths: '**/*.xml'
