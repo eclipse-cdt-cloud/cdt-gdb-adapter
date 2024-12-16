@@ -205,6 +205,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             os.platform() === 'linux' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
         response.body.supportsConfigurationDoneRequest = true;
+        response.body.supportsEvaluateForHovers = true;
         response.body.supportsSetVariable = true;
         response.body.supportsConditionalBreakpoints = true;
         response.body.supportsHitConditionalBreakpoints = true;
