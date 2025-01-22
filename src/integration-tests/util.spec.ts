@@ -14,11 +14,16 @@ import { expect } from 'chai';
 import * as os from 'os';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { MIDataDisassembleAsmInsn } from '../mi';
+import * as midata from '../mi/data';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import {
     getDisassembledInstruction,
     getEmptyInstructions,
+    getInstructions,
 } from '../util/disassembly';
+import { isHexString } from '../util/isHexString';
+import { afterEach, beforeEach } from 'mocha';
+import * as Sinon from 'sinon';
 
 describe('util', async () => {
     it('compareVersions', async () => {
@@ -355,6 +360,101 @@ describe('getEmptyInstructions', () => {
                 'failed to retrieve instruction'
             );
             expect(instruction.presentationHint).to.eq('invalid');
+        });
+    });
+});
+
+describe('isHexString', () => {
+    it('should return true on valid values', () => {
+        const validValues = [
+            '0x00',
+            '0x0123456789abcdef',
+            '0x0123456789ABCDEF',
+            '0x0000fefe',
+            '0x10000000000000ff',
+        ];
+
+        for (const value of validValues) {
+            const result = isHexString(value);
+            expect(result).to.equals(true, `isHexString for ${value}`);
+        }
+    });
+
+    it('should return false on invalid values', () => {
+        const validValues = [
+            '(0x00)',
+            '0x00+1',
+            '1x00',
+            'x00',
+            '00h',
+            'main',
+            'main+0x2000',
+            'ABCABC',
+            '0xAZF0',
+        ];
+
+        for (const value of validValues) {
+            const result = isHexString(value);
+            expect(result).to.equals(false, `isHexString for ${value}`);
+        }
+    });
+});
+
+describe('getInstructions', () => {
+    const sandbox = Sinon.createSandbox();
+    const fakeGDBObject = {} as any;
+    let sendDataDisassembleStub: Sinon.SinonStub;
+
+    beforeEach(() => {
+        sendDataDisassembleStub = sandbox.stub(midata, 'sendDataDisassemble');
+        sendDataDisassembleStub.resolves({
+            asm_insns: [
+                {
+                    line: 1,
+                    file: 'test.c',
+                    fullname: '/path/to/test.c',
+                    line_asm_insn: [
+                        {
+                            address: '0x0',
+                            opcodes: 'aa bb',
+                            inst: 'test inst',
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+
+    afterEach(() => {
+        sandbox.reset();
+        sandbox.restore();
+    });
+
+    it('should handle the negative memory areas', async () => {
+        const instructions = await getInstructions(fakeGDBObject, '0x02', -10);
+        Sinon.assert.calledOnceWithExactly(
+            sendDataDisassembleStub,
+            fakeGDBObject,
+            '(0x02)-2',
+            '(0x02)+0'
+        );
+        expect(instructions.length).to.equal(10);
+        for (let i = 0; i < 9; i++) {
+            // Nine of them are invalid with relative addresses
+            expect(instructions[i]).deep.equals({
+                address: `(0x0)-${(9 - i) * 2}`,
+                instruction: 'failed to retrieve instruction',
+                presentationHint: 'invalid',
+            });
+        }
+
+        // Last one is the returned instruction.
+        expect(instructions[9]).deep.equals({
+            address: '0x0',
+            instructionBytes: 'aa bb',
+            instruction: 'test inst',
+            location: { name: 'test.c', path: '/path/to/test.c' },
+            line: 1,
         });
     });
 });
