@@ -11,6 +11,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { MIDataDisassembleAsmInsn, sendDataDisassemble } from '../mi';
 import { IGDBBackend } from '../types/gdb';
 import { calculateMemoryOffset } from './calculateMemoryOffset';
+import { isHexString } from './isHexString';
 
 /**
  * Converts the MIDataDisassembleAsmInsn object to DebugProtocol.DisassembledInstruction
@@ -121,6 +122,9 @@ export const getInstructions = async (
     };
 
     const sendDataDisassembleWrapper = async (lower: number, upper: number) => {
+        if (lower === upper) {
+            return [];
+        }
         const list: DebugProtocol.DisassembledInstruction[] = [];
 
         const result = await sendDataDisassemble(
@@ -152,6 +156,15 @@ export const getInstructions = async (
         if (isReverseFetch) {
             target.higher = target.lower;
             target.lower += length * meanSizeOfInstruction;
+
+            // Limit the lower bound to not to cross negative memory address area
+            if (
+                isHexString(memoryReference) &&
+                BigInt(memoryReference) + BigInt(target.lower) < 0
+            ) {
+                // Lower and Upper bounds are in number type
+                target.lower = Number(memoryReference) * -1;
+            }
         } else {
             target.lower = target.higher;
             target.higher += length * meanSizeOfInstruction;

@@ -8,6 +8,8 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
+import { isHexString } from './isHexString';
+
 /**
  * This method calculates the memory offset arithmetics on string hexadecimal address value
  *
@@ -22,9 +24,12 @@ export const calculateMemoryOffset = (
     address: string,
     offset: string | number | bigint
 ): string => {
-    if (address.startsWith('0x')) {
+    if (isHexString(address)) {
         const addressLength = address.length - 2;
         const newAddress = BigInt(address) + BigInt(offset);
+        if (newAddress < 0) {
+            return `(0x${'0'.padStart(addressLength, '0')})${newAddress}`;
+        }
         return `0x${newAddress.toString(16).padStart(addressLength, '0')}`;
     } else {
         const addrParts = /^([^+-]*)([+-]\d+)?$/g.exec(address);
