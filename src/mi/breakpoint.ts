@@ -49,8 +49,31 @@ export interface MIBreakListResponse extends MIResponse {
     };
 }
 
+export type MIBreakpointMode = 'hardware' | 'software';
+
 export interface MIBreakpointInsertOptions {
     temporary?: boolean;
+
+    /**
+     * The `mode` property is prioritised over the `hardware` property.
+     * If `mode` is defined, then the information in the `hardware` flag
+     * is ignored during the insert breakpoint operation.
+     *
+     * The value of the mode wil be:
+     *
+     * - `'hardware'`: If user explicitly selects the breakpoint mode as
+     *   'Hardware Breakpoint' at the user interface.
+     * - `'software'`: If user explicitly selects the breakpoint mode as
+     *    'Software Breakpoint' at the user interface.
+     * - `undefined`: If user didn't make an explicitly breakpoint mode
+     *   selection, in this case the `hardware` flag will be used.
+     */
+    mode?: MIBreakpointMode;
+
+    /**
+     * @deprecated The `hardware` property will be removed soon. Please
+     * use the `mode` property instead of the `hardware`.
+     */
     hardware?: boolean;
     pending?: boolean;
     disabled?: boolean;
@@ -128,7 +151,12 @@ export async function sendBreakpointInsert(
     // Todo: lots of options
     const temp = options?.temporary ? '-t ' : '';
     const ignore = options?.ignoreCount ? `-i ${options?.ignoreCount} ` : '';
-    const hwBreakpoint = options?.hardware ? '-h ' : '';
+
+    // prefers options.mode information over options.hardware information.
+    const isHwBreakpoint = options?.mode
+        ? options.mode === 'hardware'
+        : !!options?.hardware;
+    const hwBreakpoint = isHwBreakpoint ? '-h ' : '';
     const pend = options?.pending ? '-f ' : '';
     const command = `-break-insert ${temp}${hwBreakpoint}${ignore}${pend}${location}`;
     const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(

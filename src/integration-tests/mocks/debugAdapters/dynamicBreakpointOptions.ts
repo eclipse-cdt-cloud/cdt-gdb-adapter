@@ -11,7 +11,11 @@
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from '../../../gdb/GDBBackend';
 import { GDBTargetDebugSession } from '../../../desktop/GDBTargetDebugSession';
-import { MIBreakpointLocation, MIBreakpointInsertOptions } from '../../../mi';
+import {
+    MIBreakpointLocation,
+    MIBreakpointInsertOptions,
+    MIBreakpointMode,
+} from '../../../mi';
 import { GDBFileSystemProcessManager } from '../../../desktop/processManagers/GDBFileSystemProcessManager';
 import {
     AttachRequestArguments,
@@ -35,6 +39,16 @@ const hardwareBreakpointTrue = process.argv.includes(
 const hardwareBreakpointFalse = process.argv.includes(
     '--hardware-breakpoint-false'
 );
+
+// Breakpoint mode to override
+const breakpointModeIndex = process.argv.indexOf('--breakpoint-mode');
+const breakpointMode =
+    breakpointModeIndex < 0
+        ? undefined
+        : (process.argv[breakpointModeIndex + 1] as
+              | MIBreakpointMode
+              | undefined);
+
 const throwError = process.argv.includes('--throw-error');
 
 class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
@@ -52,7 +66,8 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
             : hardwareBreakpointFalse
             ? false
             : initialOptions.hardware;
-        return { ...initialOptions, hardware };
+        const mode = breakpointMode ?? initialOptions.mode;
+        return { ...initialOptions, mode, hardware };
     }
 }
 

@@ -783,12 +783,12 @@
     "@typescript-eslint/types" "5.54.0"
     eslint-visitor-keys "^3.3.0"
 
-"@vscode/debugadapter-testsupport@^1.59.0":
-  version "1.59.0"
-  resolved "https://registry.yarnpkg.com/@vscode/debugadapter-testsupport/-/debugadapter-testsupport-1.59.0.tgz#d29b89f6285424435499e9bb5ad42e5db01f3a11"
-  integrity sha512-Q25IHmZCTHispSg/h3kBa8M2EGPFgZGbwt3hlGA53ydWlF0TUEJ12oW9ODMEBO+VAk+GGrHW/C6iCLgyLvcPPw==
+"@vscode/debugadapter-testsupport@^1.68.0":
+  version "1.68.0"
+  resolved "https://registry.yarnpkg.com/@vscode/debugadapter-testsupport/-/debugadapter-testsupport-1.68.0.tgz#27e7c38d2f5af1e1c4f9ca88b87bccf5c4cefab2"
+  integrity sha512-UpbaPsCGMKyjIvJFtqFKDD1MVvME50xuOtRBPrqY1WdhAOLjWQN7FcKEoHv3X85twfNL21jW2M54FYwEdEQv4Q==
   dependencies:
-    "@vscode/debugprotocol" "1.59.0"
+    "@vscode/debugprotocol" "1.68.0"
 
 "@vscode/debugadapter@^1.68.0":
   version "1.68.0"
@@ -796,11 +796,6 @@
   integrity sha512-D6gk5Fw2y4FV8oYmltoXpj+VAZexxJFopN/mcZ6YcgzQE9dgq2L45Aj3GLxScJOD6GeLILcxJIaA8l3v11esGg==
   dependencies:
     "@vscode/debugprotocol" "1.68.0"
-
-"@vscode/debugprotocol@1.59.0":
-  version "1.59.0"
-  resolved "https://registry.yarnpkg.com/@vscode/debugprotocol/-/debugprotocol-1.59.0.tgz#f173ff725f60e4ff1002f089105634900c88bd77"
-  integrity sha512-Ks8NiZrCvybf9ebGLP8OUZQbEMIJYC8X0Ds54Q/szpT/SYEDjTksPvZlcWGTo7B9t5abjvbd0jkNH3blYaSuVw==
 
 "@vscode/debugprotocol@1.68.0", "@vscode/debugprotocol@^1.68.0":
   version "1.68.0"
