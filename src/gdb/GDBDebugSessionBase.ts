@@ -195,6 +195,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    protected getBreakpointModes(): DebugProtocol.BreakpointMode[] | undefined {
+        return [
+            {
+                label: 'Hardware Breakpoint',
+                mode: 'hardware',
+                appliesTo: ['source'],
+            },
+            {
+                label: 'Software Breakpoint',
+                mode: 'software',
+                appliesTo: ['source'],
+            },
+        ];
+    }
+
     protected initializeRequest(
         response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments
@@ -216,6 +231,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
         response.body.supportsSteppingGranularity = true;
+        response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
 
@@ -438,11 +454,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
+                    const vsbpIsBreakpointTypeHardware = vsbp.mode
+                        ? vsbp.mode === 'hardware'
+                        : this.gdb.isUseHWBreakpoint();
+                    const gdbbpIsBreakpointTypeHardware =
+                        gdbbp.type === 'hw breakpoint';
+
                     // Check with original-location so that relocated breakpoints are properly matched
                     const gdbOriginalLocation = `${gdbOriginalLocationPrefix}${vsbp.line}`;
                     return !!(
                         gdbbp['original-location'] === gdbOriginalLocation &&
-                        vsbpCond === gdbbpCond
+                        vsbpCond === gdbbpCond &&
+                        vsbpIsBreakpointTypeHardware ===
+                            gdbbpIsBreakpointTypeHardware
                     );
                 }
             );
@@ -516,6 +540,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
                 try {
                     const line = vsbp.line.toString();
+                    const breakpointMode = vsbp.mode as
+                        | mi.MIBreakpointMode
+                        | undefined;
                     const options = await this.gdb.getBreakpointOptions(
                         {
                             locationType: 'source',
@@ -526,7 +553,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             condition: vsbp.condition,
                             temporary,
                             ignoreCount,
-                            hardware: this.gdb.isUseHWBreakpoint(),
+                            mode: breakpointMode,
+                            hardware: breakpointMode
+                                ? breakpointMode === 'hardware'
+                                : this.gdb.isUseHWBreakpoint(),
                         }
                     );
                     const gdbbp = await mi.sendSourceBreakpointInsert(
