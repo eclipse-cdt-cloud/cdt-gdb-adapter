@@ -907,7 +907,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         args: DebugProtocol.StepOutArguments
     ): Promise<void> {
         try {
-            await mi.sendExecFinish(this.gdb, args.threadId);
+            await mi.sendExecFinish(this.gdb, args.threadId, 0);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
