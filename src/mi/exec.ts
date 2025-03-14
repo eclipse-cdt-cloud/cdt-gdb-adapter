@@ -63,7 +63,11 @@ export function sendExecStepInstruction(gdb: IGDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecFinish(gdb: IGDBBackend, threadId?: number, frameId?: number) {
+export function sendExecFinish(
+    gdb: IGDBBackend,
+    threadId?: number,
+    frameId?: number
+) {
     let command = '-exec-finish';
     if (threadId !== undefined) {
         command += ` --thread ${threadId}`;
