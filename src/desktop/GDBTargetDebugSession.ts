@@ -19,6 +19,8 @@ import {
     TargetLaunchRequestArguments,
     TargetAttachRequestArguments,
     UARTArguments,
+    LaunchRequestArguments,
+    AttachRequestArguments,
 } from '../types/session';
 import {
     IGDBBackendFactory,
@@ -55,7 +57,42 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         this.gdbserverFactory = gdbserverFactory || new GDBServerFactory();
         this.logger = logger;
     }
+    
+    /**
+     * Apply the initial custom reset arguments.
+     * @param args the arguments from the user to apply custom reset arguments to.
+     */
+        protected applyCustomResetArguments(
+            args: LaunchRequestArguments | AttachRequestArguments
+        ) {
+            this.customResetCommands = args.customResetCommands;
+        }
+    
+    /**
+     * Handle requests not defined in the debug adapter protocol.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected customRequest(
+        command: string,
+        response: DebugProtocol.Response,
+        args: any
+    ): void {
+        if (command === 'cdt-gdb-adapter/customReset') {
+            this.customResetRequest();
+        } else {
+            return super.customRequest(command, response, args);
+        }
+    }
 
+    /**
+     * Implement the custom reset request.
+     */
+    protected async customResetRequest(): Promise<void> {
+        if (this.customResetCommands) {
+            return this.gdb.sendCommands(this.customResetCommands);
+        }
+    }
+    
     protected override async setupCommonLoggerAndBackends(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
@@ -96,6 +133,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetLaunchRequestArguments
     ): Promise<void> {
         try {
+            this.applyCustomResetArguments(args);
             const [request, resolvedArgs] = this.applyRequestArguments(
                 'launch',
                 args
@@ -115,6 +153,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetAttachRequestArguments
     ): Promise<void> {
         try {
+            this.applyCustomResetArguments(args);
             const [request, resolvedArgs] = this.applyRequestArguments(
                 'attach',
                 args

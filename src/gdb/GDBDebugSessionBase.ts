@@ -1964,8 +1964,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else {
                 // check if we're dealing with an array
                 let name = `${ref.varobjName}.${child.exp}`;
-                let varobjName = name;
-                let value = child.value ? child.value : child.type;
+                const varobjName = name;
+                const value = child.value ? child.value : child.type;
                 const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild =
                     varobj !== undefined

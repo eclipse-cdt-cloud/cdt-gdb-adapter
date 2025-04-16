@@ -25,6 +25,11 @@ export class GDBDebugSession extends GDBDebugSessionBase {
     protected static defaultRequestArguments?: any;
 
     /**
+     *  resetDeviceCommands from launch.json
+     */
+    protected customResetCommands?: string[];
+
+    /**
      * Frozen configuration for launch/attach request
      * typically supplied with the --config-frozen command line argument.
      */

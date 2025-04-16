@@ -13,6 +13,11 @@ import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { IGDBBackendFactory } from '../types/gdb';
 
 export class GDBDebugSession extends GDBDebugSessionBase {
+    /**
+     *  resetDeviceCommands from launch.json
+     */
+    protected customResetCommands?: string[];
+
     constructor(backendFactory?: IGDBBackendFactory) {
         super(backendFactory || new GDBBackendFactory());
         this.logger = logger;
