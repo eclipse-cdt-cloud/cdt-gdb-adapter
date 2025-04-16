@@ -81,6 +81,38 @@ export interface MemoryResponse extends Response {
     body: MemoryContents;
 }
 
+export const ResetDeviceHalts = {
+    DEFAULT: '',
+    HALT: 'halt',
+} as const;
+export type ResetDeviceHalt = typeof ResetDeviceHalts[keyof typeof ResetDeviceHalts];
+
+export const ResetDeviceTypes = {
+    DEFAULT: 'default',
+    HW: 'hw',
+    SW: 'sw',
+    HARDWARE: 'hardware',
+    SOFTWARE: 'software',
+    SYSTEM: 'system',
+    CORE: 'core',
+    EMULATED: 'emulated',
+    SW_SYSTEM: 'sw_system',
+    SW_CORE: 'sw_core',
+    SW_SYSRESETREQ: 'sw_sysresetreq',
+    SW_VECTRESET: 'sw_vectreset',
+    SW_EMULATED: 'sw_emulated',
+    SYSRESETREQ: 'sysresetreq',
+    VECTRESET: 'vectreset',
+} as const;
+export type ResetDeviceType = typeof ResetDeviceTypes[keyof typeof ResetDeviceTypes];
+
+/** Response to `reset` request. This is just an acknowledgement, so no body field is required. */
+type ResetResponse = Response
+
+export interface ResetDeviceResponse extends Response {
+    body: ResetResponse;
+}
+
 export interface CDTDisassembleArguments
     extends DebugProtocol.DisassembleArguments {
     /**

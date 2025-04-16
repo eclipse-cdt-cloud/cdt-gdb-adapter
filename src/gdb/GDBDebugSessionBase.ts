@@ -37,6 +37,11 @@ import {
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
+    ResetDeviceResponse,
+    ResetDeviceType,
+    ResetDeviceTypes,
+    ResetDeviceHalts,
+    ResetDeviceHalt,
 } from '../types/session';
 import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
@@ -190,6 +195,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         consoleOutputListener
                     );
                 });
+        } else if (command === 'cdt-gdb-adapter/resetDevice') {
+            this.resetDeviceRequest(response as ResetDeviceResponse, args);
         } else {
             return super.customRequest(command, response, args);
         }
@@ -1372,6 +1379,41 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    /**
+     * Implement the cdt-gdb-adapter/Memory request.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected async resetDeviceRequest(response: ResetDeviceResponse, args: any) {
+        try {
+            if (typeof args.type !== 'string' || !Object.values(ResetDeviceTypes).includes(args.type as ResetDeviceType)
+            ) {
+                throw new Error(
+                    `Invalid 'type', expected string, got ${args.type}`
+                );
+            }
+            if (typeof args.halt !== 'string' || !Object.values(ResetDeviceHalts).includes(args.halt as ResetDeviceHalt)
+            ) {
+                throw new Error(
+                    `Invalid 'halt', expected string, got ${args.halt}`
+                );
+            }
+
+            console.log('Reset Device request');
+            await mi.sendResetDevice(
+                this.gdb,
+                args.halt,
+                args.type
+            );
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
     protected async disassembleRequest(
         response: DebugProtocol.DisassembleResponse,
         args: CDTDisassembleArguments
@@ -1964,8 +2006,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else {
                 // check if we're dealing with an array
                 let name = `${ref.varobjName}.${child.exp}`;
-                let varobjName = name;
-                let value = child.value ? child.value : child.type;
+                const varobjName = name;
+                const value = child.value ? child.value : child.type;
                 const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild =
                     varobj !== undefined

@@ -10,6 +10,7 @@
 
 import { IGDBBackend } from '../types/gdb';
 import { MIResponse, MIRegisterValueInfo } from './base';
+import { ResetDeviceHalt, ResetDeviceType } from '../types/session';
 
 interface MIDataReadMemoryBytesResponse {
     memory: Array<{
@@ -19,6 +20,11 @@ interface MIDataReadMemoryBytesResponse {
         contents: string;
     }>;
 }
+
+interface MIResetDeviceResponse {
+    type: string;
+}
+
 export interface MIDataDisassembleAsmInsn {
     address: string;
     // func-name in MI
@@ -58,6 +64,16 @@ export function sendDataReadMemoryBytes(
 ): Promise<MIDataReadMemoryBytesResponse> {
     return gdb.sendCommand(
         `-data-read-memory-bytes -o ${offset} "${address}" ${size}`
+    );
+}
+
+export function sendResetDevice(
+    gdb: IGDBBackend,
+    halt: ResetDeviceHalt,
+    type: ResetDeviceType
+): Promise<MIResetDeviceResponse> {
+    return gdb.sendCommand(
+        `monitor reset ${halt} ${type}"`
     );
 }
 
