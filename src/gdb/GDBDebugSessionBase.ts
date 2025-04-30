@@ -11,6 +11,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as mi from '../mi';
 import {
+    BreakpointEvent,
+    Event,
     Handles,
     InitializedEvent,
     Logger,
@@ -430,8 +432,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     return false;
                 }
                 if (
-                    !gdbbp['original-location'].startsWith(
-                        gdbOriginalLocationPrefix
+                    !(gdbbp['original-location'].includes(
+                        gdbOriginalLocationPrefix) || (gdbbp['original-location'].includes(
+                            file))
                     )
                 ) {
                     return false;
@@ -461,9 +464,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         gdbbp.type === 'hw breakpoint';
 
                     // Check with original-location so that relocated breakpoints are properly matched
-                    const gdbOriginalLocation = `${gdbOriginalLocationPrefix}${vsbp.line}`;
+                    // Create a boolean variable to check if the breakpoint is in the right location
+                    let isBreakpointInRightLocation = false;
+                    // Check if the gdb breakpoint is in the same file being checked now
+                    const isSameFileName = gdbbp['original-location']?.includes(file) ? true : false;
+                    // Create a regex for gdb-mi original-location format (-source <file-name> -line <line-number>)
+                    const regexMi = new RegExp('^-source.+-line\\s+([0-9]+)$');
+                    // Create a regex for gdb-mi original-location format (<file-name>:<line-number>)
+                    const regexWithoutMi = new RegExp('^.*:([0-9]+)$');
+                    // Check if gdbbp original-location matches regexMI
+                    const regexMatch = gdbbp['original-location']?.match(regexMi)??gdbbp['original-location']?.match(regexWithoutMi);
+                    if (regexMatch && isSameFileName) {
+                        isBreakpointInRightLocation = (isSameFileName && (regexMatch[1] === String(vsbp.line)));
+                    }
+                                        
                     return !!(
-                        gdbbp['original-location'] === gdbOriginalLocation &&
+                        isBreakpointInRightLocation &&
                         vsbpCond === gdbbpCond &&
                         vsbpIsBreakpointTypeHardware ===
                             gdbbpIsBreakpointTypeHardware
@@ -1721,8 +1737,53 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             case 'thread-group-started':
             case 'thread-group-exited':
             case 'library-loaded':
+                break;
+            case 'breakpoint-created':
+                {
+                    if(notifyData.bkpt.disp === 'del'){
+                        break;
+                    } 
+                    const breakpoint : DebugProtocol.Breakpoint = {
+                        id: parseInt(notifyData.bkpt.number, 10),
+                        verified: notifyData.bkpt.enabled === 'y',
+                        source: {
+                            name: notifyData.bkpt.fullname,
+                            path: notifyData.bkpt.file,
+                        },
+                        line: notifyData.bkpt.line,
+                    };
+                    const breakpointevent =  new BreakpointEvent('new', breakpoint);
+                    this.sendEvent(breakpointevent);
+                    this.sendEvent(new Event("cdt-gdb-adapter/UpdateBreakpointView", {}));
+                }
+                break;
             case 'breakpoint-modified':
+                {
+                    const breakpoint : DebugProtocol.Breakpoint = {
+                        id: parseInt(notifyData.bkpt.number, 10),
+                        verified: notifyData.bkpt.enabled === 'y',
+                        source: {
+                            name: notifyData.bkpt.fullname,
+                            path: notifyData.bkpt.file,
+                        },
+                        line: notifyData.bkpt.line,
+                    };
+                    const breakpointevent =  new BreakpointEvent('changed', breakpoint);
+                    this.sendEvent(breakpointevent);
+                    this.sendEvent(new Event("cdt-gdb-adapter/UpdateBreakpointView", {}));
+                }
+                break;
             case 'breakpoint-deleted':
+                {
+                    const breakpoint : DebugProtocol.Breakpoint = {
+                        id: parseInt(notifyData.id, 10),
+                        verified: false
+                    };
+                    const breakpointevent =  new BreakpointEvent('removed', breakpoint);
+                    this.sendEvent(breakpointevent);
+                    this.sendEvent(new Event("cdt-gdb-adapter/UpdateBreakpointView", {}));
+                }
+                break;
             case 'cmd-param-changed':
                 // Known unhandled notifies
                 break;
