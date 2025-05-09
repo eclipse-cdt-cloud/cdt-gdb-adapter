@@ -15,8 +15,6 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import {
     TargetLaunchRequestArguments,
     TargetAttachRequestArguments,
-    LaunchRequestArguments,
-    AttachRequestArguments,
 } from '../types/session';
 import {
     IGDBBackendFactory,
@@ -52,7 +50,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      * @param args the arguments from the user to apply custom reset arguments to.
      */
     protected applyCustomResetArguments(
-        args: LaunchRequestArguments | AttachRequestArguments
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         this.customResetCommands = args.customResetCommands;
     }

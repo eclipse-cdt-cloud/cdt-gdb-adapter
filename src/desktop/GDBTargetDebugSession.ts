@@ -19,8 +19,6 @@ import {
     TargetLaunchRequestArguments,
     TargetAttachRequestArguments,
     UARTArguments,
-    LaunchRequestArguments,
-    AttachRequestArguments,
 } from '../types/session';
 import {
     IGDBBackendFactory,
@@ -63,7 +61,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      * @param args the arguments from the user to apply custom reset arguments to.
      */
         protected applyCustomResetArguments(
-            args: LaunchRequestArguments | AttachRequestArguments
+            args: TargetLaunchRequestArguments | TargetAttachRequestArguments
         ) {
             this.customResetCommands = args.customResetCommands;
         }
