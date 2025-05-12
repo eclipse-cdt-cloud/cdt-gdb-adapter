@@ -38,7 +38,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     constructor(
         backendFactory?: IGDBBackendFactory,
-        gdbserverFactory?: IGDBServerFactory,
+        gdbserverFactory?: IGDBServerFactory
     ) {
         super(backendFactory);
         this.gdbserverFactory = gdbserverFactory;
@@ -50,7 +50,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      * @param args the arguments from the user to apply custom reset arguments to.
      */
     protected applyCustomResetArguments(
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         this.customResetCommands = args.customResetCommands;
     }
@@ -62,7 +62,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected customRequest(
         command: string,
         response: DebugProtocol.Response,
-        args: any,
+        args: any
     ): void {
         if (command === 'cdt-gdb-adapter/customReset') {
             this.customResetRequest();
@@ -81,7 +81,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected override async setupCommonLoggerAndBackends(
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await super.setupCommonLoggerAndBackends(args);
 
@@ -92,7 +92,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await this.setupCommonLoggerAndBackends(args);
 
@@ -105,7 +105,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.sendErrorResponse(
                     response,
                     1,
-                    'The program must be specified in the launch request arguments',
+                    'The program must be specified in the launch request arguments'
                 );
                 return;
             }
@@ -117,46 +117,46 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async launchRequest(
         response: DebugProtocol.LaunchResponse,
-        args: TargetLaunchRequestArguments,
+        args: TargetLaunchRequestArguments
     ): Promise<void> {
         try {
             this.applyCustomResetArguments(args);
             const [request, resolvedArgs] = this.applyRequestArguments(
                 'launch',
-                args,
+                args
             );
             await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err),
+                err instanceof Error ? err.message : String(err)
             );
         }
     }
 
     protected async attachRequest(
         response: DebugProtocol.AttachResponse,
-        args: TargetAttachRequestArguments,
+        args: TargetAttachRequestArguments
     ): Promise<void> {
         try {
             this.applyCustomResetArguments(args);
             const [request, resolvedArgs] = this.applyRequestArguments(
                 'attach',
-                args,
+                args
             );
             await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err),
+                err instanceof Error ? err.message : String(err)
             );
         }
     }
 
     protected async startGDBServer(
-        args: TargetLaunchRequestArguments,
+        args: TargetLaunchRequestArguments
     ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
@@ -169,7 +169,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         await new Promise<void>(async (resolve, reject) => {
             if (!this.gdbserverProcessManager) {
                 throw new Error(
-                    'GDBServer process manager is not initialised!',
+                    'GDBServer process manager is not initialised!'
                 );
             }
             this.gdbserver = await this.gdbserverProcessManager.start(args);
@@ -187,14 +187,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     },
                     target.serverStartupDelay !== undefined
                         ? target.serverStartupDelay
-                        : 0,
+                        : 0
                 );
             } else {
                 checkTargetPort = (data: any) => {
                     const regex = new RegExp(
                         target.serverPortRegExp
                             ? target.serverPortRegExp
-                            : 'Listening on port ([0-9]+)\r?\n',
+                            : 'Listening on port ([0-9]+)\r?\n'
                     );
                     const m = regex.exec(data);
                     if (m !== null) {
@@ -209,7 +209,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                             },
                             target.serverStartupDelay !== undefined
                                 ? target.serverStartupDelay
-                                : 0,
+                                : 0
                         );
                     }
                 };
@@ -267,7 +267,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
-        args: TargetAttachRequestArguments,
+        args: TargetAttachRequestArguments
     ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
@@ -283,11 +283,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     if (args.imageAndSymbols.symbolOffset) {
                         await this.gdb.sendAddSymbolFile(
                             args.imageAndSymbols.symbolFileName,
-                            args.imageAndSymbols.symbolOffset,
+                            args.imageAndSymbols.symbolOffset
                         );
                     } else {
                         await this.gdb.sendFileSymbolFile(
-                            args.imageAndSymbols.symbolFileName,
+                            args.imageAndSymbols.symbolFileName
                         );
                     }
                 }
@@ -318,15 +318,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     new OutputEvent(
                         `connected to ${
                             this.targetType
-                        } target ${targetParameters.join(' ')}`,
-                    ),
+                        } target ${targetParameters.join(' ')}`
+                    )
                 );
             } else {
                 await this.gdb.sendCommands(target.connectCommands);
                 this.sendEvent(
                     new OutputEvent(
-                        'connected to target using provided connectCommands',
-                    ),
+                        'connected to target using provided connectCommands'
+                    )
                 );
             }
 
@@ -336,7 +336,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 if (args.imageAndSymbols.imageFileName) {
                     await this.gdb.sendLoad(
                         args.imageAndSymbols.imageFileName,
-                        args.imageAndSymbols.imageOffset,
+                        args.imageAndSymbols.imageOffset
                     );
                 }
             }
@@ -348,7 +348,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err),
+                err instanceof Error ? err.message : String(err)
             );
         }
     }
@@ -363,7 +363,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      */
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
-        _args: DebugProtocol.DisconnectArguments,
+        _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
             if (this.targetType === 'remote') {
@@ -382,7 +382,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err),
+                err instanceof Error ? err.message : String(err)
             );
         }
     }
