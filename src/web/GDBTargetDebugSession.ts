@@ -50,11 +50,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      * @param args the arguments from the user to apply custom reset arguments to.
      */
     protected applyCustomResetArguments(
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
     ) {
         this.customResetCommands = args.customResetCommands;
     }
-    
+
     /**
      * Handle requests not defined in the debug adapter protocol.
      */
@@ -62,7 +62,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected customRequest(
         command: string,
         response: DebugProtocol.Response,
-        args: any
+        args: any,
     ): void {
         if (command === 'cdt-gdb-adapter/customReset') {
             this.customResetRequest();
@@ -79,7 +79,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             return this.gdb.sendCommands(this.customResetCommands);
         }
     }
-    
+
     protected override async setupCommonLoggerAndBackends(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
@@ -123,7 +123,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.applyCustomResetArguments(args);
             const [request, resolvedArgs] = this.applyRequestArguments(
                 'launch',
-                args
+                args,
             );
             await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
