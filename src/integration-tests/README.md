@@ -31,17 +31,23 @@ When the test run is complete, see the report in the `coverage` directory.
 The tests can be run on a docker container. This is useful to run the testsuite
 in the same environment as it is run on the CI machine.
 
-To do this, simply prefix the desired command (such as `yarn`) with this
-command to run it in docker.
+To do this, first build the Dockerfile provided in the repo and then run the tests inside of it using the following commands.
 
-`docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-plus-node:latest`
+### Build Dockerfile to generate docker image
 
-For example, to build and test:
+`docker build -t <prefered_docker_image_name> .`
+
+### Run docker container, build cdt-gdb-adapter project, and run the tests
 
 ```
-docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-plus-node:latest yarn
-docker run --rm -it -v $(git rev-parse --show-toplevel):/work -w /work/$(git rev-parse --show-prefix) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined quay.io/eclipse-cdt/cdt-infra-plus-node:latest yarn test
+docker run -it -v $(pwd)/shared:/shared <prefered_docker_image_name>
+yarn
+make clean -C src/integration-tests/test-programs
+make -C src/integration-tests/test-programs
+yarn test &> log.log
 ```
+
+The user should find the file log.log with the tests logs in their top level directory.
 
 ## "Error: No source file name /work/..."
 
