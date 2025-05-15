@@ -14,7 +14,7 @@ import { IGDBBackendFactory } from '../types/gdb';
 
 export class GDBDebugSession extends GDBDebugSessionBase {
     /**
-     *  resetDeviceCommands from launch.json
+     *  customResetCommands from launch.json
      */
     protected customResetCommands?: string[];
 

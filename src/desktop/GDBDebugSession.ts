@@ -25,7 +25,7 @@ export class GDBDebugSession extends GDBDebugSessionBase {
     protected static defaultRequestArguments?: any;
 
     /**
-     *  resetDeviceCommands from launch.json
+     *  customResetCommands from launch.json
      */
     protected customResetCommands?: string[];
 
