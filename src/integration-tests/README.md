@@ -35,16 +35,21 @@ To do this, first build the Dockerfile provided in the repo and then run the tes
 
 ### Build Dockerfile to generate docker image
 
-`docker build -t <prefered_docker_image_name> .`
+`docker build -t <prefered_docker_image_name> .devcontainer`
 
 ### Run docker container, build cdt-gdb-adapter project, and run the tests
 
 ```
-docker run -it -v $(pwd)/shared:/shared <prefered_docker_image_name>
+# unix based host system
+docker run -it -v $(pwd):/shared <prefered_docker_image_name>
+# Windows host system
+docker run -it -v "%CD%":/shared -w /shared <prefered_docker_image_name>
+# Inside the container
 yarn
 make clean -C src/integration-tests/test-programs
 make -C src/integration-tests/test-programs
 yarn test &> log.log
+cp log.log /shared/
 ```
 
 The user should find the file log.log with the tests logs in their top level directory.
