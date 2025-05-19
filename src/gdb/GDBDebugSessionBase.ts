@@ -1272,13 +1272,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            if (err instanceof Error) {
-                if (
-                    err.message ===
-                    '-var-create: unable to create variable object'
-                ) {
-                    return;
-                }
+            if (err instanceof Error && err.message === '-var-create: unable to create variable object') {
+                this.sendResponse(response);
             } else {
                 this.sendErrorResponse(
                     response,
