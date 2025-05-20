@@ -66,13 +66,10 @@ describe('custom reset', function () {
         );
 
         dc.customRequest('cdt-gdb-adapter/customReset');
-
         await dc.waitForOutputEvent(
             'stdout',
             `$1 = 42${os.platform() === 'win32' ? '\r\n' : '\n'}`
         );
-
-        await new Promise<void>(resolve => setTimeout(resolve, 200));
     });
     
 
