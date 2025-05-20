@@ -24,7 +24,7 @@ describe('custom reset', function () {
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const commands = ['print 42'];
     const expectedResult = `$1 = 42${
-        os.platform() === 'win32' ? '\r\n' : '\n'
+        os.platform() === 'win32' ? '\n' : '\n'
     }`;
 
     beforeEach(async function () {
