@@ -68,7 +68,7 @@ describe('evaluate request', function () {
         );
     });
 
-    it('should reject evaluation of invalid expression', async function () {
+    it('should send an error when evaluating an invalid expression', async function () {
         const err = await dc.evaluateRequest({
             context: 'repl',
             expression: '2 +',
