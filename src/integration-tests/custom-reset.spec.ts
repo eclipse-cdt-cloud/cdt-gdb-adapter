@@ -23,8 +23,7 @@ describe('custom reset', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const commands = ['print 42'];
-    const expectedResult = `$1 = 42${
-        os.platform() === 'win32' ? '\n' : '\n'
+    const expectedResult = `$1 = 42\n'
     }`;
 
     beforeEach(async function () {
