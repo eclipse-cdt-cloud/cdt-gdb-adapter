@@ -9,7 +9,6 @@
  *********************************************************************/
 
 import * as path from 'path';
-import * as os from 'os';
 import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -23,15 +22,14 @@ describe('custom reset', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const commands = ['print 42'];
-    const expectedResult = `$1 = 42\n'
-    }`;
+    const expectedResult = '$1 = 42\n';
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
                 program: emptyProgram,
-                customResetCommands: commands,
+                customResetCommands: commands
             } as TargetLaunchRequestArguments)
         );
     });
