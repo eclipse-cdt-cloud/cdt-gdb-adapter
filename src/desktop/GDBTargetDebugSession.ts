@@ -76,18 +76,23 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: any
     ): void {
         if (command === 'cdt-gdb-adapter/customReset') {
-            this.customResetRequest();
+            this.customResetRequest(response);
         } else {
             return super.customRequest(command, response, args);
         }
     }
-
     /**
      * Implement the custom reset request.
      */
-    protected async customResetRequest(): Promise<void> {
+    protected customResetRequest(response: DebugProtocol.Response) {
         if (this.customResetCommands) {
-            return this.gdb.sendCommands(this.customResetCommands);
+            this.gdb.sendCommands(this.customResetCommands)
+            .then(() => this.sendResponse(response))
+            .catch(() => this.sendErrorResponse(
+                response,
+                1,
+                'The custom reset command failed'
+            ));
         }
     }
 

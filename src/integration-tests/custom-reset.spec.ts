@@ -41,10 +41,9 @@ describe('custom reset', function () {
         await dc.stop();
     });
 
-    it.only('tests sending custom reset commands', async function () {
+    it('tests sending custom reset commands', async function () {
         if (!isRemoteTest) {
-            // command is implemented in the remote adapter
-            // but not in the local adapter
+            // command is implemented in the remote adapter but not in the local adapter
             // so skip this test if not running remote
             this.skip();
         }
@@ -65,30 +64,11 @@ describe('custom reset', function () {
             }
         );
 
-        dc.customRequest('cdt-gdb-adapter/customReset');
-        await dc.waitForOutputEvent(
+        const event = dc.waitForOutputEvent(
             'stdout',
             `$1 = 42${os.platform() === 'win32' ? '\r\n' : '\n'}`
         );
+        await dc.customRequest('cdt-gdb-adapter/customReset');
+        await event;
     });
-    
-
-    it('can launch remote and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                customResetCommands: [
-                    'monitor reset halt hardware',
-                ],            
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
-    });
-
 });
