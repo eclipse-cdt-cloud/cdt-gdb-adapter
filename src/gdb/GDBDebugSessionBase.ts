@@ -1276,6 +1276,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 err instanceof Error &&
                 err.message === '-var-create: unable to create variable object'
             ) {
+                if (args.context === 'hover') {
+                    response.success = false;
+                }
                 this.sendResponse(response);
             } else {
                 this.sendErrorResponse(
