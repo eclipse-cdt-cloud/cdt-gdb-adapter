@@ -7,34 +7,27 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-/*
-fillDefaults(test, {
-    program: path.join(testProgramsDir, program),
-    customResetCommands: [
-        'monitor reset halt hardware',
-    ],
-})
-dc.send('cdt-gdb-adapter/customReset');
-*/
-
-
 
 import * as path from 'path';
-import {
-    TargetLaunchRequestArguments,
-    TargetLaunchArguments,
-} from '../types/session';
+import * as os from 'os';
+import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import { fillDefaults, isRemoteTest, standardBeforeEach, testProgramsDir } from './utils';
-import * as os from 'os';
 
 describe('custom reset', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
-    const emptySrc = path.join(testProgramsDir, 'empty.c');
+    const commands = ['print 42'];
+    const expectedResult = `$1 = 42${os.platform() === 'win32' ? '\r\n' : '\n'}`;
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: emptyProgram,
+                customResetCommands: commands,
+            } as TargetLaunchRequestArguments),
+        );
     });
 
     afterEach(async function () {
@@ -48,26 +41,7 @@ describe('custom reset', function () {
             this.skip();
         }
 
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                customResetCommands: [
-                    'print 42',
-                ],            
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
-
-        const event = dc.waitForOutputEvent(
-            'stdout',
-            `$1 = 42${os.platform() === 'win32' ? '\r\n' : '\n'}`
-        );
+        const event = dc.waitForOutputEvent('stdout', expectedResult);
         await dc.customRequest('cdt-gdb-adapter/customReset');
         await event;
     });
