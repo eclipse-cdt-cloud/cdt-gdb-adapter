@@ -12,13 +12,20 @@ import * as path from 'path';
 import * as os from 'os';
 import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, isRemoteTest, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    isRemoteTest,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 
 describe('custom reset', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const commands = ['print 42'];
-    const expectedResult = `$1 = 42${os.platform() === 'win32' ? '\r\n' : '\n'}`;
+    const expectedResult = `$1 = 42${
+        os.platform() === 'win32' ? '\r\n' : '\n'
+    }`;
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
@@ -26,7 +33,7 @@ describe('custom reset', function () {
             fillDefaults(this.currentTest, {
                 program: emptyProgram,
                 customResetCommands: commands,
-            } as TargetLaunchRequestArguments),
+            } as TargetLaunchRequestArguments)
         );
     });
 

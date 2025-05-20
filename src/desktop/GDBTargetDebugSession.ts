@@ -86,13 +86,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      */
     protected customResetRequest(response: DebugProtocol.Response) {
         if (this.customResetCommands) {
-            this.gdb.sendCommands(this.customResetCommands)
-            .then(() => this.sendResponse(response))
-            .catch(() => this.sendErrorResponse(
-                response,
-                1,
-                'The custom reset command failed'
-            ));
+            this.gdb
+                .sendCommands(this.customResetCommands)
+                .then(() => this.sendResponse(response))
+                .catch(() =>
+                    this.sendErrorResponse(
+                        response,
+                        1,
+                        'The custom reset command failed'
+                    )
+                );
         }
     }
 
