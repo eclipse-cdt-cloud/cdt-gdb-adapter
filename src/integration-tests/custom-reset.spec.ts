@@ -29,7 +29,7 @@ describe('custom reset', function () {
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
                 program: emptyProgram,
-                customResetCommands: commands
+                customResetCommands: commands,
             } as TargetLaunchRequestArguments)
         );
     });
