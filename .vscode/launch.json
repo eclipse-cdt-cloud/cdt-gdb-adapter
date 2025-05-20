@@ -41,7 +41,6 @@
       "args": [
         "--timeout",
         "999999",
-        "--test-remote",
         "--colors",
         "-r",
         "ts-node/register",
