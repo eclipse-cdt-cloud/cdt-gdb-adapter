@@ -25,6 +25,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     openGdbConsole?: boolean;
     initCommands?: string[];
     hardwareBreakpoint?: boolean;
+    customResetCommands?: string[];
 }
 
 export interface LaunchRequestArguments extends RequestArguments {

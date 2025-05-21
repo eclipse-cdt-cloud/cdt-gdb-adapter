@@ -124,6 +124,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected waitPausedNeeded = false;
     protected isInitialized = false;
 
+    /**
+     *  customResetCommands from launch.json
+     */
+    protected customResetCommands?: string[];
+
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
@@ -190,8 +195,38 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         consoleOutputListener
                     );
                 });
+        } else if (command === 'cdt-gdb-adapter/customReset') {
+            this.customResetRequest(response);
         } else {
             return super.customRequest(command, response, args);
+        }
+    }
+
+    /**
+     * Apply the initial custom reset arguments.
+     * @param args the arguments from the user to apply custom reset arguments to.
+     */
+    protected initializeCustomResetCommands(
+        args: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        this.customResetCommands = args.customResetCommands;
+    }
+
+    /**
+     * Implement the custom reset request.
+     */
+    protected customResetRequest(response: DebugProtocol.Response) {
+        if (this.customResetCommands) {
+            this.gdb
+                .sendCommands(this.customResetCommands)
+                .then(() => this.sendResponse(response))
+                .catch(() =>
+                    this.sendErrorResponse(
+                        response,
+                        1,
+                        'The custom reset command failed'
+                    )
+                );
         }
     }
 
@@ -1974,8 +2009,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else {
                 // check if we're dealing with an array
                 let name = `${ref.varobjName}.${child.exp}`;
-                let varobjName = name;
-                let value = child.value ? child.value : child.type;
+                const varobjName = name;
+                const value = child.value ? child.value : child.type;
                 const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild =
                     varobj !== undefined
