@@ -144,7 +144,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
-
         return [
             request,
             {
