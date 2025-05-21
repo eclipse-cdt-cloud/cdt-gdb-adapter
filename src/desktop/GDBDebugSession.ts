@@ -83,7 +83,6 @@ export class GDBDebugSession extends GDBDebugSessionBase {
         if (frozenRequest === 'launch' || frozenRequest === 'attach') {
             request = frozenRequest;
         }
-        super.applyRequestArguments(request, args);
 
         return [
             request,

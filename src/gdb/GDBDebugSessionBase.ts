@@ -144,7 +144,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
-        this.applyCustomResetArguments(args);
 
         return [
             request,
@@ -208,7 +207,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * Apply the initial custom reset arguments.
      * @param args the arguments from the user to apply custom reset arguments to.
      */
-    protected applyCustomResetArguments(
+    protected initializeCustomResetCommands(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
         this.customResetCommands = args.customResetCommands;
