@@ -25,11 +25,6 @@ export class GDBDebugSession extends GDBDebugSessionBase {
     protected static defaultRequestArguments?: any;
 
     /**
-     *  customResetCommands from launch.json
-     */
-    protected customResetCommands?: string[];
-
-    /**
      * Frozen configuration for launch/attach request
      * typically supplied with the --config-frozen command line argument.
      */
@@ -88,6 +83,7 @@ export class GDBDebugSession extends GDBDebugSessionBase {
         if (frozenRequest === 'launch' || frozenRequest === 'attach') {
             request = frozenRequest;
         }
+        super.applyRequestArguments(request, args);
 
         return [
             request,

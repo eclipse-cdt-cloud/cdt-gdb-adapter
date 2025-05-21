@@ -124,6 +124,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected waitPausedNeeded = false;
     protected isInitialized = false;
 
+    /**
+     *  customResetCommands from launch.json
+     */
+    protected customResetCommands?: string[];
+
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
@@ -139,6 +144,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
+        this.applyCustomResetArguments(args);
+
         return [
             request,
             {
@@ -190,8 +197,38 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         consoleOutputListener
                     );
                 });
+        } else if (command === 'cdt-gdb-adapter/customReset') {
+            this.customResetRequest(response);
         } else {
             return super.customRequest(command, response, args);
+        }
+    }
+
+    /**
+     * Apply the initial custom reset arguments.
+     * @param args the arguments from the user to apply custom reset arguments to.
+     */
+    protected applyCustomResetArguments(
+        args: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        this.customResetCommands = args.customResetCommands;
+    }
+
+    /**
+     * Implement the custom reset request.
+     */
+    protected customResetRequest(response: DebugProtocol.Response) {
+        if (this.customResetCommands) {
+            this.gdb
+                .sendCommands(this.customResetCommands)
+                .then(() => this.sendResponse(response))
+                .catch(() =>
+                    this.sendErrorResponse(
+                        response,
+                        1,
+                        'The custom reset command failed'
+                    )
+                );
         }
     }
 
