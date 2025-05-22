@@ -43,7 +43,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint created from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || (!isRemoteTest || !gdbAsync)) {
+        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
             this.skip();
         }
         const scope: Scope = await getScopes(dc);
@@ -68,7 +68,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint modification from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || (!isRemoteTest || !gdbAsync)) {
+        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
@@ -104,7 +104,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || (!isRemoteTest || !gdbAsync)) {
+        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
@@ -145,7 +145,7 @@ describe('breakpoints', async function () {
             this.skip();
         }
         const scope = await getScopes(dc);
-        
+
         // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, it should be erased
         const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
         await dc.evaluateRequest({
@@ -157,12 +157,11 @@ describe('breakpoints', async function () {
         await dc.configurationDoneRequest();
         await dc.waitForEvent('stopped');
 
-
         // start listening for stopped events before we issue the
         // setBreakpointsRequest to ensure we don't get extra
         // stopped events
         const stoppedEventWaitor = dc.waitForEvent('stopped');
-        
+
         const response = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -206,7 +205,7 @@ describe('breakpoints', async function () {
         await dc.configurationDoneRequest();
         await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
-        
+
         // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, it should be erased
         let event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
         await dc.evaluateRequest({
@@ -243,14 +242,13 @@ describe('breakpoints', async function () {
                 },
             ],
         });
-        
+
         expect(response.body.breakpoints.length).to.eq(2);
         await dc.assertStoppedLocation('breakpoint', { line: 6 });
         //const stoppedEvent = await stoppedEventWaitor;
         expect(stoppedEvent).to.have.property('body');
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
-
 
     it('set type of standard breakpoint', async () => {
         const bpResp = await dc.setBreakpointsRequest({
