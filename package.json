@@ -119,7 +119,7 @@
     "binding.gyp"
   ],
   "publishConfig": {
-      "access": "public",
-      "registry": "https://registry.npmjs.org"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
