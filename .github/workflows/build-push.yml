@@ -84,6 +84,8 @@ jobs:
           fail_on_failure: true
           require_tests: true
           check_name: Test Results on Windows
+  # Publish to NPM if tag is pushed and build and test succeeds
+  # on both Linux and Windows. Note this is not restricted to 'main'.
   Publish-to-NPM:
     name: Publish Package to NPM
     runs-on: ubuntu-latest
