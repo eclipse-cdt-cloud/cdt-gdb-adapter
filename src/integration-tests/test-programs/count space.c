@@ -2,6 +2,7 @@ static int staticfunc1(void) {
     return 2;
 }
 static int staticfunc2(void) {
+    // line with no code
     return 2;
 }
 

@@ -68,16 +68,14 @@ describe('evaluate request', function () {
         );
     });
 
-    it('should reject evaluation of invalid expression', async function () {
-        const err = await expectRejection(
-            dc.evaluateRequest({
-                context: 'repl',
-                expression: '2 +',
-                frameId: scope.frame.id,
-            })
-        );
+    it('should send an error when evaluating an invalid expression', async function () {
+        const err = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 +',
+            frameId: scope.frame.id,
+        });
 
-        expect(err.message).eq('-var-create: unable to create variable object');
+        expect(err.body.result).eq('Error: could not evaluate expression');
     });
     it('should be able to update the value of a variable named monitor and that variable has local scope', async function () {
         const res1 = await dc.evaluateRequest({
