@@ -1729,6 +1729,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
         }
     }
+    /* 
+    A function that sends a custom event to vscode extension. The Custom event being sent triggers a re-rendering of breakpoints on the GUI of vscode, as it seems rendering breakpoints is glitchy on vscode
+    */
+    private sendUpdateBreakpointView(message: string) {
+        this.sendEvent(
+            new Event('cdt-gdb-adapter/UpdateBreakpointView', {
+                message: message,
+            })
+        );
+    }
 
     protected handleGDBNotify(notifyClass: string, notifyData: any) {
         switch (notifyClass) {
@@ -1766,9 +1776,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendEvent(
-                        new Event('cdt-gdb-adapter/UpdateBreakpointView', {})
-                    );
+                    this.sendUpdateBreakpointView('Breakpoint-created');
                 }
                 break;
             case 'breakpoint-modified':
@@ -1787,9 +1795,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendEvent(
-                        new Event('cdt-gdb-adapter/UpdateBreakpointView', {})
-                    );
+                    this.sendUpdateBreakpointView('Breakpoint-modified');
                 }
                 break;
             case 'breakpoint-deleted':
@@ -1803,9 +1809,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendEvent(
-                        new Event('cdt-gdb-adapter/UpdateBreakpointView', {})
-                    );
+                    this.sendUpdateBreakpointView('Breakpoint-deleted');
                 }
                 break;
             case 'cmd-param-changed':

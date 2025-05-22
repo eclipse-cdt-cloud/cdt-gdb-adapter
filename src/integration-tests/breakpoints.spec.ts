@@ -17,6 +17,7 @@ import {
     getScopes,
     verifyVariable,
     gdbVersionAtLeast,
+    Scope,
     fillDefaults,
     gdbAsync,
     isRemoteTest,
@@ -39,6 +40,103 @@ describe('breakpoints', async function () {
 
     afterEach(async () => {
         await dc.stop();
+    });
+
+    it('should handle a breakpoint created from the debug-console/terminal', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const scope: Scope = await getScopes(dc);
+        /* 
+            Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
+            Just using 
+            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            is NOT enough, as it misses the event from the adapter due to misalignment issues
+        */
+        const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Trigger a breakpoint from the debug-console/Terminal
+        await dc.evaluateRequest({
+            expression: `>break ${testProgramsDir}/count.c:4`,
+            frameId: scope.frame.id,
+            context: 'repl',
+        });
+        const outputs = await event;
+        // Run a configuration Done Request to inform the adapter that the client is done
+        await dc.configurationDoneRequest();
+
+        expect(outputs.body.message).eq('Breakpoint-created');
+    });
+
+    it('should handle a breakpoint modification from the debug-console/terminal', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        let event;
+        const scope: Scope = await getScopes(dc);
+        /* 
+            Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
+            Just using 
+            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            is NOT enough, as it misses the event from the adapter due to misalignment issues
+        */
+        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Create a breakpoint from the debug-console/Terminal
+        await dc.evaluateRequest({
+            expression: `>break ${testProgramsDir}/count.c:4`,
+            frameId: scope.frame.id,
+            context: 'repl',
+        });
+        // Wait to make sure breakpoint is created
+        await event;
+
+        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Modify the breakpoint from the debug-console/terminal
+        await dc.evaluateRequest({
+            expression: `>disable 1`,
+            frameId: scope.frame.id,
+            context: 'repl',
+        });
+        const outputs = await event;
+        // Run a configuration Done Request to inform the adapter that the client is done
+        await dc.configurationDoneRequest();
+
+        expect(outputs.body.message).eq('Breakpoint-modified');
+    });
+
+    it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        let event;
+        const scope: Scope = await getScopes(dc);
+        /* 
+            Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
+            Just using 
+            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            is NOT enough, as it misses the event from the adapter due to misalignment issues
+        */
+        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Create a breakpoint from the debug-console/Terminal
+        await dc.evaluateRequest({
+            expression: `>break ${testProgramsDir}/count.c:4`,
+            frameId: scope.frame.id,
+            context: 'repl',
+        });
+        // Wait to make sure breakpoint is created
+        await event;
+
+        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Modify the breakpoint from the debug-console/terminal
+        await dc.evaluateRequest({
+            expression: `>delete 1`,
+            frameId: scope.frame.id,
+            context: 'repl',
+        });
+        const outputs = await event;
+        // Run a configuration Done Request to inform the adapter that the client is done
+        await dc.configurationDoneRequest();
+
+        expect(outputs.body.message).eq('Breakpoint-deleted');
     });
 
     it('set type of standard breakpoint', async () => {
