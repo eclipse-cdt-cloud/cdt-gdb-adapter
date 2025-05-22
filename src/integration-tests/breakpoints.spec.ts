@@ -43,7 +43,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint created from the debug-console/terminal', async function () {
-        if (!isRemoteTest) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         const scope: Scope = await getScopes(dc);
@@ -68,7 +68,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint modification from the debug-console/terminal', async function () {
-        if (!isRemoteTest) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
@@ -104,7 +104,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
-        if (!isRemoteTest) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
