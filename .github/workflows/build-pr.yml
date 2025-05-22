@@ -3,6 +3,9 @@
 # see report.yml for more details
 name: build-pr
 on: [pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   Build-on-Ubuntu:
     name: Build & Test on Ubuntu

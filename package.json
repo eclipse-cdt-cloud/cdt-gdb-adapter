@@ -117,5 +117,9 @@
     "src/native/*.ts",
     "install.js",
     "binding.gyp"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }
