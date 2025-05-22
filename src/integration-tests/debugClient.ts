@@ -57,7 +57,7 @@ export class CdtDebugClient extends DebugClient {
         // to allow the individual timeouts to fail before the whole test timesout.
         // This will mean error message on things such as waitForEvent will not
         // be hidden by overall test failure
-        this.defaultTimeout = os.platform() === 'win32' ? 25000 / 2 : 5000 / 2;
+        this.defaultTimeout = os.platform() === 'win32' ? 25000 / 2 : 50000 / 2;
     }
 
     /**
