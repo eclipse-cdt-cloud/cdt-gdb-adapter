@@ -4,6 +4,9 @@
 # results back
 name: build-push
 on: [push]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   Build-on-Ubuntu:
     name: Build & Test on Ubuntu
