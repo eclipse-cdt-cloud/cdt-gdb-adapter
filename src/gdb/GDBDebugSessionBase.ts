@@ -1176,9 +1176,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 response.body.variables =
                     await this.handleVariableRequestRegister(ref);
             } else if (ref.type === 'frame') {
-                response.body.variables = await this.handleVariableRequestFrame(
-                    ref
-                );
+                response.body.variables =
+                    await this.handleVariableRequestFrame(ref);
             } else if (ref.type === 'object') {
                 response.body.variables =
                     await this.handleVariableRequestObject(ref);

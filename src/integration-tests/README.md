@@ -89,8 +89,8 @@ is a recommended development flow that can be followed based on the popular msys
 
 1. Get Msys2 from http://www.msys2.org/) and follow short install instructions on that page. The brief instructions are:
 
--   Run `pacman -Syu` twice
--   Install the development packages `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
+- Run `pacman -Syu` twice
+- Install the development packages `pacman -S --needed base-devel mingw-w64-x86_64-toolchain`
 
 2. Start _MSYS2 MinGW 64-bit_ (from start menu) -- this is the shell to build from
 

@@ -64,8 +64,8 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
         const hardware = hardwareBreakpointTrue
             ? true
             : hardwareBreakpointFalse
-            ? false
-            : initialOptions.hardware;
+              ? false
+              : initialOptions.hardware;
         const mode = breakpointMode ?? initialOptions.mode;
         return { ...initialOptions, mode, hardware };
     }
