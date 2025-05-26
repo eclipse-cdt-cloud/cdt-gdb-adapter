@@ -155,8 +155,9 @@ describe('breakpoints', async function () {
             context: 'repl',
         });
         await event;
+        const waitEvent = dc.waitForEvent('stopped');
         await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
+        await waitEvent;
 
         // start listening for stopped events before we issue the
         // setBreakpointsRequest to ensure we don't get extra
@@ -200,8 +201,9 @@ describe('breakpoints', async function () {
             context: 'repl',
         });
         await event;
+        const waitEvent = dc.waitForEvent('stopped');
         await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
+        await waitEvent;
 
         // start listening for stopped events before we issue the
         // setBreakpointsRequest to ensure we don't get extra
