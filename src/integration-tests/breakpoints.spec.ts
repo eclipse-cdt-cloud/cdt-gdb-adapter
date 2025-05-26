@@ -43,7 +43,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint created from the debug-console/terminal', async function () {
-        if (!isRemoteTest || !gdbAsync) {
+        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
             this.skip();
         }
         const scope: Scope = await getScopes(dc);
@@ -68,7 +68,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint modification from the debug-console/terminal', async function () {
-        if (!isRemoteTest || !gdbAsync) {
+        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
             this.skip();
         }
         let event;
@@ -104,7 +104,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
-        if (!isRemoteTest || !gdbAsync) {
+        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
             this.skip();
         }
         let event;
@@ -140,7 +140,7 @@ describe('breakpoints', async function () {
     });
 
     it('set breakpoints from terminal without GUI reflection will auto erase the bp', async function () {
-        if (!(isRemoteTest && gdbAsync)) {
+        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
@@ -185,7 +185,7 @@ describe('breakpoints', async function () {
     });
 
     it('can set breakpoints from terminal and GUI together', async function () {
-        if (!(isRemoteTest && gdbAsync)) {
+        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
