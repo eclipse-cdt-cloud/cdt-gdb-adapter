@@ -146,7 +146,7 @@ describe('breakpoints', async function () {
         }
         const scope = await getScopes(dc);
 
-        // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, 
+        // Setting a breakpoint from the debug-console/terminal without reflecting on GUI,
         // it should be erased when setBreakpointsRequest is called
         const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
         await dc.evaluateRequest({
@@ -190,7 +190,7 @@ describe('breakpoints', async function () {
             this.skip();
         }
 
-                const scope = await getScopes(dc);
+        const scope = await getScopes(dc);
 
         // Setting a breakpoint from the debug-console/terminal
         const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
@@ -207,7 +207,7 @@ describe('breakpoints', async function () {
         // setBreakpointsRequest to ensure we don't get extra
         // stopped events
         const stoppedEventWaitor = dc.waitForEvent('stopped');
-        // Setting a breakpoint from the GUI also at line 4. 
+        // Setting a breakpoint from the GUI also at line 4.
         // setBreakpointsRequest should resolve the bps and resolve to a single bp at line 4
         const response = await dc.setBreakpointsRequest({
             source: {
