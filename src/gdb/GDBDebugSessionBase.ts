@@ -1810,7 +1810,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             name: notifyData.bkpt.fullname,
                             path: notifyData.bkpt.file,
                         },
-                        line: notifyData.bkpt.line,
+                        line: parseInt(notifyData.bkpt.line, 10),
                     };
                     const breakpointevent = new BreakpointEvent(
                         'new',
@@ -1829,7 +1829,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             name: notifyData.bkpt.fullname,
                             path: notifyData.bkpt.file,
                         },
-                        line: notifyData.bkpt.line,
+                        line: parseInt(notifyData.bkpt.line),
                     };
                     const breakpointevent = new BreakpointEvent(
                         'changed',
