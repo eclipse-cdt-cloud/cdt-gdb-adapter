@@ -43,7 +43,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint created from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         const scope: Scope = await getScopes(dc);
@@ -68,7 +68,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint modification from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
@@ -104,7 +104,7 @@ describe('breakpoints', async function () {
     });
 
     it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
-        if (os.platform() === 'win32' || !isRemoteTest || !gdbAsync) {
+        if (!isRemoteTest || !gdbAsync) {
             this.skip();
         }
         let event;
@@ -139,14 +139,15 @@ describe('breakpoints', async function () {
         expect(outputs.body.message).eq('Breakpoint-deleted');
     });
 
-    it.only('set breakpoints from terminal without GUI reflection will auto erase the bp', async function () {
-        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
+    it('set breakpoints from terminal without GUI reflection will auto erase the bp', async function () {
+        if (!(isRemoteTest && gdbAsync)) {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
         const scope = await getScopes(dc);
 
-        // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, it should be erased
+        // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, 
+        // it should be erased when setBreakpointsRequest is called
         const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
@@ -184,49 +185,31 @@ describe('breakpoints', async function () {
     });
 
     it('can set breakpoints from terminal and GUI together', async function () {
-        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
+        if (!(isRemoteTest && gdbAsync)) {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
 
-        let response = await dc.setBreakpointsRequest({
-            source: {
-                name: 'count.c',
-                path: path.join(testProgramsDir, 'count.c'),
-            },
-            breakpoints: [
-                {
-                    column: 1,
-                    line: 2,
-                },
-            ],
-        });
-        expect(response.body.breakpoints.length).to.eq(1);
-        await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
-        const scope = await getScopes(dc);
+                const scope = await getScopes(dc);
 
-        // Setting a breakpoint from the debug-console/terminal without reflecting on GUI, it should be erased
-        let event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        // Setting a breakpoint from the debug-console/terminal
+        const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
         await dc.evaluateRequest({
-            expression: `>break ${testProgramsDir}/count.c:6`,
+            expression: `>break ${testProgramsDir}/count.c:4`,
             frameId: scope.frame.id,
             context: 'repl',
         });
         await event;
-
-        await dc.continueRequest({ threadId: scope.thread.id });
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
 
         // start listening for stopped events before we issue the
         // setBreakpointsRequest to ensure we don't get extra
         // stopped events
         const stoppedEventWaitor = dc.waitForEvent('stopped');
-        // Make sure code stops at line 6
-        await dc.assertStoppedLocation('breakpoint', { line: 6 });
-        const stoppedEvent = await stoppedEventWaitor;
-        // create the bp in the GUI as well. the adapter treats vscode breakpoint list as the golden reference. Therefore, there is a need to provide the breakpoint that has been set using the evaluate request again in the bp list being sent to setBreakpointsRequest
-        // In non testing usecase, this is auto handled by vscode
-        response = await dc.setBreakpointsRequest({
+        // Setting a breakpoint from the GUI also at line 4. 
+        // setBreakpointsRequest should resolve the bps and resolve to a single bp at line 4
+        const response = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
                 path: path.join(testProgramsDir, 'count.c'),
@@ -234,18 +217,15 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 2,
-                },
-                {
-                    column: 1,
-                    line: 6,
+                    line: 4,
                 },
             ],
         });
-
-        expect(response.body.breakpoints.length).to.eq(2);
-        await dc.assertStoppedLocation('breakpoint', { line: 6 });
-        //const stoppedEvent = await stoppedEventWaitor;
+        await dc.continueRequest({ threadId: scope.thread.id });
+        // Should have only 1 breakpoint at line 4
+        expect(response.body.breakpoints.length).to.eq(1);
+        await dc.assertStoppedLocation('breakpoint', { line: 4 });
+        const stoppedEvent = await stoppedEventWaitor;
         expect(stoppedEvent).to.have.property('body');
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
