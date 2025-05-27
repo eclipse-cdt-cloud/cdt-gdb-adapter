@@ -86,9 +86,29 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
                 return;
             }
+            if (
+                !(
+                    launchArgs.target?.port ||
+                    launchArgs.target?.serverPortRegExp
+                )
+            ) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'Port number is not specified for a target connection'
+                );
+                return;
+            }
             await this.startGDBServer(launchArgs);
         }
-
+        if (!args.target?.port) {
+            this.sendErrorResponse(
+                response,
+                1,
+                'Port number is not specified for a target connection'
+            );
+            return;
+        }
         await this.startGDBAndAttachToTarget(response, args);
     }
 
