@@ -86,6 +86,7 @@ describe('launch', function () {
                     program: '/does/not/exist',
                     target: {
                         port: 2333,
+                        serverParameters: ["some server"]
                     }
                 } as unknown as TargetLaunchRequestArguments)
             )
