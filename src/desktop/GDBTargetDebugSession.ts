@@ -86,28 +86,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
                 return;
             }
-            if (
-                !(
-                    launchArgs.target?.port ||
-                    launchArgs.target?.serverPortRegExp
-                )
-            ) {
-                this.sendErrorResponse(
-                    response,
-                    1,
-                    'Port number is not specified for a target connection'
-                );
-                return;
-            }
-            await this.startGDBServer(launchArgs);
-        }
-        if (!args.target?.port) {
-            this.sendErrorResponse(
-                response,
-                1,
-                'Port number is not specified for a target connection'
-            );
-            return;
+            await this.startGDBServer(response, launchArgs);
         }
         await this.startGDBAndAttachToTarget(response, args);
     }
@@ -151,6 +130,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async startGDBServer(
+        response: DebugProtocol.Response,
         args: TargetLaunchRequestArguments
     ): Promise<void> {
         if (args.target === undefined) {
@@ -206,6 +186,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                                 ? target.serverStartupDelay
                                 : 0
                         );
+                    } else {
+                        this.sendErrorResponse(
+                            response,
+                            1,
+                            'Port number not specified, cannot connect'
+                        );
+                        return;
                     }
                 };
             }
