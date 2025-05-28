@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 import { MIFrameInfo, MIResponse, MIVariableInfo } from './base';
 
 export interface MIStackInfoDepthResponse extends MIResponse {
@@ -65,17 +66,16 @@ export function sendStackListFramesRequest(
 export function sendStackSelectFrame(
     gdb: IGDBBackend,
     params: {
-        framenum: number;
+        frameNum: number;
     }
 ): Promise<MIResponse> {
-    return gdb.sendCommand(`-stack-select-frame ${params.framenum}`);
+    return gdb.sendCommand(`-stack-select-frame ${params.frameNum}`);
 }
 
 export function sendStackListVariables(
     gdb: IGDBBackend,
     params: {
-        thread?: number;
-        frame?: number;
+        frameRef: FrameReference | undefined;
         printValues: 'no-values' | 'all-values' | 'simple-values';
         noFrameFilters?: boolean;
         skipUnavailable?: boolean;
@@ -88,11 +88,11 @@ export function sendStackListVariables(
     if (params.skipUnavailable) {
         command += ' --skip-unavailable';
     }
-    if (params.thread !== undefined) {
-        command += ` --thread ${params.thread}`;
+    if (params.frameRef?.threadId !== undefined) {
+        command += ` --thread ${params.frameRef.threadId}`;
     }
-    if (params.frame !== undefined) {
-        command += ` --frame ${params.frame}`;
+    if (params.frameRef?.frameId !== undefined) {
+        command += ` --frame ${params.frameRef.frameId}`;
     }
     command += ` --${params.printValues}`;
 

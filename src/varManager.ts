@@ -1,6 +1,7 @@
 import { IGDBBackend } from './types/gdb';
 import { MIVarCreateResponse } from './mi/var';
 import { sendVarCreate, sendVarDelete, sendVarUpdate } from './mi/var';
+import { FrameReference } from './types/session';
 
 export interface VarObjType {
     varname: string;
@@ -24,26 +25,26 @@ export class VarManager {
         this.gdb = gdb;
     }
 
-    public getKey(frameId: number, threadId: number, depth: number): string {
-        return `frame${frameId}_thread${threadId}_depth${depth}`;
+    public getKey(frameRef: FrameReference, depth: number): string {
+        return `frame${frameRef.frameId}_thread${frameRef.threadId}_depth${depth}`;
     }
 
     public getVars(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number
     ): VarObjType[] | undefined {
-        return this.variableMap.get(this.getKey(frameId, threadId, depth));
+        return frameRef
+            ? this.variableMap.get(this.getKey(frameRef, depth))
+            : undefined;
     }
 
     public getVar(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number,
         expression: string,
         type?: string
     ): VarObjType | undefined {
-        const vars = this.getVars(frameId, threadId, depth);
+        const vars = this.getVars(frameRef, depth);
         if (vars) {
             for (const varobj of vars) {
                 if (varobj.expression === expression) {
@@ -60,12 +61,11 @@ export class VarManager {
     }
 
     public getVarByName(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number,
         varname: string
     ): VarObjType | undefined {
-        const vars = this.getVars(frameId, threadId, depth);
+        const vars = this.getVars(frameRef, depth);
         if (vars) {
             for (const varobj of vars) {
                 if (varobj.varname === varname) {
@@ -77,8 +77,7 @@ export class VarManager {
     }
 
     public addVar(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number,
         expression: string,
         isVar: boolean,
@@ -86,10 +85,14 @@ export class VarManager {
         varCreateResponse: MIVarCreateResponse,
         type?: string
     ): VarObjType {
-        let vars = this.variableMap.get(this.getKey(frameId, threadId, depth));
+        let vars = frameRef
+            ? this.variableMap.get(this.getKey(frameRef, depth))
+            : undefined;
         if (!vars) {
             vars = [];
-            this.variableMap.set(this.getKey(frameId, threadId, depth), vars);
+            if (frameRef) {
+                this.variableMap.set(this.getKey(frameRef, depth), vars);
+            }
         }
         const varobj: VarObjType = {
             varname: varCreateResponse.name,
@@ -107,15 +110,14 @@ export class VarManager {
     }
 
     public async removeVar(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number,
         varname: string
     ): Promise<void> {
         let deleteme: VarObjType | undefined;
-        const vars = this.variableMap.get(
-            this.getKey(frameId, threadId, depth)
-        );
+        const vars = frameRef
+            ? this.variableMap.get(this.getKey(frameRef, depth))
+            : undefined;
         if (vars) {
             for (const varobj of vars) {
                 if (varobj.varname === varname) {
@@ -127,20 +129,14 @@ export class VarManager {
                 await sendVarDelete(this.gdb, { varname: deleteme.varname });
                 vars.splice(vars.indexOf(deleteme), 1);
                 for (const child of deleteme.children) {
-                    await this.removeVar(
-                        frameId,
-                        threadId,
-                        depth,
-                        child.varname
-                    );
+                    await this.removeVar(frameRef, depth, child.varname);
                 }
             }
         }
     }
 
     public async updateVar(
-        frameId: number,
-        threadId: number,
+        frameRef: FrameReference | undefined,
         depth: number,
         varobj: VarObjType
     ): Promise<VarObjType> {
@@ -154,17 +150,15 @@ export class VarManager {
                     varobj.value = update.value;
                 }
             } else {
-                this.removeVar(frameId, threadId, depth, varobj.varname);
+                this.removeVar(frameRef, depth, varobj.varname);
                 await sendVarDelete(this.gdb, { varname: varobj.varname });
                 const createResponse = await sendVarCreate(this.gdb, {
                     frame: 'current',
                     expression: varobj.expression,
-                    frameId: frameId,
-                    threadId: threadId,
+                    frameRef,
                 });
                 returnVar = this.addVar(
-                    frameId,
-                    threadId,
+                    frameRef,
                     depth,
                     varobj.expression,
                     varobj.isVar,

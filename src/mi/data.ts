@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 import { MIResponse, MIRegisterValueInfo } from './base';
 
 interface MIDataReadMemoryBytesResponse {
@@ -123,11 +124,10 @@ export function sendDataListRegisterNames(
     gdb: IGDBBackend,
     params: {
         regno?: number[];
-        frameId: number;
-        threadId: number;
+        frameRef: FrameReference;
     }
 ): Promise<MIListRegisterNamesResponse> {
-    let command = `-data-list-register-names --frame ${params.frameId} --thread ${params.threadId}`;
+    let command = `-data-list-register-names --frame ${params.frameRef.frameId} --thread ${params.frameRef.threadId}`;
 
     if (params.regno) {
         command += params.regno.join(' ');
@@ -141,11 +141,10 @@ export function sendDataListRegisterValues(
     params: {
         fmt: string;
         regno?: number[];
-        frameId: number;
-        threadId: number;
+        frameRef: FrameReference;
     }
 ): Promise<MIListRegisterValuesResponse> {
-    let command = `-data-list-register-values --frame ${params.frameId} --thread ${params.threadId} ${params.fmt}`;
+    let command = `-data-list-register-values --frame ${params.frameRef.frameId} --thread ${params.frameRef.threadId} ${params.fmt}`;
 
     if (params.regno) {
         command += params.regno.join(' ');

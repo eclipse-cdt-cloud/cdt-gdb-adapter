@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 import { MIResponse } from './base';
 
 export enum MIVarPrintValues {
@@ -77,16 +78,15 @@ export function sendVarCreate(
         frameAddr?: string;
         frame?: 'current' | 'floating';
         expression: string;
-        threadId?: number;
-        frameId?: number;
+        frameRef?: FrameReference;
     }
 ): Promise<MIVarCreateResponse> {
     let command = '-var-create';
-    if (params.threadId !== undefined) {
-        command += ` --thread ${params.threadId}`;
+    if (params.frameRef?.threadId !== undefined) {
+        command += ` --thread ${params.frameRef.threadId}`;
     }
-    if (params.frameId !== undefined) {
-        command += ` --frame ${params.frameId}`;
+    if (params.frameRef?.frameId !== undefined) {
+        command += ` --frame ${params.frameRef.frameId}`;
     }
 
     command += ` ${params.name ? params.name : '-'}`;
