@@ -11,7 +11,7 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments } from '../types/session';
+import { LaunchRequestArguments, TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -52,11 +52,42 @@ describe('launch', function () {
     });
 
     it('reports an error when specifying a non-existent binary', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {
                     program: '/does/not/exist',
                 } as LaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+
+        // When launching a remote test gdbserver generates the error which is not exactly the same
+        // as GDB's error
+        expect(errorMessage.message).to.satisfy(
+            (msg: string) =>
+                msg.includes('/does/not/exist') &&
+                (msg.includes('The system cannot find the path specified') ||
+                    msg.includes('No such file or directory') ||
+                    msg.includes('not found'))
+        );
+    });
+
+    it('reports an error when specifying a non-existent binary for a remote connection', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: '/does/not/exist',
+                    target: {
+                        port: 2333,
+                    }
+                } as unknown as TargetLaunchRequestArguments)
             )
                 .then(reject)
                 .catch(resolve);
