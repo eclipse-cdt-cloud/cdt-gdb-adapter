@@ -11,7 +11,10 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments, TargetLaunchRequestArguments } from '../types/session';
+import {
+    LaunchRequestArguments,
+    TargetLaunchRequestArguments,
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -86,8 +89,8 @@ describe('launch', function () {
                     program: '/does/not/exist',
                     target: {
                         port: 2333,
-                        serverParameters: ["some server"]
-                    }
+                        serverParameters: ['some server'],
+                    },
                 } as unknown as TargetLaunchRequestArguments)
             )
                 .then(reject)
@@ -102,6 +105,30 @@ describe('launch', function () {
                 (msg.includes('The system cannot find the path specified') ||
                     msg.includes('No such file or directory') ||
                     msg.includes('not found'))
+        );
+    });
+
+    it('reports an error when no port number is specified for a remote connection', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: '/does/not/exist',
+                    target: {
+                        serverParameters: ['some server'],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+
+        // When launching a remote test gdbserver generates the error which is not exactly the same
+        // as GDB's error
+        expect(errorMessage.message).eq(
+            'Port number not specified, cannot connect'
         );
     });
 
