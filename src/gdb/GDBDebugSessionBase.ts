@@ -1256,7 +1256,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
 
             if (args.expression.startsWith('>') && args.context === 'repl') {
-                return this.evaluateRequestGdbCommand(response, args, frameRef);
+                return await this.evaluateRequestGdbCommand(response, args, frameRef);
             }
 
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
