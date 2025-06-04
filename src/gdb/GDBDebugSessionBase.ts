@@ -1322,7 +1322,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
             }
-            if (varobj && args.frameId) {
+            if (varobj && args.frameId != undefined) {
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
                         ? await this.getChildElements(varobj, args.frameId)
