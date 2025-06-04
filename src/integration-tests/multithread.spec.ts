@@ -213,20 +213,22 @@ describe('multithread', async function () {
             ],
         });
 
+        const waitForStop = dc.waitForEvent('stopped');
         await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
+        await waitForStop;
 
         const threads = await dc.threadsRequest();
 
         // make sure that there is at least 2 threads.
         expect(threads.body.threads).length.greaterThanOrEqual(2);
 
+        const waitForContinue = dc.waitForEvent('continued');
         // Send continue to thread 2
         dc.send('cdt-gdb-tests/executeCommand', {
             command: '-exec-continue --thread 2',
         });
 
-        const event = await dc.waitForEvent('continued');
+        const event = await waitForContinue;
 
         // In allThreadsContinued:true case we are expecting id of the first thread no matter which thread is continued
         assert.deepEqual(event.body, {
@@ -261,16 +263,18 @@ describe('multithread', async function () {
             (t) => (t as unknown as { running?: boolean }).running
         );
         for (const thread of runningThreads) {
+            const waitForStop = dc.waitForEvent('stopped');
             await dc.pauseRequest({ threadId: thread.id });
-            await dc.waitForEvent('stopped');
+            await waitForStop;
         }
 
         for (const thread of threads.body.threads) {
+            const waitForContinue = dc.waitForEvent('continued');
             // Send an async continue request and wait for the continue event.
             dc.send('cdt-gdb-tests/executeCommand', {
                 command: `-exec-continue --thread ${thread.id}`,
             });
-            const event = await dc.waitForEvent('continued');
+            const event = await waitForContinue;
 
             assert.deepEqual<any>(event.body, {
                 threadId: thread.id,
