@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 import { MIResponse } from './base';
 
 export function sendExecArguments(
@@ -63,17 +64,13 @@ export function sendExecStepInstruction(gdb: IGDBBackend, threadId?: number) {
     return gdb.sendCommand(command);
 }
 
-export function sendExecFinish(
-    gdb: IGDBBackend,
-    threadId?: number,
-    frameId?: number
-) {
+export function sendExecFinish(gdb: IGDBBackend, frameRef: FrameReference) {
     let command = '-exec-finish';
-    if (threadId !== undefined) {
-        command += ` --thread ${threadId}`;
+    if (frameRef.threadId !== undefined) {
+        command += ` --thread ${frameRef.threadId}`;
     }
-    if (frameId !== undefined) {
-        command += ` --frame ${frameId}`;
+    if (frameRef.frameId !== undefined) {
+        command += ` --frame ${frameRef.frameId}`;
     }
     return gdb.sendCommand(command);
 }

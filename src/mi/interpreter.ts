@@ -8,15 +8,30 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 export function sendInterpreterExecConsole(
     gdb: IGDBBackend,
     params: {
-        threadId: number;
-        frameId: number;
+        frameRef: FrameReference | undefined;
         command: any;
     }
 ) {
-    return gdb.sendCommand(
-        `-interpreter-exec --thread ${params.threadId} --frame ${params.frameId} console "${params.command}"`
-    );
+    // In GDB MI, -1 is not a valid value for --thread or --frame.
+    // These options expect positive integer IDs. Omitting the option means "all threads"/"current frame".
+    // So, only include --thread/--frame if threadId/frameId >= 0.
+    let cmd = '-interpreter-exec';
+    if (
+        params.frameRef?.threadId !== undefined &&
+        params.frameRef.threadId >= 0
+    ) {
+        cmd += ` --thread ${params.frameRef.threadId}`;
+    }
+    if (
+        params.frameRef?.frameId !== undefined &&
+        params.frameRef.frameId >= 0
+    ) {
+        cmd += ` --frame ${params.frameRef.frameId}`;
+    }
+    cmd += ` console "${params.command}"`;
+    return gdb.sendCommand(cmd);
 }
