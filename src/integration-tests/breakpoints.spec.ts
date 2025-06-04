@@ -50,10 +50,10 @@ describe('breakpoints', async function () {
         /* 
             Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
             Just using 
-            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            await dc.waitForEvent('breakpoint'); 
             is NOT enough, as it misses the event from the adapter due to misalignment issues
         */
-        const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        const event = dc.waitForEvent('breakpoint');
         // Trigger a breakpoint from the debug-console/Terminal
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
@@ -64,7 +64,8 @@ describe('breakpoints', async function () {
         // Run a configuration Done Request to inform the adapter that the client is done
         await dc.configurationDoneRequest();
 
-        expect(outputs.body.message).eq('Breakpoint-created');
+        expect(outputs.body.reason).eq('new');
+        expect(outputs.body.breakpoint.line).eq(4);
     });
 
     it('should handle a breakpoint modification from the debug-console/terminal', async function () {
@@ -76,10 +77,10 @@ describe('breakpoints', async function () {
         /* 
             Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
             Just using 
-            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            await dc.waitForEvent('breakpoint'); 
             is NOT enough, as it misses the event from the adapter due to misalignment issues
         */
-        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        event = dc.waitForEvent('breakpoint');
         // Create a breakpoint from the debug-console/Terminal
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
@@ -89,7 +90,7 @@ describe('breakpoints', async function () {
         // Wait to make sure breakpoint is created
         await event;
 
-        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        event = dc.waitForEvent('breakpoint');
         // Modify the breakpoint from the debug-console/terminal
         await dc.evaluateRequest({
             expression: `>disable 1`,
@@ -100,7 +101,7 @@ describe('breakpoints', async function () {
         // Run a configuration Done Request to inform the adapter that the client is done
         await dc.configurationDoneRequest();
 
-        expect(outputs.body.message).eq('Breakpoint-modified');
+        expect(outputs.body.reason).eq('changed');
     });
 
     it('should handle a breakpoint deletion from the debug-console/terminal', async function () {
@@ -112,10 +113,10 @@ describe('breakpoints', async function () {
         /* 
             Create an event variable that will eventually wait for the custom event being sent when a breakpoint is created
             Just using 
-            await dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView'); 
+            await dc.waitForEvent('breakpoint'); 
             is NOT enough, as it misses the event from the adapter due to misalignment issues
         */
-        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        event = dc.waitForEvent('breakpoint');
         // Create a breakpoint from the debug-console/Terminal
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
@@ -125,7 +126,7 @@ describe('breakpoints', async function () {
         // Wait to make sure breakpoint is created
         await event;
 
-        event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        event = dc.waitForEvent('breakpoint');
         // Modify the breakpoint from the debug-console/terminal
         await dc.evaluateRequest({
             expression: `>delete 1`,
@@ -136,7 +137,7 @@ describe('breakpoints', async function () {
         // Run a configuration Done Request to inform the adapter that the client is done
         await dc.configurationDoneRequest();
 
-        expect(outputs.body.message).eq('Breakpoint-deleted');
+        expect(outputs.body.reason).eq('removed');
     });
 
     it('set breakpoints from terminal without GUI reflection will auto erase the bp', async function () {
@@ -148,7 +149,7 @@ describe('breakpoints', async function () {
 
         // Setting a breakpoint from the debug-console/terminal without reflecting on GUI,
         // it should be erased when setBreakpointsRequest is called
-        const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        const event = dc.waitForEvent('breakpoint');
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
             frameId: scope.frame.id,
@@ -194,7 +195,7 @@ describe('breakpoints', async function () {
         const scope = await getScopes(dc);
 
         // Setting a breakpoint from the debug-console/terminal
-        const event = dc.waitForEvent('cdt-gdb-adapter/UpdateBreakpointView');
+        const event = dc.waitForEvent('breakpoint');
         await dc.evaluateRequest({
             expression: `>break ${testProgramsDir}/count.c:4`,
             frameId: scope.frame.id,
