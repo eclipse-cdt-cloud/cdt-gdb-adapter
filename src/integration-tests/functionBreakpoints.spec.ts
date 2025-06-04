@@ -22,6 +22,7 @@ import {
     hardwareBreakpoint,
 } from './utils';
 import * as os from 'os';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('function breakpoints', async function () {
     let dc: CdtDebugClient;
@@ -29,11 +30,27 @@ describe('function breakpoints', async function () {
     beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: join(testProgramsDir, 'functions'),
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: join(testProgramsDir, 'functions'),
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'functions'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: join(testProgramsDir, 'functions'),
+                })
+            );
+        }
     });
 
     afterEach(async () => {
