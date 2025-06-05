@@ -12,7 +12,6 @@ import * as path from 'path';
 import * as mi from '../mi';
 import {
     BreakpointEvent,
-    Event,
     Handles,
     InitializedEvent,
     Logger,
@@ -1256,6 +1255,23 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
 
             if (args.expression.startsWith('>') && args.context === 'repl') {
+                const regexDisable = new RegExp(
+                    '^\\s*disable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                );
+                const regexEnable = new RegExp(
+                    '^\\s*enable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                );
+                if (
+                    args.expression.slice(1).search(regexDisable) != -1 ||
+                    args.expression.slice(1).search(regexEnable) != -1
+                ) {
+                    this.sendEvent(
+                        new OutputEvent(
+                            'warning: "enable" and "disable" commands cannot be reflected in the GUI',
+                            'stdout'
+                        )
+                    );
+                }
                 return await this.evaluateRequestGdbCommand(
                     response,
                     args,
@@ -1781,16 +1797,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
         }
     }
-    /* 
-    A function that sends a custom event to vscode extension. The Custom event being sent triggers a re-rendering of breakpoints on the GUI of vscode, as it seems rendering breakpoints is glitchy on vscode
-    */
-    private sendUpdateBreakpointView(message: string) {
-        this.sendEvent(
-            new Event('cdt-gdb-adapter/UpdateBreakpointView', {
-                message: message,
-            })
-        );
-    }
 
     protected handleGDBNotify(notifyClass: string, notifyData: any) {
         switch (notifyClass) {
@@ -1811,6 +1817,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'breakpoint-created':
                 {
+                    // Check if the bp is going to be erased in the future, if so, don't send the bp event
                     if (notifyData.bkpt.disp === 'del') {
                         break;
                     }
@@ -1828,14 +1835,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendUpdateBreakpointView('Breakpoint-created');
                 }
                 break;
             case 'breakpoint-modified':
                 {
+                    // Check if the bp is going to be erased in the future, if so, don't send the bp event
+                    if (notifyData.bkpt.disp === 'del') {
+                        break;
+                    }
                     const breakpoint: DebugProtocol.Breakpoint = {
                         id: parseInt(notifyData.bkpt.number, 10),
-                        verified: notifyData.bkpt.enabled === 'y',
+                        verified: true,
                         source: {
                             name: notifyData.bkpt.fullname,
                             path: notifyData.bkpt.file,
@@ -1847,7 +1857,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendUpdateBreakpointView('Breakpoint-modified');
                 }
                 break;
             case 'breakpoint-deleted':
@@ -1861,7 +1870,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         breakpoint
                     );
                     this.sendEvent(breakpointevent);
-                    this.sendUpdateBreakpointView('Breakpoint-deleted');
                 }
                 break;
             case 'cmd-param-changed':
