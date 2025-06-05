@@ -1255,15 +1255,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
 
             if (args.expression.startsWith('>') && args.context === 'repl') {
-                const regexDisable = new RegExp('.*disable.*');
-                const regexEnable = new RegExp('.*enable.*');
+                const regexDisable = new RegExp('\s*disable\s*');
+                const regexEnable = new RegExp('\s*enable\s*');
                 if (
                     args.expression.slice(1, -1).search(regexDisable) ||
                     args.expression.slice(1, -1).search(regexEnable)
                 ) {
                     this.sendEvent(
                         new OutputEvent(
-                            'warning: enable and disable commands cannot be reflected in the GUI'
+                            'warning: "enable" and "disable" commands cannot be reflected in the GUI'
                         )
                     );
                 }
