@@ -10,7 +10,10 @@
 
 import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '../types/session';
+import {
+    LaunchRequestArguments,
+    TargetLaunchRequestArguments,
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -64,15 +67,33 @@ describe('launch with environment', function () {
         targetEnvironment?: Record<string, string | null> | undefined
     ) => {
         dc = await standardBeforeEach(adapter);
-        await dc.launchRequest(
-            fillDefaults(test, {
-                program: path.join(testProgramsDir, 'vars_env'),
-                environment: environment,
-                target: {
-                    environment: targetEnvironment,
-                },
-            } as LaunchRequestArguments)
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(test, {
+                    program: path.join(testProgramsDir, 'vars_env'),
+                    environment: environment,
+                    type: 'remote',
+                    target: {
+                        environment: targetEnvironment,
+                        port: 2333,
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'vars_env'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(test, {
+                    program: path.join(testProgramsDir, 'vars_env'),
+                    environment: environment,
+                    target: {
+                        environment: targetEnvironment,
+                    },
+                } as LaunchRequestArguments)
+            );
+        }
 
         const bpResp = await dc.setBreakpointsRequest({
             source: {

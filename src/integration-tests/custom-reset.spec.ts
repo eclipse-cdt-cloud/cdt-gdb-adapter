@@ -30,7 +30,15 @@ describe('custom reset', function () {
             fillDefaults(this.currentTest, {
                 program: emptyProgram,
                 customResetCommands: commands,
-            } as TargetLaunchRequestArguments)
+                target: {
+                    port: 2333,
+                    type: 'remote',
+                    serverParameters: [
+                        ':2333',
+                        path.join(testProgramsDir, 'empty'),
+                    ],
+                },
+            } as unknown as TargetLaunchRequestArguments)
         );
     });
 

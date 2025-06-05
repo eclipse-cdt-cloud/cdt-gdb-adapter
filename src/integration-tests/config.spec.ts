@@ -19,6 +19,7 @@ import {
     debugServerPort,
     defaultAdapter,
     fillDefaults,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -86,6 +87,9 @@ describe('config', function () {
     });
 
     it('can specify program via --config= using response file', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         const json = JSON.stringify(config);
         const jsonFile = tmp.fileSync();

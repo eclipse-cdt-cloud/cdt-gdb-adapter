@@ -11,7 +11,13 @@ import * as path from 'path';
 import * as os from 'os';
 import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
-import { standardBeforeEach, testProgramsDir, fillDefaults } from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
+import {
+    standardBeforeEach,
+    testProgramsDir,
+    fillDefaults,
+    isRemoteTest,
+} from './utils';
 
 // This mock adapter is overriding the getBreakpointOptions method.
 const adapter =
@@ -26,12 +32,26 @@ describe('dynamic breakpoint options with hardware set to false', async () => {
     beforeEach(async function () {
         // Overriding breakpoint option hardware to false
         dc = await standardBeforeEach(adapter, [argHardwareBreakpointFalse]);
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'count'),
-                hardwareBreakpoint: true,
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    hardwareBreakpoint: true,
+                    port: 2333,
+                    serverParameters: [
+                        ':2333',
+                        path.join(testProgramsDir, 'count'),
+                    ],
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    hardwareBreakpoint: true,
+                })
+            );
+        }
     });
 
     afterEach(async () => {
@@ -73,12 +93,28 @@ describe('dynamic breakpoint options with hardware set to true', async () => {
     beforeEach(async function () {
         // Overriding breakpoint option hardware to true
         dc = await standardBeforeEach(adapter, [argHardwareBreakpointTrue]);
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'count'),
-                hardwareBreakpoint: false,
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'count'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    hardwareBreakpoint: false,
+                })
+            );
+        }
     });
 
     afterEach(async () => {
@@ -124,12 +160,30 @@ describe('dynamic breakpoint options with throwing error', async () => {
     beforeEach(async function () {
         // Overriding breakpoint options and throwing error when getBreakpointOptions invoked
         dc = await standardBeforeEach(adapter, [argThrowError]);
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'count'),
-                hardwareBreakpoint: false,
-            })
-        );
+
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    hardwareBreakpoint: false,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'count'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    hardwareBreakpoint: false,
+                })
+            );
+        }
     });
 
     afterEach(async () => {

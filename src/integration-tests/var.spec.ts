@@ -20,9 +20,11 @@ import {
     verifyVariable,
     verifyRegister,
     fillDefaults,
+    isRemoteTest,
 } from './utils';
 import * as chai from 'chai';
 import * as chaistring from 'chai-string';
+import { TargetLaunchRequestArguments } from '../types/session';
 chai.use(chaistring);
 
 describe('Variables Test Suite', function () {
@@ -46,16 +48,33 @@ describe('Variables Test Suite', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: varsProgram,
+                    target: {
+                        type: 'remote',
+                        port: 2333,
+                        serverParameters: [':2333', varsProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: varsSrc,
+                    line: lineTags['STOP HERE'],
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: varsProgram,
+                }),
+                {
+                    path: varsSrc,
+                    line: lineTags['STOP HERE'],
+                }
+            );
+        }
 
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: varsProgram,
-            }),
-            {
-                path: varsSrc,
-                line: lineTags['STOP HERE'],
-            }
-        );
         scope = await getScopes(dc);
         expect(
             scope.scopes.body.scopes.length,

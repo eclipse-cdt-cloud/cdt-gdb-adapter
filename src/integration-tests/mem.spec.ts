@@ -16,9 +16,11 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('Memory Test Suite', function () {
     let dc: CdtDebugClient;
@@ -28,16 +30,33 @@ describe('Memory Test Suite', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: memProgram,
+                    type: 'remote',
+                    target: {
+                        port: 2333,
+                        serverParameters: [':2333', memProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: memSrc,
+                    line: 12,
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: memProgram,
+                }),
+                {
+                    path: memSrc,
+                    line: 12,
+                }
+            );
+        }
 
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: memProgram,
-            }),
-            {
-                path: memSrc,
-                line: 12,
-            }
-        );
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will

@@ -11,9 +11,15 @@ import * as path from 'path';
 import * as os from 'os';
 import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
-import { standardBeforeEach, testProgramsDir, fillDefaults } from './utils';
+import {
+    standardBeforeEach,
+    testProgramsDir,
+    fillDefaults,
+    isRemoteTest,
+} from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { MIBreakpointMode } from '../mi';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 // This mock adapter is overriding the getBreakpointOptions method.
 const adapter =
@@ -30,11 +36,29 @@ const startDebugClientWithArgs = async (
     ...args: string[]
 ) => {
     const dc = await standardBeforeEach(adapter, args);
-    await dc.launchRequest(
-        fillDefaults(test, {
-            program: path.join(testProgramsDir, 'count'),
-        })
-    );
+
+    if (isRemoteTest) {
+        await dc.launchRequest(
+            fillDefaults(test, {
+                program: path.join(testProgramsDir, 'count'),
+                target: {
+                    port: 2333,
+                    type: 'remote',
+                    serverParameters: [
+                        ':2333',
+                        path.join(testProgramsDir, 'count'),
+                    ],
+                },
+            } as unknown as TargetLaunchRequestArguments)
+        );
+    } else {
+        await dc.launchRequest(
+            fillDefaults(test, {
+                program: path.join(testProgramsDir, 'count'),
+            })
+        );
+    }
+
     return dc;
 };
 

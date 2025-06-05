@@ -43,15 +43,32 @@ describe('launch', function () {
     });
 
     it('can launch and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-            } as LaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', emptyProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                } as LaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        }
     });
 
     it('reports an error when specifying a non-existent binary', async function () {
