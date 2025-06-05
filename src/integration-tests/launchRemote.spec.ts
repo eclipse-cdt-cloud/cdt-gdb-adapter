@@ -73,7 +73,7 @@ describe('launch remote', function () {
                 initCommands: ['break _fini'],
                 target: {
                     port: 2333,
-                    serverParameters: [':2333'],
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         socketPort: socketPort,
                         eolCharacter: 'LF',
