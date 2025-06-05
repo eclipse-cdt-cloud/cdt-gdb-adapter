@@ -36,9 +36,11 @@ describe('launch remote', function () {
         await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptyProgram,
+                port: 2333,
+                serverParameters: [':2333', emptyProgram],
                 target: {
                     type: 'remote',
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             {
                 path: emptySrc,
@@ -107,12 +109,14 @@ describe('launch remote', function () {
                 initCommands: ['break _fini'],
                 preRunCommands: [`shell echo "Hello World!" > /tmp/ttyV1`],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         serialPort: '/tmp/ttyV0',
                         eolCharacter: 'LF',
                         baudRate: 38400,
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Serial Port',
             `Hello World!${os.EOL}`
@@ -129,10 +133,12 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         serialPort: '/mistake',
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Serial Port',
             'error on serial port connection',
@@ -148,10 +154,12 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         socketPort: '0',
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Socket',
             'error on socket connection',
