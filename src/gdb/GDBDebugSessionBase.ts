@@ -1262,12 +1262,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     '^\\s*enable\\s*(?:breakpoint|count|delete|once)?\\d*'
                 );
                 if (
-                    args.expression.slice(1, -1).search(regexDisable) != -1 ||
-                    args.expression.slice(1, -1).search(regexEnable) != -1
+                    args.expression.slice(1).search(regexDisable) != -1 ||
+                    args.expression.slice(1).search(regexEnable) != -1
                 ) {
                     this.sendEvent(
                         new OutputEvent(
-                            'warning: "enable" and "disable" commands cannot be reflected in the GUI'
+                            'warning: "enable" and "disable" commands cannot be reflected in the GUI', 'stdout'
                         )
                     );
                 }

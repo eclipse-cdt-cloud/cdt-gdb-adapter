@@ -77,6 +77,17 @@ describe('evaluate request', function () {
 
         expect(err.body.result).eq('Error: could not evaluate expression');
     });
+
+    it('should send a warning when evaluating an enable/disable breakpoint command is sent', async function () {
+        const event = dc.waitForOutputEvent('stdout', 'warning: "enable" and "disable" commands cannot be reflected in the GUI');
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> enable',
+            frameId: scope.frame.id,
+        });
+        await event;
+    });
+
     it('should be able to update the value of a variable named monitor and that variable has local scope', async function () {
         const res1 = await dc.evaluateRequest({
             context: 'repl',
