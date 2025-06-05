@@ -124,30 +124,27 @@ describe('gdb cwd', function () {
     });
 
     it('explicitly correct cwd does find source with relocated program', async function () {
-       if (isRemoteTest) {
-        await dc.launchRequest(
-            fillDefaults(this.test, {
-                program: programRelocated,
-                cwd: testProgramsDir,
-                target: {
-                    port: 2333
-                    type: 'remote',
-                                            serverParameters: [
-                                                ':2333',
-                                                programRelocated,
-                                            ],
-                }
-            })
-        );
-       } else {
-        await dc.launchRequest(
-            fillDefaults(this.test, {
-                program: programRelocated,
-                cwd: testProgramsDir,
-            })
-        );
-       }
-        
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: programRelocated,
+                    cwd: testProgramsDir,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', programRelocated],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: programRelocated,
+                    cwd: testProgramsDir,
+                })
+            );
+        }
+
         const bps = await dc.setBreakpointsRequest({
             lines: [lineTags['STOP HERE']],
             breakpoints: [{ line: lineTags['STOP HERE'], column: 1 }],
