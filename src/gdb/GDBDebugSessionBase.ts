@@ -1267,7 +1267,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ) {
                     this.sendEvent(
                         new OutputEvent(
-                            'warning: "enable" and "disable" commands cannot be reflected in the GUI', 'stdout'
+                            'warning: "enable" and "disable" commands cannot be reflected in the GUI',
+                            'stdout'
                         )
                     );
                 }

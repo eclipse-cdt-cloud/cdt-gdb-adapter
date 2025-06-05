@@ -79,7 +79,10 @@ describe('evaluate request', function () {
     });
 
     it('should send a warning when evaluating an enable/disable breakpoint command is sent', async function () {
-        const event = dc.waitForOutputEvent('stdout', 'warning: "enable" and "disable" commands cannot be reflected in the GUI');
+        const event = dc.waitForOutputEvent(
+            'stdout',
+            'warning: "enable" and "disable" commands cannot be reflected in the GUI'
+        );
         await dc.evaluateRequest({
             context: 'repl',
             expression: '> enable',
