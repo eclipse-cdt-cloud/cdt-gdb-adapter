@@ -72,12 +72,14 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333'],
                     uart: {
                         socketPort: socketPort,
                         eolCharacter: 'LF',
                     },
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
+                } as unknown as TargetLaunchArguments,
+            } as unknown as TargetLaunchRequestArguments),
             'Socket',
             `Hello World!${os.EOL}`
         );
