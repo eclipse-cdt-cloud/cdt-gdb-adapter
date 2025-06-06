@@ -81,7 +81,7 @@
     "@typescript-eslint/parser": "^5.54.0",
     "@vscode/debugadapter-testsupport": "^1.68.0",
     "browserify": "^17.0.1",
-    "chai": "^4.3.7",
+    "chai": "^5.1.0",
     "chai-string": "^1.6.0",
     "cross-env": "^7.0.3",
     "esbuild": "^0.25.4",
