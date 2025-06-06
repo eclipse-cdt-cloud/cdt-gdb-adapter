@@ -107,6 +107,9 @@ describe('config', function () {
     });
 
     it('can specify program via --config-frozen= using response file', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         const json = JSON.stringify(config);
         const jsonFile = tmp.fileSync();
