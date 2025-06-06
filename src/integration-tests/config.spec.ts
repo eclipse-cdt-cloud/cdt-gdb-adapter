@@ -51,6 +51,9 @@ describe('config', function () {
     }
 
     it('can specify program via --config=', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         await verifyLaunchWorks(
             this,

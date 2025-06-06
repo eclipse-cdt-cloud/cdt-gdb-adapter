@@ -72,7 +72,6 @@ describe('launch with environment', function () {
                 fillDefaults(test, {
                     program: path.join(testProgramsDir, 'vars_env'),
                     environment: environment,
-                    type: 'remote',
                     target: {
                         environment: targetEnvironment,
                         port: 2333,

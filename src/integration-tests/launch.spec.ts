@@ -151,7 +151,22 @@ describe('launch', function () {
     });
 
     it('works with a space in file names', async function () {
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: emptySpaceProgram,
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptySpaceProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
+            {
+                path: emptySpaceSrc,
+                line: 3,
+            }
+        );
+        } else {
+            await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptySpaceProgram,
             } as LaunchRequestArguments),
@@ -160,6 +175,7 @@ describe('launch', function () {
                 line: 3,
             }
         );
+        }
     });
 
     it('works with unicode in file names', async function () {
