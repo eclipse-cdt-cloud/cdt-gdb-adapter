@@ -17,6 +17,7 @@ import {
 } from './utils';
 import * as path from 'path';
 import * as os from 'os';
+import { TargetLaunchRequestArguments } from '../web';
 
 describe('pause', async () => {
     let dc: CdtDebugClient;
@@ -34,11 +35,25 @@ describe('pause', async () => {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
-        await dc.launchRequest(
+        if (isRemoteTest) {
+            await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: path.join(testProgramsDir, 'loopforever'),
+                target: {
+                    type: 'remote',
+                    port: 2333,
+                    serverParameters: [':2333', path.join(testProgramsDir, 'loopforever')]
+                }
+            } as unknown as TargetLaunchRequestArguments)
+        );
+        } else {
+            await dc.launchRequest(
             fillDefaults(this.test, {
                 program: path.join(testProgramsDir, 'loopforever'),
             })
         );
+        }
+        
         await dc.configurationDoneRequest();
         const waitForStopped = dc.waitForEvent('stopped');
         const threads = await dc.threadsRequest();

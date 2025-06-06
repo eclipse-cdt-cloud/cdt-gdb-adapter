@@ -11,11 +11,12 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
-import { MemoryResponse } from '../types/session';
+import { MemoryResponse, TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -28,8 +29,22 @@ describe('Memory Test Suite for cdt-gdb-adapter/Memory custom request', function
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+            fillDefaults(this.currentTest, {
+                program: memProgram,
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', memProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
+            {
+                path: memSrc,
+                line: 12,
+            }
+        );
+        } else {
+            await dc.hitBreakpoint(
             fillDefaults(this.currentTest, {
                 program: memProgram,
             }),
@@ -38,6 +53,8 @@ describe('Memory Test Suite for cdt-gdb-adapter/Memory custom request', function
                 line: 12,
             }
         );
+        }
+        
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will

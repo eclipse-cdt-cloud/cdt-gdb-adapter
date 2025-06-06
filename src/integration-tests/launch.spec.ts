@@ -167,15 +167,32 @@ describe('launch', function () {
             // on windows remote tests don't support the unicode in file name (except for non-stop which seems to)
             this.skip();
         }
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: unicodeProgram,
-            } as LaunchRequestArguments),
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', unicodeProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
             {
                 path: unicodeSrc,
                 line: 3,
             }
         );
+        } else {
+                await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: unicodeProgram,
+                } as LaunchRequestArguments),
+                {
+                    path: unicodeSrc,
+                    line: 3,
+                }
+            );
+        }
+        
     });
 
     it('provides a decent error if program is omitted', async function () {

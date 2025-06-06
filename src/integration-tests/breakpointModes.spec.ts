@@ -43,7 +43,6 @@ const startDebugClientWithArgs = async (
                 program: path.join(testProgramsDir, 'count'),
                 target: {
                     port: 2333,
-                    type: 'remote',
                     serverParameters: [
                         ':2333',
                         path.join(testProgramsDir, 'count'),
