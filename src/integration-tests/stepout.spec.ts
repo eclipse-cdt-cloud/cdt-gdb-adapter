@@ -16,18 +16,36 @@ import {
     testProgramsDir,
     getScopes,
     fillDefaults,
+    isRemoteTest,
 } from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('stepout', async function () {
     let dc: CdtDebugClient;
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'functions'),
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'functions'),
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'functions'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'functions'),
+                })
+            );
+        }
     });
 
     afterEach(async () => {

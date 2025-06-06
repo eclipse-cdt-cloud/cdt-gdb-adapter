@@ -18,7 +18,9 @@ import {
     Scope,
     standardBeforeEach,
     testProgramsDir,
+    isRemoteTest,
 } from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
@@ -29,15 +31,37 @@ describe('evaluate request', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: evaluateProgram,
-            }),
-            {
-                path: evaluateSrc,
-                line: 2,
-            }
-        );
+
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: evaluateProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'evaluate'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: evaluateSrc,
+                    line: 2,
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: evaluateProgram,
+                }),
+                {
+                    path: evaluateSrc,
+                    line: 2,
+                }
+            );
+        }
+
         scope = await getScopes(dc);
     });
 

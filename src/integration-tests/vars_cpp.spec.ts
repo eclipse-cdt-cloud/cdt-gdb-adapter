@@ -20,7 +20,9 @@ import {
     testProgramsDir,
     verifyVariable,
     fillDefaults,
+    isRemoteTest,
 } from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('Variables CPP Test Suite', function () {
     let dc: CdtDebugClient;
@@ -39,15 +41,33 @@ describe('Variables CPP Test Suite', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: varsCppProgram,
-            }),
-            {
-                path: varsCppSrc,
-                line: lineTags['STOP HERE'],
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: varsCppProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', varsCppProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: varsCppSrc,
+                    line: lineTags['STOP HERE'],
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: varsCppProgram,
+                }),
+                {
+                    path: varsCppSrc,
+                    line: lineTags['STOP HERE'],
+                }
+            );
+        }
+
         scope = await getScopes(dc);
         expect(
             scope.scopes.body.scopes.length,

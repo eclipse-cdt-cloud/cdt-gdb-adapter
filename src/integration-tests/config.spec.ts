@@ -19,6 +19,7 @@ import {
     debugServerPort,
     defaultAdapter,
     fillDefaults,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -50,6 +51,9 @@ describe('config', function () {
     }
 
     it('can specify program via --config=', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         await verifyLaunchWorks(
             this,
@@ -75,6 +79,9 @@ describe('config', function () {
     });
 
     it('program via --config-frozen= can not be overridden', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         await verifyLaunchWorks(
             this,
@@ -86,6 +93,9 @@ describe('config', function () {
     });
 
     it('can specify program via --config= using response file', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         const json = JSON.stringify(config);
         const jsonFile = tmp.fileSync();
@@ -100,6 +110,9 @@ describe('config', function () {
     });
 
     it('can specify program via --config-frozen= using response file', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         const json = JSON.stringify(config);
         const jsonFile = tmp.fileSync();

@@ -12,8 +12,14 @@ import { expect } from 'chai';
 import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol/lib/debugProtocol';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    standardBeforeEach,
+    testProgramsDir,
+    isRemoteTest,
+} from './utils';
 import { assert } from 'sinon';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('Disassembly Test Suite', function () {
     let dc: CdtDebugClient;
@@ -46,15 +52,33 @@ describe('Disassembly Test Suite', function () {
     beforeEach(async function () {
         dc = await standardBeforeEach();
 
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: disProgram,
-            }),
-            {
-                path: disSrc,
-                line: 2,
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: disProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', disProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: disSrc,
+                    line: 2,
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: disProgram,
+                }),
+                {
+                    path: disSrc,
+                    line: 2,
+                }
+            );
+        }
+
         const threads = await dc.threadsRequest();
         // On windows additional threads can exist to handle signals, therefore find
         // the real thread & frame running the user code. The other thread will

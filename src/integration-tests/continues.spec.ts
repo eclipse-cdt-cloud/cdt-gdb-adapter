@@ -7,6 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
+import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     standardBeforeEach,
@@ -14,6 +15,7 @@ import {
     testProgramsDir,
     getScopes,
     gdbNonStop,
+    isRemoteTest,
 } from './utils';
 import { expect, assert } from 'chai';
 import * as path from 'path';
@@ -23,11 +25,27 @@ describe('continues', async function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'count'),
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    type: 'remote',
+                    target: {
+                        port: 2333,
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'count'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                })
+            );
+        }
     });
 
     afterEach(async function () {

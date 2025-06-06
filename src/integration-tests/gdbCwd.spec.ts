@@ -12,11 +12,13 @@ import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
+    isRemoteTest,
     resolveLineTagLocations,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
 import { expect } from 'chai';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 /**
  * To test that cwd is set properly we remove the compilation directory from the executable,
@@ -61,12 +63,26 @@ describe('gdb cwd', function () {
     });
 
     it('explicit cwd finds source in program directory', async function () {
-        await dc.launchRequest(
-            fillDefaults(this.test, {
-                program: program,
-                cwd: testProgramsDir,
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: program,
+                    cwd: testProgramsDir,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', program],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: program,
+                    cwd: testProgramsDir,
+                })
+            );
+        }
 
         const bps = await dc.setBreakpointsRequest({
             lines: [lineTags['STOP HERE']],
@@ -77,11 +93,23 @@ describe('gdb cwd', function () {
     });
 
     it('default cwd does not find source with relocated program', async function () {
-        await dc.launchRequest(
+        if (isRemoteTest) {
+            await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: programRelocated,
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', programRelocated]
+                }
+            } as unknown as TargetLaunchRequestArguments)
+        );
+        } else {
+            await dc.launchRequest(
             fillDefaults(this.test, {
                 program: programRelocated,
             })
         );
+        }
 
         const bps = await dc.setBreakpointsRequest({
             lines: [lineTags['STOP HERE']],
@@ -92,12 +120,26 @@ describe('gdb cwd', function () {
     });
 
     it('explicitly incorrect cwd does not finds source with relocated program', async function () {
-        await dc.launchRequest(
+        if (isRemoteTest) {
+            await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: programRelocated,
+                cwd: path.join(testProgramsDir, 'EmptyDir'),
+                target : {
+                    port: 2333,
+                    serverParameters: [':2333', programRelocated]
+                }
+            } as unknown as TargetLaunchRequestArguments)
+        );
+        } else {
+            await dc.launchRequest(
             fillDefaults(this.test, {
                 program: programRelocated,
                 cwd: path.join(testProgramsDir, 'EmptyDir'),
             })
         );
+        }
+        
 
         const bps = await dc.setBreakpointsRequest({
             lines: [lineTags['STOP HERE']],
@@ -108,12 +150,26 @@ describe('gdb cwd', function () {
     });
 
     it('explicitly correct cwd does find source with relocated program', async function () {
-        await dc.launchRequest(
-            fillDefaults(this.test, {
-                program: programRelocated,
-                cwd: testProgramsDir,
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: programRelocated,
+                    cwd: testProgramsDir,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', programRelocated],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: programRelocated,
+                    cwd: testProgramsDir,
+                })
+            );
+        }
 
         const bps = await dc.setBreakpointsRequest({
             lines: [lineTags['STOP HERE']],

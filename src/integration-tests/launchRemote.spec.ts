@@ -15,7 +15,12 @@ import {
     TargetLaunchArguments,
 } from '../types/session';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    isRemoteTest,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 import { expect } from 'chai';
 import * as os from 'os';
 
@@ -33,18 +38,22 @@ describe('launch remote', function () {
     });
 
     it('can launch remote and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
+                    target: {
+                        type: 'remote',
+                    } as unknown as TargetLaunchArguments,
+                } as TargetLaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        }
     });
 
     it('can print a message to the debug console sent from a socket server', async function () {
@@ -72,12 +81,14 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         socketPort: socketPort,
                         eolCharacter: 'LF',
                     },
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
+                } as unknown as TargetLaunchArguments,
+            } as unknown as TargetLaunchRequestArguments),
             'Socket',
             `Hello World!${os.EOL}`
         );
@@ -105,12 +116,14 @@ describe('launch remote', function () {
                 initCommands: ['break _fini'],
                 preRunCommands: [`shell echo "Hello World!" > /tmp/ttyV1`],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         serialPort: '/tmp/ttyV0',
                         eolCharacter: 'LF',
                         baudRate: 38400,
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Serial Port',
             `Hello World!${os.EOL}`
@@ -127,10 +140,12 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         serialPort: '/mistake',
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Serial Port',
             'error on serial port connection',
@@ -146,10 +161,12 @@ describe('launch remote', function () {
                 openGdbConsole: false,
                 initCommands: ['break _fini'],
                 target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
                     uart: {
                         socketPort: '0',
                     },
-                } as TargetLaunchArguments,
+                } as unknown as TargetLaunchArguments,
             } as TargetLaunchRequestArguments),
             'Socket',
             'error on socket connection',

@@ -11,19 +11,40 @@
 import { join } from 'path';
 import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    isRemoteTest,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('logpoints', async () => {
     let dc: CdtDebugClient;
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: join(testProgramsDir, 'count'),
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: join(testProgramsDir, 'count'),
+                    type: 'remote',
+                    target: {
+                        port: 2333,
+                        serverParameters: [
+                            ':2333',
+                            join(testProgramsDir, 'count'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: join(testProgramsDir, 'count'),
+                })
+            );
+        }
     });
 
     afterEach(async () => {

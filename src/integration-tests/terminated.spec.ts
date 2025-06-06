@@ -10,11 +10,12 @@
 
 // import { expect } from 'chai';
 import * as path from 'path';
-import { LaunchRequestArguments } from '../types/session';
+import { LaunchRequestArguments, TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
     getScopes,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
@@ -33,7 +34,22 @@ describe('terminated', function () {
     });
 
     it('terminated event arrives after continuing after a breakpoint', async function () {
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
+            {
+                path: emptySrc,
+                line: 3,
+            }
+        );
+        } else {
+            await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptyProgram,
             } as LaunchRequestArguments),
@@ -42,6 +58,7 @@ describe('terminated', function () {
                 line: 3,
             }
         );
+        }
 
         await Promise.all([
             dc.waitForEvent('terminated'),

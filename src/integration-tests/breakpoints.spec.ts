@@ -24,6 +24,7 @@ import {
     hardwareBreakpoint,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { TargetLaunchRequestArguments } from '../types/session';
 import * as os from 'os';
 
 describe('breakpoints', async function () {
@@ -31,11 +32,27 @@ describe('breakpoints', async function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'count'),
-            })
-        );
+        if (isRemoteTest) {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [
+                            ':2333',
+                            path.join(testProgramsDir, 'count'),
+                        ],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            );
+        } else {
+            await dc.launchRequest(
+                fillDefaults(this.currentTest, {
+                    program: path.join(testProgramsDir, 'count'),
+                })
+            );
+        }
     });
 
     afterEach(async () => {

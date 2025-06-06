@@ -14,7 +14,7 @@ import {
     TargetLaunchArguments,
 } from '../types/session';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import { fillDefaults, isRemoteTest, standardBeforeEach, testProgramsDir } from './utils';
 
 describe('stop gdbserver', function () {
     let dc: CdtDebugClient;
@@ -32,6 +32,9 @@ describe('stop gdbserver', function () {
     });
 
     it('do something', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
         await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptyProgram,

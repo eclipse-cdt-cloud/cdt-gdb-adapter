@@ -11,7 +11,10 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments } from '../types/session';
+import {
+    LaunchRequestArguments,
+    TargetLaunchRequestArguments,
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -40,18 +43,38 @@ describe('launch', function () {
     });
 
     it('can launch and hit a breakpoint', async function () {
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-            } as LaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', emptyProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                } as LaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        }
     });
 
     it('reports an error when specifying a non-existent binary', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {
@@ -73,8 +96,77 @@ describe('launch', function () {
         );
     });
 
+    it('reports an error when specifying a non-existent binary for a remote connection', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: '/does/not/exist',
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', emptyProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+
+        // When launching a remote test gdbserver generates the error which is not exactly the same
+        // as GDB's error
+        expect(errorMessage.message).to.satisfy(
+            (msg: string) =>
+                msg.includes('/does/not/exist') &&
+                (msg.includes('The system cannot find the path specified') ||
+                    msg.includes('No such file or directory') ||
+                    msg.includes('not found'))
+        );
+    });
+
+    it('reports an error when no port number is specified for a remote connection', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: '/does/not/exist',
+                    target: {
+                        serverParameters: ['some server'],
+                    },
+                } as unknown as TargetLaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+
+        // When launching a remote test gdbserver generates the error which is not exactly the same
+        // as GDB's error
+        expect(errorMessage.message).eq(
+            'Port number not specified, cannot connect'
+        );
+    });
+
     it('works with a space in file names', async function () {
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: emptySpaceProgram,
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', emptySpaceProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
+            {
+                path: emptySpaceSrc,
+                line: 3,
+            }
+        );
+        } else {
+            await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptySpaceProgram,
             } as LaunchRequestArguments),
@@ -83,6 +175,7 @@ describe('launch', function () {
                 line: 3,
             }
         );
+        }
     });
 
     it('works with unicode in file names', async function () {
@@ -90,15 +183,32 @@ describe('launch', function () {
             // on windows remote tests don't support the unicode in file name (except for non-stop which seems to)
             this.skip();
         }
-        await dc.hitBreakpoint(
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: unicodeProgram,
-            } as LaunchRequestArguments),
+                target: {
+                    port: 2333,
+                    serverParameters: [':2333', unicodeProgram]
+                }
+            } as unknown as TargetLaunchRequestArguments),
             {
                 path: unicodeSrc,
                 line: 3,
             }
         );
+        } else {
+                await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: unicodeProgram,
+                } as LaunchRequestArguments),
+                {
+                    path: unicodeSrc,
+                    line: 3,
+                }
+            );
+        }
+        
     });
 
     it('provides a decent error if program is omitted', async function () {
