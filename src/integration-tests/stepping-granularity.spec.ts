@@ -16,8 +16,10 @@ import {
     testProgramsDir,
     fillDefaults,
     resolveLineTagLocations,
+    isRemoteTest,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 interface StackState {
     main: DebugProtocol.StackFrame | undefined;
@@ -47,14 +49,30 @@ describe('Stepping', async function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
-
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, { program: steppingProgram }),
-            {
-                path: steppingSource,
-                line: lineTags['main getFromElsewhere call'],
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, {
+                    program: steppingProgram,
+                    target: {
+                        port: 2333,
+                        type: 'remote',
+                        serverParameters: [':2333', steppingProgram],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: steppingSource,
+                    line: lineTags['main getFromElsewhere call'],
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.currentTest, { program: steppingProgram }),
+                {
+                    path: steppingSource,
+                    line: lineTags['main getFromElsewhere call'],
+                }
+            );
+        }
     });
 
     afterEach(async () => {
