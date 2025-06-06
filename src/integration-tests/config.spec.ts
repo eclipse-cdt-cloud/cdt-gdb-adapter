@@ -76,6 +76,9 @@ describe('config', function () {
     });
 
     it('program via --config-frozen= can not be overridden', async function () {
+        if (isRemoteTest) {
+            this.skip();
+        }
         const config = { program: emptyProgram };
         await verifyLaunchWorks(
             this,

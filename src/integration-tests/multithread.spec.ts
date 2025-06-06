@@ -21,6 +21,7 @@ import { assert, expect } from 'chai';
 import * as path from 'path';
 import { fail } from 'assert';
 import * as os from 'os';
+import { TargetLaunchRequestArguments } from '../types/session';
 
 describe('multithread', async function () {
     let dc: CdtDebugClient;
@@ -57,16 +58,32 @@ describe('multithread', async function () {
             // The way thread names are set in remote tests on windows is unsupported
             this.skip();
         }
-
-        await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: program,
-            }),
-            {
-                path: source,
-                line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
-            }
-        );
+        if (isRemoteTest) {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: program,
+                    target: {
+                        type: 'remote',
+                        port: 2333,
+                        serverParameters: [':2333', program],
+                    },
+                } as unknown as TargetLaunchRequestArguments),
+                {
+                    path: source,
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                }
+            );
+        } else {
+            await dc.hitBreakpoint(
+                fillDefaults(this.test, {
+                    program: program,
+                }),
+                {
+                    path: source,
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                }
+            );
+        }
 
         const threads = await dc.threadsRequest();
         const nameToId = new Map(

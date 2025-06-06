@@ -15,7 +15,12 @@ import {
     TargetLaunchArguments,
 } from '../types/session';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, isRemoteTest, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    isRemoteTest,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 import { expect } from 'chai';
 import * as os from 'os';
 
@@ -35,20 +40,20 @@ describe('launch remote', function () {
     it('can launch remote and hit a breakpoint', async function () {
         if (isRemoteTest) {
             await dc.hitBreakpoint(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                port: 2333,
-                serverParameters: [':2333', emptyProgram],
-                target: {
-                    type: 'remote',
-                } as unknown as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
-        );
-        }        
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                    port: 2333,
+                    serverParameters: [':2333', emptyProgram],
+                    target: {
+                        type: 'remote',
+                    } as unknown as TargetLaunchArguments,
+                } as TargetLaunchRequestArguments),
+                {
+                    path: emptySrc,
+                    line: 3,
+                }
+            );
+        }
     });
 
     it('can print a message to the debug console sent from a socket server', async function () {
