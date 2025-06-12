@@ -438,25 +438,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
         }
     }
-    private doesInstrBreakpointExist(
-        existingBpList: mi.MIBreakListResponse,
-        breakpoint: string
-    ): boolean {
-        // initialise returnValue
-        let returnValue: boolean = false;
-        // go through all existing breakpoints
-        for (const existingBp of existingBpList.BreakpointTable.body) {
-            // if breakpoint has the same address as any of the existing breakpoints, then returnValue is set to true and for loop is broken
-            returnValue = existingBp.addr
-                ? parseInt('0x' + breakpoint) === parseInt(existingBp.addr)
-                : false;
-            if (returnValue) {
-                break;
-            }
-        }
-
-        return returnValue;
-    }
 
     protected async setInstructionBreakpointsRequest(
         response: DebugProtocol.SetInstructionBreakpointsResponse,
@@ -465,6 +446,28 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         await this.pauseIfNeeded();
         // Get a list of existing bps, using gdb-mi command -break-list
         const existingBps = await mi.sendBreakList(this.gdb);
+        // Filter out all instruction breakpoints
+        let instBreakpoints: string[] = [];
+        for (const bp of existingBps.BreakpointTable.body) {
+            if (bp['original-location']) {
+                const breakpointNumber =
+                    bp['original-location'][0] === '*' ? bp['number'] : '';
+                breakpointNumber === ''
+                    ? {}
+                    : instBreakpoints.push(breakpointNumber);
+            }
+        }
+
+        // Delete before insert to avoid breakpoint clashes in gdb
+        if (instBreakpoints.length > 0) {
+            await mi.sendBreakDelete(this.gdb, {
+                breakpoints: instBreakpoints,
+            });
+            instBreakpoints.forEach(
+                (breakpoint) => delete this.logPointMessages[breakpoint]
+            );
+        }
+
         // List of Instruction breakpoints from vscode
         const breakpointsList = args.breakpoints;
         // For every breakpoint in the instruction breakpoints, adjust the location (address) to be of a hex value
@@ -473,12 +476,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ? parseInt(bp.instructionReference) + bp.offset
                 : parseInt(bp.instructionReference);
             const finalLocation = location.toString(16);
-            // check if instruction breakpoint already exists, if so, skip it and start with another one
-            if (this.doesInstrBreakpointExist(existingBps, finalLocation)) {
-                continue;
-            }
-
-            // set instruction breakpoint using the command -break-insert *address
             mi.sendBreakpointInsert(this.gdb, '*0x' + finalLocation);
         }
 
