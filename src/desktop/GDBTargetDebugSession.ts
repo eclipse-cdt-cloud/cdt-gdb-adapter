@@ -86,9 +86,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
                 return;
             }
-            await this.startGDBServer(launchArgs);
+            await this.startGDBServer(response, launchArgs);
         }
-
         await this.startGDBAndAttachToTarget(response, args);
     }
 
@@ -131,6 +130,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async startGDBServer(
+        response: DebugProtocol.Response,
         args: TargetLaunchRequestArguments
     ): Promise<void> {
         if (args.target === undefined) {
@@ -165,6 +165,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         : 0
                 );
             } else {
+                const timeoutForFindingPort = setTimeout(() => {
+                    reject(
+                        'This is an error, Port number not specified, cannot connect'
+                    );
+                }, 10000);
                 checkTargetPort = (data: any) => {
                     const regex = new RegExp(
                         target.serverPortRegExp
@@ -180,6 +185,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         setTimeout(
                             () => {
                                 gdbserverStartupResolved = true;
+                                clearTimeout(timeoutForFindingPort);
                                 resolve();
                             },
                             target.serverStartupDelay !== undefined
