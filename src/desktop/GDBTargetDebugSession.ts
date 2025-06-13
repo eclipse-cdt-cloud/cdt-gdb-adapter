@@ -165,6 +165,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         : 0
                 );
             } else {
+                const timeoutForFindingPort = setTimeout(() => {
+                    reject(
+                        'This is an error, Port number not specified, cannot connect'
+                    );
+                }, 10000);
                 checkTargetPort = (data: any) => {
                     const regex = new RegExp(
                         target.serverPortRegExp
@@ -180,19 +185,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         setTimeout(
                             () => {
                                 gdbserverStartupResolved = true;
+                                clearTimeout(timeoutForFindingPort);
                                 resolve();
                             },
                             target.serverStartupDelay !== undefined
                                 ? target.serverStartupDelay
                                 : 0
                         );
-                    } else {
-                        this.sendErrorResponse(
-                            response,
-                            1,
-                            'Port number not specified, cannot connect'
-                        );
-                        return;
                     }
                 };
             }
