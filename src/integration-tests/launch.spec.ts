@@ -11,7 +11,10 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments, TargetLaunchRequestArguments } from '../types/session';
+import {
+    LaunchRequestArguments,
+    TargetLaunchRequestArguments,
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -86,7 +89,7 @@ describe('launch', function () {
                     program: '/does/not/exist',
                     target: {
                         port: 2333,
-                    }
+                    },
                 } as unknown as TargetLaunchRequestArguments)
             )
                 .then(reject)
