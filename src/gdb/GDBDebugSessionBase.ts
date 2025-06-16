@@ -447,36 +447,77 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Get a list of existing bps, using gdb-mi command -break-list
         const existingBps = await mi.sendBreakList(this.gdb);
         // Filter out all instruction breakpoints
-        let instBreakpoints: string[] = [];
-        for (const bp of existingBps.BreakpointTable.body) {
-            if (bp['original-location']) {
-                const breakpointNumber =
-                    bp['original-location'][0] === '*' ? bp['number'] : '';
-                breakpointNumber === ''
-                    ? {}
-                    : instBreakpoints.push(breakpointNumber);
+        const existingInstBreakpointsList =
+            existingBps.BreakpointTable.body.filter(
+                (bp) => bp['original-location']?.[0] === '*'
+            );
+        // Create a map of existing instruction breakpoints to reduce time complexity of search
+        /*
+        const existingInstBreakpointsMap = new Map(
+            existingInstBreakpointsList.map((breakpoint) => [
+                breakpoint['original-location']?.slice(1),
+                breakpoint.number,
+            ])
+        );
+        */
+        // List of Instruction breakpoints from vscode
+        const vscodeBreakpointsListBase = args.breakpoints;
+        // adjust vscode breakpoint list to contain final locations, not base + offset
+        const vscodeBreakpointsListFinal = vscodeBreakpointsListBase.map(
+            (bp) => {
+                const location = bp.offset
+                    ? BigInt(bp.instructionReference) + BigInt(bp.offset)
+                    : BigInt(bp.instructionReference);
+                return '0x' + location.toString(16);
             }
-        }
+        );
+        // Create a list of breakpoints to be deleted
+        let deletesInstBreakpoints: string[] = [];
+        let existsInVScodeList;
+        existingInstBreakpointsList.forEach((thisGDBBp) => {
+            existsInVScodeList = false;
+            for (const bp of vscodeBreakpointsListFinal) {
+                if (thisGDBBp['original-location']?.slice(1) === bp) {
+                    existsInVScodeList = true;
+                }
+            }
+            if (!existsInVScodeList) {
+                deletesInstBreakpoints.push(thisGDBBp.number);
+            }
+        });
 
-        // Delete before insert to avoid breakpoint clashes in gdb
-        if (instBreakpoints.length > 0) {
+        console.log(deletesInstBreakpoints);
+        // Delete erased breakpoints from gdb
+        if (deletesInstBreakpoints.length > 0) {
             await mi.sendBreakDelete(this.gdb, {
-                breakpoints: instBreakpoints,
+                breakpoints: deletesInstBreakpoints,
             });
-            instBreakpoints.forEach(
+            deletesInstBreakpoints.forEach(
                 (breakpoint) => delete this.logPointMessages[breakpoint]
             );
         }
 
-        // List of Instruction breakpoints from vscode
-        const breakpointsList = args.breakpoints;
+        const existingInstBreakpointsSet = new Set(
+            existingInstBreakpointsList.map((obj) => obj['original-location']?.slice(1))
+        );
+        const instBreakpointsToBeCreated = vscodeBreakpointsListFinal.filter(
+            (bp) => !existingInstBreakpointsSet.has(bp)
+        );
+        // Filter out already existing breakpoints
+        /*
+        let instBreakpointsToBeCreated: string[] = [];
+        let existInGDB;
+        for (const bp of vscodeBreakpointsListFinal) {
+            existInGDB = false;
+            existInGDB = existingInstBreakpointsMap.has(bp);
+            if (!existInGDB) {
+                instBreakpointsToBeCreated.push(bp);
+            }
+        }
+        */
         // For every breakpoint in the instruction breakpoints, adjust the location (address) to be of a hex value
-        for (const bp of breakpointsList) {
-            const location = bp.offset
-                ? parseInt(bp.instructionReference) + bp.offset
-                : parseInt(bp.instructionReference);
-            const finalLocation = location.toString(16);
-            mi.sendBreakpointInsert(this.gdb, '*0x' + finalLocation);
+        for (const bp of instBreakpointsToBeCreated) {
+            mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
 
         const actual: DebugProtocol.Breakpoint[] = [];
