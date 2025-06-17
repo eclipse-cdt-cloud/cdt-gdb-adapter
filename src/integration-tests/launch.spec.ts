@@ -55,47 +55,34 @@ describe('launch', function () {
     });
 
     it('receives an error when no port is provided nor a suitable regex', async function () {
-        await dc.launchRequest(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    serverPortRegExp: 'Not a correct regex',
-                },
-            } as TargetLaunchRequestArguments)
-        );
-    });
-
-    it('reports an error when specifying a non-existent binary', async function () {
-        if (isRemoteTest) {
+        if (!isRemoteTest) {
             this.skip();
         }
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {
-                    program: '/does/not/exist',
-                } as LaunchRequestArguments)
+                    program: emptyProgram,
+                    target: {
+                        serverPortRegExp: 'Not a correct regex',
+                    },
+                } as TargetLaunchRequestArguments)
             )
                 .then(reject)
                 .catch(resolve);
         });
-
-        // When launching a remote test gdbserver generates the error which is not exactly the same
-        // as GDB's error
         expect(errorMessage.message).to.satisfy(
             (msg: string) =>
-                msg.includes('/does/not/exist') &&
-                (msg.includes('The system cannot find the path specified') ||
-                    msg.includes('No such file or directory') ||
-                    msg.includes('not found'))
+                msg.includes('Error') &&
+                msg.includes('Port number not specified or regex is incorrect')
         );
     });
 
-    it('reports an error when specifying a non-existent binary for a remote connection', async function () {
+    it('reports an error when specifying a non-existent binary', async function () {
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {
                     program: '/does/not/exist',
-                })
+                } as LaunchRequestArguments)
             )
                 .then(reject)
                 .catch(resolve);
