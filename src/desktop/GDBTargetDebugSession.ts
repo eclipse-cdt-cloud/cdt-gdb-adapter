@@ -87,14 +87,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
                 return;
             }
-            await this.startGDBServer(response, launchArgs, connectionTimeout);
+            await this.startGDBServer(launchArgs, connectionTimeout);
         }
         await this.startGDBAndAttachToTarget(response, args);
     }
 
     protected async launchRequest(
         response: DebugProtocol.LaunchResponse,
-        args: TargetLaunchRequestArguments,
+        args: TargetLaunchRequestArguments
     ): Promise<void> {
         try {
             const [request, resolvedArgs] = this.applyRequestArguments(
@@ -131,7 +131,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async startGDBServer(
-        response: DebugProtocol.Response,
         args: TargetLaunchRequestArguments,
         connectionTimeout?: number
     ): Promise<void> {

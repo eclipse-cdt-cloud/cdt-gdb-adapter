@@ -59,9 +59,9 @@ describe('launch', function () {
             fillDefaults(this.test, {
                 program: emptyProgram,
                 target: {
-                    serverPortRegExp : "Not a correct regex"
-                }
-            } as TargetLaunchRequestArguments),
+                    serverPortRegExp: 'Not a correct regex',
+                },
+            } as TargetLaunchRequestArguments)
         );
     });
 
@@ -91,17 +91,11 @@ describe('launch', function () {
     });
 
     it('reports an error when specifying a non-existent binary for a remote connection', async function () {
-        if (!isRemoteTest) {
-            this.skip();
-        }
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {
                     program: '/does/not/exist',
-                    target: {
-                        port: 2333,
-                    },
-                } as unknown as TargetLaunchRequestArguments)
+                })
             )
                 .then(reject)
                 .catch(resolve);
