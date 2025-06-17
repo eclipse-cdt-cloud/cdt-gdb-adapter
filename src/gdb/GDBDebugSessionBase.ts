@@ -477,7 +477,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         existingInstBreakpointsList.forEach((thisGDBBp) => {
             existsInVScodeList = false;
             for (const bp of vscodeBreakpointsListFinal) {
-                if (thisGDBBp['original-location']?.slice(1) === bp) {
+                if (
+                    BigInt(thisGDBBp['original-location']?.slice(1)!) ===
+                    BigInt(bp)
+                ) {
                     existsInVScodeList = true;
                 }
             }
@@ -486,7 +489,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
         });
 
-        console.log(deletesInstBreakpoints);
         // Delete erased breakpoints from gdb
         if (deletesInstBreakpoints.length > 0) {
             await mi.sendBreakDelete(this.gdb, {
@@ -497,25 +499,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             );
         }
 
+        // Create a set of existing breakpoints based on address for a more efficient lookup on existing breakpoints
         const existingInstBreakpointsSet = new Set(
-            existingInstBreakpointsList.map((obj) => obj['original-location']?.slice(1))
+            existingInstBreakpointsList.map((obj) =>
+                BigInt(obj['original-location']?.slice(1)!)
+            )
         );
+        // Filter out breakpoints that needs to be created from existing breakpoints
         const instBreakpointsToBeCreated = vscodeBreakpointsListFinal.filter(
-            (bp) => !existingInstBreakpointsSet.has(bp)
+            (bp) => !existingInstBreakpointsSet.has(BigInt(bp))
         );
-        // Filter out already existing breakpoints
-        /*
-        let instBreakpointsToBeCreated: string[] = [];
-        let existInGDB;
-        for (const bp of vscodeBreakpointsListFinal) {
-            existInGDB = false;
-            existInGDB = existingInstBreakpointsMap.has(bp);
-            if (!existInGDB) {
-                instBreakpointsToBeCreated.push(bp);
-            }
-        }
-        */
-        // For every breakpoint in the instruction breakpoints, adjust the location (address) to be of a hex value
+
+        // For every breakpoint in the instruction breakpoints, adjust the location (address) to be dereferenced
         for (const bp of instBreakpointsToBeCreated) {
             mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
