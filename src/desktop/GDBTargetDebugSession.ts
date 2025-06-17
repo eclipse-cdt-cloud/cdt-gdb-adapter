@@ -68,7 +68,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
+        connectionTimeout?: number
     ) {
         await this.setupCommonLoggerAndBackends(args);
         this.initializeCustomResetCommands(args);
@@ -86,14 +87,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
                 return;
             }
-            await this.startGDBServer(response, launchArgs);
+            await this.startGDBServer(response, launchArgs, connectionTimeout);
         }
         await this.startGDBAndAttachToTarget(response, args);
     }
 
     protected async launchRequest(
         response: DebugProtocol.LaunchResponse,
-        args: TargetLaunchRequestArguments
+        args: TargetLaunchRequestArguments,
     ): Promise<void> {
         try {
             const [request, resolvedArgs] = this.applyRequestArguments(
@@ -131,7 +132,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async startGDBServer(
         response: DebugProtocol.Response,
-        args: TargetLaunchRequestArguments
+        args: TargetLaunchRequestArguments,
+        connectionTimeout?: number
     ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
@@ -169,7 +171,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     reject(
                         'This is an error, Port number not specified, cannot connect'
                     );
-                }, 10000);
+                }, connectionTimeout ?? 4000);
                 checkTargetPort = (data: any) => {
                     const regex = new RegExp(
                         target.serverPortRegExp

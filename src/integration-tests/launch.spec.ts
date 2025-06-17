@@ -54,6 +54,17 @@ describe('launch', function () {
         );
     });
 
+    it('receives an error when no port is provided nor a suitable regex', async function () {
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                target: {
+                    serverPortRegExp : "Not a correct regex"
+                }
+            } as TargetLaunchRequestArguments),
+        );
+    });
+
     it('reports an error when specifying a non-existent binary', async function () {
         if (isRemoteTest) {
             this.skip();
