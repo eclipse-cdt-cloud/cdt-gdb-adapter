@@ -513,13 +513,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const gdbInstBps = gdbBps.BreakpointTable.body.filter(
             (bp) => bp['original-location']?.[0] === '*'
         );
-        
+
         let actual: DebugProtocol.Breakpoint[] = [];
         for (const bp of gdbInstBps) {
             actual.push({
                 verified: bp.enabled === 'y',
                 id: parseInt(bp.number, 10),
-
+                line: parseInt(bp['line']!, 10),
+                source: {
+                    name: bp.fullname,
+                    path: bp.file,
+                },
                 instructionReference: bp['original-location']?.slice(1),
             });
         }
