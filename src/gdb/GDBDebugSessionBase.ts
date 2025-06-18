@@ -463,23 +463,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return '0x' + location.toString(16);
             }
         );
+
         // Create a list of breakpoints to be deleted
-        let deletesInstBreakpoints: string[] = [];
-        let existsInVScodeList;
-        existingInstBreakpointsList.forEach((thisGDBBp) => {
-            existsInVScodeList = false;
-            for (const bp of vscodeBreakpointsListFinal) {
-                if (
-                    BigInt(thisGDBBp['original-location']?.slice(1)!) ===
-                    BigInt(bp)
-                ) {
-                    existsInVScodeList = true;
-                }
-            }
-            if (!existsInVScodeList) {
-                deletesInstBreakpoints.push(thisGDBBp.number);
-            }
-        });
+        const breaksToDelete = existingInstBreakpointsList.filter(
+            (thisGDBBp) =>
+                !vscodeBreakpointsListFinal.some((bp) => {
+                    const breakpointAddress =
+                        thisGDBBp['original-location']?.slice(1);
+                    return (
+                        breakpointAddress &&
+                        BigInt(breakpointAddress) === BigInt(bp)
+                    );
+                })
+        );
+        const deletesInstBreakpoints = breaksToDelete.map(
+            (thisGDBBp) => thisGDBBp.number
+        );
 
         // Delete erased breakpoints from gdb
         if (deletesInstBreakpoints.length > 0) {
@@ -497,6 +496,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 BigInt(obj['original-location']?.slice(1)!)
             )
         );
+
         // Filter out breakpoints that needs to be created from existing breakpoints
         const instBreakpointsToBeCreated = vscodeBreakpointsListFinal.filter(
             (bp) => !existingInstBreakpointsSet.has(BigInt(bp))
@@ -504,7 +504,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         // For every breakpoint in the instruction breakpoints, adjust the location (address) to be dereferenced
         for (const bp of instBreakpointsToBeCreated) {
-            mi.sendBreakpointInsert(this.gdb, '*' + bp);
+            await mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
         /* Prepare response */
         // Get GDB bp list after all bps are sent
@@ -513,10 +513,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const gdbInstBps = gdbBps.BreakpointTable.body.filter(
             (bp) => bp['original-location']?.[0] === '*'
         );
-
-        let actual: DebugProtocol.Breakpoint[] = [];
-        for (const bp of gdbInstBps) {
-            actual.push({
+        // Fill in breakpoints list to be sent as a response
+        const actual: DebugProtocol.Breakpoint[] = gdbInstBps.map((bp) => {
+            const responseBp: DebugProtocol.Breakpoint = {
                 verified: bp.enabled === 'y',
                 id: parseInt(bp.number, 10),
                 line: parseInt(bp['line']!, 10),
@@ -525,13 +524,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     path: bp.file,
                 },
                 instructionReference: bp['original-location']?.slice(1),
-            });
-        }
+            };
+            return responseBp;
+        });
 
         response.body = {
             breakpoints: actual,
         };
-
+        // Send response
         this.sendResponse(response);
         await this.continueIfNeeded();
     }
