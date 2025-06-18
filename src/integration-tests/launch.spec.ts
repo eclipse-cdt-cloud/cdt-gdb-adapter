@@ -74,7 +74,7 @@ describe('launch', function () {
         expect(errorMessage.message).to.satisfy(
             (msg: string) =>
                 msg.includes('Error') &&
-                msg.includes('Port number not specified or regex is incorrect')
+                msg.includes('port number not specified or regex is incorrect')
         );
     });
 
