@@ -335,6 +335,12 @@ export class CdtDebugClient extends DebugClient {
         return this.send('readMemory', args);
     }
 
+    public setInstructionBreakpointsRequest(
+        args: DebugProtocol.SetInstructionBreakpointsArguments
+    ): Promise<DebugProtocol.Response> {
+        return this.send('setInstructionBreakpoints', args);
+    }
+
     public writeMemoryRequest(
         args: DebugProtocol.WriteMemoryArguments
     ): Promise<DebugProtocol.WriteMemoryResponse> {

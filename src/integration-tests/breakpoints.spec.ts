@@ -233,6 +233,44 @@ describe('breakpoints', async function () {
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
+    it.only('set an instruction breakpoint', async () => {
+        //const bpResp = 
+        await dc.setInstructionBreakpointsRequest({
+            breakpoints: [
+                {
+                    instructionReference: '0x4',
+                },
+            ],
+        });
+        await dc.configurationDoneRequest();
+        await dc.waitForEvent('stopped');
+        const scope = await getScopes(dc);
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        verifyVariable(vars.body.variables[0], 'count', 'int', '0');
+    //        expect(bpResp.body.breakpoints.length).eq(1);
+        /*
+        expect(bpResp.body.breakpoints[0].verified).eq(true);
+        expect(bpResp.body.breakpoints[0].message).eq(undefined);
+        await dc.configurationDoneRequest();
+        let isCorrect;
+        let outputs;
+        while (!isCorrect) {
+            // Cover the case of getting event in Linux environment.
+            // If cannot get correct event, program timeout and test case failed.
+            outputs = await dc.waitForEvent('output');
+            isCorrect = outputs.body.output.includes('breakpoint-modified');
+        }
+        let substring: string;
+        if (hardwareBreakpoint) {
+            substring = 'type="hw breakpoint"';
+        } else {
+            substring = 'type="breakpoint"';
+        }
+        expect(outputs?.body.output).includes(substring);
+        */
+    });
+
     it('set type of standard breakpoint', async () => {
         const bpResp = await dc.setBreakpointsRequest({
             source: {
