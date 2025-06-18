@@ -166,7 +166,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             } else {
                 const timeoutForFindingPort = setTimeout(() => {
                     reject(
-                        'Error: Cannot connect, Port number not specified or regex is incorrect'
+                        'Error: Cannot connect, port number not specified or regex is incorrect'
                     );
                 }, target.portDetectionTimeout ?? 10000);
                 checkTargetPort = (data: any) => {
