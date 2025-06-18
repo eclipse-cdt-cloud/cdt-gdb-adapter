@@ -68,7 +68,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments,
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await this.setupCommonLoggerAndBackends(args);
         this.initializeCustomResetCommands(args);
@@ -130,7 +130,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async startGDBServer(
-        args: TargetLaunchRequestArguments,
+        args: TargetLaunchRequestArguments
     ): Promise<void> {
         if (args.target === undefined) {
             args.target = {};
