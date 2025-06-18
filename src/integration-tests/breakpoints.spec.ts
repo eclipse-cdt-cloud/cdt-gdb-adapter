@@ -234,7 +234,7 @@ describe('breakpoints', async function () {
     });
 
     it.only('set an instruction breakpoint', async () => {
-        //const bpResp = 
+        const bpResp =
         await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
@@ -242,13 +242,14 @@ describe('breakpoints', async function () {
                 },
             ],
         });
+        expect(bpResp.body.breakpoints.length).eq(1);
         await dc.configurationDoneRequest();
         await dc.waitForEvent('stopped');
         const scope = await getScopes(dc);
         const vr = scope.scopes.body.scopes[0].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
         verifyVariable(vars.body.variables[0], 'count', 'int', '0');
-    //        expect(bpResp.body.breakpoints.length).eq(1);
+                
         /*
         expect(bpResp.body.breakpoints[0].verified).eq(true);
         expect(bpResp.body.breakpoints[0].message).eq(undefined);

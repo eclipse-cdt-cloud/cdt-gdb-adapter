@@ -451,15 +451,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             existingBps.BreakpointTable.body.filter(
                 (bp) => bp['original-location']?.[0] === '*'
             );
-        // Create a map of existing instruction breakpoints to reduce time complexity of search
-        /*
-        const existingInstBreakpointsMap = new Map(
-            existingInstBreakpointsList.map((breakpoint) => [
-                breakpoint['original-location']?.slice(1),
-                breakpoint.number,
-            ])
-        );
-        */
+
         // List of Instruction breakpoints from vscode
         const vscodeBreakpointsListBase = args.breakpoints;
         // adjust vscode breakpoint list to contain final locations, not base + offset
@@ -514,8 +506,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         for (const bp of instBreakpointsToBeCreated) {
             mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
+        /* Prepare response */
+        // Get GDB bp list after all bps are sent
+        const gdbBps = await mi.sendBreakList(this.gdb);
+        // Filter out all instruction breakpoints
+        const gdbInstBps = gdbBps.BreakpointTable.body.filter(
+            (bp) => bp['original-location']?.[0] === '*'
+        );
+        
+        let actual: DebugProtocol.Breakpoint[] = [];
+        for (const bp of gdbInstBps) {
+            actual.push({
+                verified: bp.enabled === 'y',
+                id: parseInt(bp.number, 10),
 
-        const actual: DebugProtocol.Breakpoint[] = [];
+                instructionReference: bp['original-location']?.slice(1),
+            });
+        }
+
         response.body = {
             breakpoints: actual,
         };
