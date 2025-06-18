@@ -506,6 +506,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         for (const bp of instBreakpointsToBeCreated) {
             await mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
+
         /* Prepare response */
         // Get GDB bp list after all bps are sent
         const gdbBps = await mi.sendBreakList(this.gdb);
