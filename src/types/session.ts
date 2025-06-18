@@ -147,7 +147,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Specifies the working directory of gdbserver, defaults to cwd in RequestArguments
     cwd?: string;
     // Maximum time allowed for detecting the port number, default is 10sec
-    portSettingTimeout?: number
+    portDetectionTimeout?: number
 }
 
 export interface ImageAndSymbolArguments {

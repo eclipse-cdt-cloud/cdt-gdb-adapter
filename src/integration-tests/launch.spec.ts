@@ -64,7 +64,7 @@ describe('launch', function () {
                     program: emptyProgram,
                     target: {
                         serverPortRegExp: 'Not a correct regex',
-                        portSettingTimeout: 4000
+                        portDetectionTimeout: 4000
                     },
                 } as TargetLaunchRequestArguments)
             )
