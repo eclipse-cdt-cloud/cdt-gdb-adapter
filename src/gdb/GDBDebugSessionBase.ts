@@ -504,7 +504,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         // For every breakpoint in the instruction breakpoints, adjust the location (address) to be dereferenced
         for (const bp of instBreakpointsToBeCreated) {
-            await mi.sendBreakpointInsert(this.gdb, '*' + bp);
+            mi.sendBreakpointInsert(this.gdb, '*' + bp);
         }
 
         /* Prepare response */
