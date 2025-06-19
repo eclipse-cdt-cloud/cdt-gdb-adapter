@@ -14,6 +14,9 @@ const jsLanguageOptions = {
 
 const tsLanguageOptions = {
     parser: tseslint.parser,
+    parserOptions: {
+      project: './tsconfig.json'
+    },
     ecmaVersion: 2015,
     sourceType: 'module',
     globals: {
@@ -65,6 +68,10 @@ export default [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      // For backwards compatibility with older recommended rules
+      // in eslint/typescript-eslint, based on existing "disable"
+      // directives
+      "@typescript-eslint/no-non-null-assertion": "error",
       // Turn off the "no-unused-expressions" default rules...
       "no-unused-expressions": "off",
       "@typescript-eslint/no-unused-expressions": "off",
