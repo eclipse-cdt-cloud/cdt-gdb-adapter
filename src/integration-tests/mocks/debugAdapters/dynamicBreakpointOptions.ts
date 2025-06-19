@@ -73,16 +73,16 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
 
 class DynamicBreakpointBackendFactory implements IGDBBackendFactory {
     async createGDBManager(
-        session: GDBDebugSessionBase,
-        args: LaunchRequestArguments | AttachRequestArguments
+        _session: GDBDebugSessionBase,
+        _args: LaunchRequestArguments | AttachRequestArguments
     ): Promise<IGDBProcessManager> {
         return new GDBFileSystemProcessManager();
     }
 
     async createBackend(
-        session: GDBDebugSessionBase,
+        _session: GDBDebugSessionBase,
         manager: IGDBProcessManager,
-        args: LaunchRequestArguments | AttachRequestArguments
+        _args: LaunchRequestArguments | AttachRequestArguments
     ): Promise<IGDBBackend> {
         return new DynamicBreakpointOptionsGDBBackend(manager);
     }

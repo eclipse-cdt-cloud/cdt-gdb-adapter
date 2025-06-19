@@ -1275,7 +1275,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                     expression: args.value,
                                 });
                                 break;
-                            } catch (err) {
+                            } catch {
                                 continue; // try another child
                             }
                         }
