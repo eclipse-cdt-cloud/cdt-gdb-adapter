@@ -29,10 +29,10 @@ export interface MIBreakInsertResponse extends MIResponse {
     multiple?: MIBreakpointInfo[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MIBreakDeleteRequest {}
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MIBreakDeleteResponse extends MIResponse {}
 
 export interface MIBreakListResponse extends MIResponse {
