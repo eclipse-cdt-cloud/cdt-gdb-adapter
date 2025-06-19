@@ -89,6 +89,7 @@
     "eslint": "^9.28.0",
     "eslint-plugin-chai-friendly": "1.0.1",
     "eslint-config-prettier": "^10.1.5",
+    "globals": "16.2.0",
     "mocha": "^11.5.0",
     "mocha-jenkins-reporter": "^0.4.8",
     "node-gyp": "^8.4.1",
