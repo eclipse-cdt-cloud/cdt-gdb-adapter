@@ -156,7 +156,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Handle requests not defined in the debug adapter protocol.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected customRequest(
         command: string,
         response: DebugProtocol.Response,
@@ -1559,7 +1558,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Implement the cdt-gdb-adapter/Memory request.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected async memoryRequest(response: MemoryResponse, args: any) {
         try {
             if (typeof args.address !== 'string') {
