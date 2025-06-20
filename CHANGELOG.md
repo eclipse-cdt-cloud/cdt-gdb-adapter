@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Updated NPM dependencies, Node and Python requirements, and Typescript version. Code changes as required for this.
+
 ## 1.0.11
 
 -   Feature Request [#388](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/388): Adding Instruction Breakpoints Support for the debug adapter. This enables breakpoints in Disassembly View.
