@@ -63,7 +63,7 @@
   "dependencies": {
     "@vscode/debugadapter": "^1.68.0",
     "@vscode/debugprotocol": "^1.68.0",
-    "node-addon-api": "^4.3.0",
+    "node-addon-api": "^8.4.0",
     "serialport": "^13.0.0",
     "utf8": "^3.0.0"
   },
