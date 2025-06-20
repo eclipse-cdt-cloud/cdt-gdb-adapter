@@ -17,7 +17,7 @@ The source code can be found in the following repository: https://github.com/ecl
 - You need the following tools to run [`node-gyp`](https://github.com/nodejs/node-gyp)
   as part of the `nativebuild` script. This is optional during development and enables
   the use of the `openGdbConsole` configuration option on Linux.
-    - Install **Python** version 3.12 or later.
+    - Install **Python** version 3.8 or later.
     - Install a valid C++ toolchain for your host OS.
     - See the `node-gyp`
       [installation manual](https://github.com/nodejs/node-gyp?tab=readme-ov-file#installation)
