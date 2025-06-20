@@ -14,6 +14,7 @@ import { GDBFileSystemProcessManagerBase } from './GDBFileSystemProcessManagerBa
 import { TargetLaunchRequestArguments } from '../../types/session';
 import { createEnvValues } from '../../util/createEnvValues';
 import { IGDBServerProcessManager, IStdioProcess } from '../../types/gdb';
+import { StdioProcessAdapter } from './StdioProcessAdapter';
 
 export class GDBServerFileSystemProcessManager
     extends GDBFileSystemProcessManagerBase
@@ -62,7 +63,7 @@ export class GDBServerFileSystemProcessManager
             cwd: serverCwd,
             env: serverEnvironment,
         });
-        return this.proc;
+        return new StdioProcessAdapter(this.proc);
     }
     public async stop(): Promise<void> {
         return new Promise((resolve, reject) => {

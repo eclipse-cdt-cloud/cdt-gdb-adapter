@@ -16,6 +16,7 @@ import { createEnvValues } from '../../util/createEnvValues';
 import { existsSync } from 'fs';
 import { dirname } from 'path';
 import { IStdioProcess } from '../../types/gdb';
+import { StdioProcessAdapter } from './StdioProcessAdapter';
 
 export class GDBFileSystemProcessManagerBase {
     protected proc?: ChildProcess;
@@ -54,7 +55,7 @@ export class GDBFileSystemProcessManagerBase {
         const env = this.getEnvironment(options.additionalEnvironment);
 
         this.proc = spawn(executable, args, { env, cwd: options.cwd });
-        return this.proc;
+        return new StdioProcessAdapter(this.proc);
     }
 
     public async kill() {
