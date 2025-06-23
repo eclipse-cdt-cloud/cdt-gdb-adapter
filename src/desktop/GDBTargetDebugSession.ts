@@ -177,6 +177,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     );
                     const m = regex.exec(data);
                     if (m !== null) {
+                        clearTimeout(timeoutForFindingPort);
                         target.port = m[1];
                         checkTargetPort = (_data: any) => {
                             // do nothing now that we have our port
@@ -184,7 +185,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         setTimeout(
                             () => {
                                 gdbserverStartupResolved = true;
-                                clearTimeout(timeoutForFindingPort);
                                 resolve();
                             },
                             target.serverStartupDelay !== undefined
