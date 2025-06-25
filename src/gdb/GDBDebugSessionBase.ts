@@ -1340,9 +1340,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             );
 
         // Check if breakpoint is part of instruction breakpoints
-        return existingInstBreakpointsList.some((bp) => {
-            parseInt(bp.number) === parseInt(breakpointNumber);
-        });
+        const isInstructionBp = existingInstBreakpointsList.some(
+            (bp) => parseInt(bp.number) === parseInt(breakpointNumber)
+        );
+        return isInstructionBp;
     }
 
     protected async evaluateRequest(
