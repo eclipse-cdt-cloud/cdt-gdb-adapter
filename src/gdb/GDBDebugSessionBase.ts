@@ -2041,7 +2041,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
         });
+
         const depth = parseInt(stackDepth.depth, 10);
+
         // we need to keep track of children and the parent varname in GDB
         let children;
         let parentVarname = ref.varobjName;
@@ -2052,6 +2054,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             depth,
             ref.varobjName
         );
+
         if (varobj) {
             children = await mi.sendVarListChildren(this.gdb, {
                 name: varobj.varname,
@@ -2065,13 +2068,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 printValues: mi.MIVarPrintValues.all,
             });
         }
+
         // Grab the full path of parent.
-        const topLevelPathExpression =
+        const topLevelPathExpression = // still required for 'class' objects
             varobj?.expression ??
             (await this.getFullPathExpression(parentVarname));
 
         // iterate through the children
         for (const child of children.children) {
+            const varInfoExpression = await this.getInfoExpression(child.name);
+            const varInfoPathExpression = await this.getFullPathExpression(
+                child.name
+            );
+
             // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
@@ -2101,27 +2110,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             } else {
                 // check if we're dealing with an array
-                let name = `${ref.varobjName}.${child.exp}`;
-                const varobjName = name;
                 const value = child.value ? child.value : child.type;
-                const isArrayParent = arrayRegex.test(child.type);
-                const isArrayChild =
-                    varobj !== undefined
-                        ? arrayRegex.test(varobj.type) &&
-                          arrayChildRegex.test(child.exp)
-                        : false;
-                if (isArrayChild) {
-                    // update the display name for array elements to have square brackets
-                    name = `[${child.exp}]`;
-                }
-                const variableName = isArrayChild ? name : child.exp;
-                const evaluateName =
-                    isArrayParent || isArrayChild
-                        ? `${topLevelPathExpression}[${child.exp}]`
-                        : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
-                    name: variableName,
-                    evaluateName,
+                    name: varInfoExpression, //variableName,
+                    evaluateName: varInfoPathExpression, //evaluateName,
                     value,
                     type: child.type,
                     variablesReference:
@@ -2129,7 +2121,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             ? this.variableHandles.create({
                                   type: 'object',
                                   frameHandle: ref.frameHandle,
-                                  varobjName,
+                                  varobjName: `${ref.varobjName}.${child.exp}`,
                               })
                             : 0,
                 });
@@ -2145,7 +2137,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             inputVarName
         );
         // result from GDB looks like (parentName).field so remove ().
-        return exprResponse.path_expr.replace(/[()]/g, '');
+        return exprResponse.path_expr; //.replace(/[()]/g, '');
+    }
+
+    /** Query GDB using varXX name to get variable name */
+    protected async getInfoExpression(inputVarName: string) {
+        const exprResponse = await mi.sendVarInfoExpression(
+            this.gdb,
+            inputVarName
+        );
+        return exprResponse.exp;
     }
 
     // Register view
