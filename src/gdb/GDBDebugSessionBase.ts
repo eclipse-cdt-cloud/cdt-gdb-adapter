@@ -1329,6 +1329,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return;
     }
 
+    private async isInstructionBreakpoint(
+        breakpointNumber: string
+    ): Promise<boolean> {
+        const existingBps = await mi.sendBreakList(this.gdb);
+        // Filter out all instruction breakpoints
+        const existingInstBreakpointsList =
+            existingBps.BreakpointTable.body.filter(
+                (bp) => bp['original-location']?.[0] === '*'
+            );
+
+        // Check if breakpoint is part of instruction breakpoints
+        return existingInstBreakpointsList.some((bp) => {
+            parseInt(bp.number) === parseInt(breakpointNumber);
+        });
+    }
+
     protected async evaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
@@ -1360,6 +1376,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const regexEnable = new RegExp(
                     '^\\s*enable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
+                const regexDelete = new RegExp(
+                    '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
+                );
                 if (
                     args.expression.slice(1).search(regexDisable) != -1 ||
                     args.expression.slice(1).search(regexEnable) != -1
@@ -1370,6 +1389,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             'stdout'
                         )
                     );
+                }
+                const deleteRegexMatch = args.expression
+                    .slice(1)
+                    .match(regexDelete);
+                if (deleteRegexMatch) {
+                    if (
+                        await this.isInstructionBreakpoint(deleteRegexMatch[1])
+                    ) {
+                        this.sendEvent(
+                            new OutputEvent(
+                                'warning: "delete" commands for instruction breakpoints is not supported, please remove breakpoint from GUI',
+                                'stdout'
+                            )
+                        );
+                    }
                 }
                 return await this.evaluateRequestGdbCommand(
                     response,
@@ -1960,7 +1994,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'breakpoint-deleted':
                 {
-                    const breakpoint: DebugProtocol.Breakpoint = {
+                    let breakpoint: DebugProtocol.Breakpoint = {
                         id: parseInt(notifyData.id, 10),
                         verified: false,
                     };
