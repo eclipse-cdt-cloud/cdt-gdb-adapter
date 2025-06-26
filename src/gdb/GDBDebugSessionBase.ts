@@ -2104,7 +2104,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let name = `${ref.varobjName}.${child.exp}`;
                 const varobjName = name;
                 const value = child.value ? child.value : child.type;
-                const isArrayParent = arrayRegex.test(child.type);
+                const isArrayParent = arrayRegex.test(child.type) && arrayChildRegex.test(child.exp);
                 if(isArrayParent) {
                     console.log(`Found array parent: ${name}`);
                 }
@@ -2119,7 +2119,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 const variableName = isArrayChild ? name : child.exp;
                 const evaluateName =
-                    (isArrayParent || isArrayChild) && numberRegex.test(child.exp)
+                    isArrayParent || isArrayChild
                         ? `${topLevelPathExpression}[${child.exp}]`
                         : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
