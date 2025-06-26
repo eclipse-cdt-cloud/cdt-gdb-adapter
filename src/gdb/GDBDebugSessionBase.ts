@@ -2104,7 +2104,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let name = `${ref.varobjName}.${child.exp}`;
                 const varobjName = name;
                 const value = child.value ? child.value : child.type;
-                const isArrayParent = arrayRegex.test(child.type) && arrayChildRegex.test(child.exp);
+                const isArrayParent =
+                    arrayRegex.test(child.type) &&
+                    arrayChildRegex.test(child.exp);
                 const isArrayChild =
                     varobj !== undefined
                         ? arrayRegex.test(varobj.type) &&
