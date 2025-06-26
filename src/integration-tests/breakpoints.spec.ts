@@ -242,7 +242,7 @@ describe('breakpoints', async function () {
             ],
         });
         expect(bpResp.body.breakpoints.length).eq(1);
-        expect(bpResp.body.breakpoints[0].instructionReference).eq('0x0x71c');
+        expect(bpResp.body.breakpoints[0].instructionReference).eq('0x71c');
     });
 
     it('set type of standard breakpoint', async () => {
