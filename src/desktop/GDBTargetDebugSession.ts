@@ -581,12 +581,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Clean up any pending processes
             await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             // Complete connection failure
-            const errorMessage = err instanceof Error ? err.message : String(err)
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -617,7 +614,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         // Only try clean GDB exit if process still up
         if (this.gdb.isActive()) {
-            if (this.targetType === 'remote' && isProcessActive(this.gdbserver)) {
+            if (
+                this.targetType === 'remote' &&
+                isProcessActive(this.gdbserver)
+            ) {
                 // Need to pause first, then disconnect and exit
                 await this.pauseIfNeeded(true);
                 await this.gdb.sendCommand('disconnect');

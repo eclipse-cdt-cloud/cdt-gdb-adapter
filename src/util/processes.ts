@@ -17,9 +17,7 @@ import { IStdioProcess } from '../types/gdb';
  * @return
  * 		Returns true if process is active, false otherwise
  */
-export const isProcessActive = (
-    proc?: IStdioProcess
-): boolean => {
+export const isProcessActive = (proc?: IStdioProcess): boolean => {
     if (!proc) {
         return false;
     }
