@@ -291,6 +291,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     reject(new Error(exitmsg + '\n' + accumulatedStderr));
                 }
                 this.logGDBRemote('GDB server exited, sending TerminateEvent');
+                this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
             this.gdbserver.on('error', (err) => {
@@ -419,6 +420,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
+    protected abortConnectionIfExitRequested(
+        verboseLocation: string,
+        errorMessage = 'GDB Server exited, abort connection'
+    ) {
+        if (this.sessionInfo.exitRequest !== ExitSessionRequest.NONE) {
+            this.logGDBRemote(errorMessage + ' before ' + verboseLocation);
+            throw new Error(errorMessage);
+        }
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -433,13 +444,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.spawn(args);
             this.setSessionState(SessionState.GDB_LAUNCHED);
 
+            this.abortConnectionIfExitRequested('sendFileExecAndSymbols');
             this.logGDBRemote('sendFileExecAndSymbols');
             await this.gdb.sendFileExecAndSymbols(args.program);
 
+            this.abortConnectionIfExitRequested('sendEnablePrettyPrint');
             this.logGDBRemote('sendEnablePrettyPrint');
             await this.gdb.sendEnablePrettyPrint();
 
             if (args.imageAndSymbols) {
+                this.abortConnectionIfExitRequested('add additional files');
                 this.logGDBRemote('add additional files');
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
@@ -455,6 +469,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
             }
 
+            this.abortConnectionIfExitRequested('select target');
             this.setSessionState(SessionState.GDB_LAUNCHED);
 
             if (target.connectCommands === undefined) {
@@ -496,6 +511,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
 
+            this.abortConnectionIfExitRequested('initCommands');
             this.setSessionState(SessionState.CONNECTED);
 
             this.logGDBRemote('initCommands');
@@ -507,6 +523,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
+                    this.abortConnectionIfExitRequested('send load');
                     this.logGDBRemote('send load');
                     await this.gdb.sendLoad(
                         args.imageAndSymbols.imageFileName,
@@ -514,6 +531,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     );
                 }
             }
+            this.abortConnectionIfExitRequested('preRunCommands');
             this.logGDBRemote('preRunCommands');
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
