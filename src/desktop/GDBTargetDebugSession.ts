@@ -9,7 +9,12 @@
  *********************************************************************/
 
 import { GDBDebugSession } from './GDBDebugSession';
-import { InitializedEvent, logger, OutputEvent } from '@vscode/debugadapter';
+import {
+    InitializedEvent,
+    logger,
+    OutputEvent,
+    TerminatedEvent,
+} from '@vscode/debugadapter';
 import { LogLevel } from '@vscode/debugadapter/lib/logger';
 import * as mi from '../mi';
 import * as os from 'os';
@@ -116,6 +121,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }`
         );
         this.sessionInfo.exitRequest = request;
+        // Ensure to send TerminateEvent from here only once
+        if (
+            acceptRequest &&
+            request > ExitSessionRequest.NONE &&
+            this.sessionInfo.state < SessionState.EXITED
+        ) {
+            this.sendEvent(new TerminatedEvent());
+        }
     }
 
     protected override async setupCommonLoggerAndBackends(
