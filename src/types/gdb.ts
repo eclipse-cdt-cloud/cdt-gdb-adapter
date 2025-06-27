@@ -121,6 +121,8 @@ export interface IGDBBackend extends EventEmitter {
 
     sendGDBExit: () => Promise<unknown>;
 
+    isActive: () => boolean;
+
     sendCommand<T>(command: string): Promise<T>;
     sendCommands(commands?: string[]): Promise<void>;
     gdbVersionAtLeast(targetVersion: string): boolean;
@@ -133,6 +135,10 @@ export interface IGDBBackend extends EventEmitter {
         event: 'execAsync' | 'notifyAsync' | 'statusAsync',
         listener: (asyncClass: string, data: any) => void
     ): this;
+    on(
+        event: 'exit',
+        listener: (code: number | null, signal: NodeJS.Signals | null) => void
+    ): this;
 
     emit(
         event: 'consoleStreamOutput',
@@ -143,5 +149,10 @@ export interface IGDBBackend extends EventEmitter {
         event: 'execAsync' | 'notifyAsync' | 'statusAsync',
         asyncClass: string,
         data: any
+    ): boolean;
+    emit(
+        event: 'exit',
+        code: number | null,
+        signal: NodeJS.Signals | null
     ): boolean;
 }
