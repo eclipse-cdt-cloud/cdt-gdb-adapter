@@ -24,6 +24,7 @@ import { VarManager } from '../varManager';
 import { IGDBBackend, IGDBProcessManager, IStdioProcess } from '../types/gdb';
 import { MIParser } from '../MIParser';
 import { compareVersions } from '../util/compareVersions';
+import { isProcessActive } from '../util/processes';
 
 export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     protected parser = new MIParser(this);
@@ -269,11 +270,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     }
 
     public isActive(): boolean {
-        if (!this.proc) {
-            return false;
-        }
-        const exitCode = this.proc.exitCode;
-        return !exitCode && exitCode !== 0;
+        return isProcessActive(this.proc);
     }
 
     protected nextToken() {

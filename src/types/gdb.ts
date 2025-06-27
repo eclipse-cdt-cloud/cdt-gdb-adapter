@@ -31,6 +31,7 @@ export interface IStdioProcess {
     get stderr(): Readable | null;
     getPID: () => number | undefined;
     get exitCode(): number | null;
+    get signalCode(): NodeJS.Signals | null;
     kill: (signal?: NodeJS.Signals) => boolean;
     on(
         event: 'exit',
