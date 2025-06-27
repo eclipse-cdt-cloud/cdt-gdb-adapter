@@ -10,6 +10,7 @@
 
 import { GDBDebugSession } from './GDBDebugSession';
 import { InitializedEvent, logger, OutputEvent } from '@vscode/debugadapter';
+import { LogLevel } from '@vscode/debugadapter/lib/logger';
 import * as mi from '../mi';
 import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -54,6 +55,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         super(backendFactory || new GDBBackendFactory());
         this.gdbserverFactory = gdbserverFactory || new GDBServerFactory();
         this.logger = logger;
+    }
+
+    protected logGDBRemote(message: string, level = LogLevel.Verbose) {
+        this.logger.log('GDB Remote session: ' + message, level);
     }
 
     protected override async setupCommonLoggerAndBackends(
@@ -147,7 +152,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
             this.gdbserver = await this.gdbserverProcessManager.start(args);
-            let gdbserverStartupResolved = false;
+            let gdbserverStartupResolved = false; // GDB Server ready for connection
             let accumulatedStdout = '';
             let accumulatedStderr = '';
             let checkTargetPort = (_data: any) => {
@@ -221,17 +226,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             this.gdbserver.on('exit', (code, signal) => {
-                let exitmsg: string;
-                if (code === null) {
-                    exitmsg = `gdbserver is killed by signal ${signal}`;
-                } else {
-                    exitmsg = `gdbserver has exited with code ${code}`;
-                }
+                const exitmsg =
+                    code === null
+                        ? `gdbserver is killed by signal ${signal}\n`
+                        : `gdbserver has exited with code ${code}\n`;
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
+                    this.logGDBRemote('GDB server exited before ready');
                     gdbserverStartupResolved = true;
                     reject(new Error(exitmsg + '\n' + accumulatedStderr));
                 }
+                this.logGDBRemote('GDB server exited, sending TerminateEvent');
             });
 
             this.gdbserver.on('error', (err) => {
@@ -370,10 +375,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         const target = args.target;
         try {
             this.isAttach = true;
+            this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
+
+            this.logGDBRemote('sendFileExecAndSymbols');
             await this.gdb.sendFileExecAndSymbols(args.program);
+
+            this.logGDBRemote('sendEnablePrettyPrint');
             await this.gdb.sendEnablePrettyPrint();
+
             if (args.imageAndSymbols) {
+                this.logGDBRemote('add additional files');
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
                         await this.gdb.sendAddSymbolFile(
@@ -405,6 +417,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     target.parameters !== undefined
                         ? target.parameters
                         : defaultTarget;
+                this.logGDBRemote('select target');
                 await mi.sendTargetSelectRequest(this.gdb, {
                     type: this.targetType,
                     parameters: targetParameters,
@@ -417,6 +430,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             } else {
+                this.logGDBRemote('connectCommands');
                 await this.gdb.sendCommands(target.connectCommands);
                 this.sendEvent(
                     new OutputEvent(
@@ -425,6 +439,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
 
+            this.logGDBRemote('initCommands');
             await this.gdb.sendCommands(args.initCommands);
 
             if (target.uart !== undefined) {
@@ -433,17 +448,20 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
+                    this.logGDBRemote('send load');
                     await this.gdb.sendLoad(
                         args.imageAndSymbols.imageFileName,
                         args.imageAndSymbols.imageOffset
                     );
                 }
             }
+            this.logGDBRemote('preRunCommands');
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
             this.isInitialized = true;
         } catch (err) {
+            this.logGDBRemote(`caught error '${err}`);
             this.sendErrorResponse(
                 response,
                 1,
@@ -454,13 +472,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async stopGDBServer(): Promise<void> {
         return new Promise((resolve, reject) => {
-            if (!this.gdbserver || this.gdbserver.exitCode !== null) {
+            const exitCode = this.gdbserver?.exitCode;
+            if (!this.gdbserver || exitCode || exitCode === 0) {
+                this.logGDBRemote('skip stopping GDB server, already down');
                 resolve();
             } else {
                 this.gdbserver.on('exit', () => {
+                    this.logGDBRemote('stopping GDB server completed');
                     resolve();
                 });
-                this.gdbserver?.kill();
+                this.logGDBRemote('stopping GDB server');
+                this.gdbserver.kill();
             }
             setTimeout(() => {
                 reject();
