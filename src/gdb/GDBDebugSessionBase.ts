@@ -439,11 +439,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    protected async setInstructionBreakpointsRequest(
-        response: DebugProtocol.SetInstructionBreakpointsResponse,
-        args: DebugProtocol.SetInstructionBreakpointsArguments
-    ): Promise<void> {
-        await this.pauseIfNeeded();
+    private async getInstructionBreakpointList() {
         // Get a list of existing bps, using gdb-mi command -break-list
         const existingBps = await mi.sendBreakList(this.gdb);
         // Filter out all instruction breakpoints
@@ -451,6 +447,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             existingBps.BreakpointTable.body.filter(
                 (bp) => bp['original-location']?.[0] === '*'
             );
+        return existingInstBreakpointsList;
+    }
+
+    protected async setInstructionBreakpointsRequest(
+        response: DebugProtocol.SetInstructionBreakpointsResponse,
+        args: DebugProtocol.SetInstructionBreakpointsArguments
+    ): Promise<void> {
+        await this.pauseIfNeeded();
+        // Get a list of existing instruction breakpoints
+        const existingInstBreakpointsList =
+            await this.getInstructionBreakpointList();
 
         // List of Instruction breakpoints from vscode
         const vscodeBreakpointsListBase = args.breakpoints;
@@ -508,12 +515,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         /* Prepare response */
-        // Get GDB bp list after all bps are sent
-        const gdbBps = await mi.sendBreakList(this.gdb);
-        // Filter out all instruction breakpoints
-        const gdbInstBps = gdbBps.BreakpointTable.body.filter(
-            (bp) => bp['original-location']?.[0] === '*'
-        );
+
+        // Get Instruction Breakpoints
+        const gdbInstBps = await this.getInstructionBreakpointList();
         // Fill in breakpoints list to be sent as a response
         const actual: DebugProtocol.Breakpoint[] = gdbInstBps.map((bp) => {
             const responseBp: DebugProtocol.Breakpoint = {
@@ -1332,12 +1336,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     private async isInstructionBreakpoint(
         breakpointNumber: string
     ): Promise<boolean> {
-        const existingBps = await mi.sendBreakList(this.gdb);
-        // Filter out all instruction breakpoints
+        // Get instruction breakpoint list
         const existingInstBreakpointsList =
-            existingBps.BreakpointTable.body.filter(
-                (bp) => bp['original-location']?.[0] === '*'
-            );
+            await this.getInstructionBreakpointList();
 
         // Check if breakpoint is part of instruction breakpoints
         const isInstructionBp = existingInstBreakpointsList.some(
@@ -1995,7 +1996,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'breakpoint-deleted':
                 {
-                    let breakpoint: DebugProtocol.Breakpoint = {
+                    const breakpoint: DebugProtocol.Breakpoint = {
                         id: parseInt(notifyData.id, 10),
                         verified: false,
                     };
