@@ -13,6 +13,7 @@ import { dirname } from 'path';
 import { GDBFileSystemProcessManagerBase } from './GDBFileSystemProcessManagerBase';
 import { TargetLaunchRequestArguments } from '../../types/session';
 import { createEnvValues } from '../../util/createEnvValues';
+import { isProcessActive } from '../../util/processes';
 import {
     GetPIDType,
     IGDBServerProcessManager,
@@ -73,7 +74,7 @@ export class GDBServerFileSystemProcessManager
     }
     public async stop(): Promise<void> {
         return new Promise((resolve, reject) => {
-            if (!this.proc || this.proc.exitCode !== null) {
+            if (!this.proc || !isProcessActive(this.proc)) {
                 resolve();
             } else {
                 this.proc.on('exit', () => {

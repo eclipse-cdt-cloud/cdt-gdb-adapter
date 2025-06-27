@@ -66,6 +66,7 @@ export class GDBPTYProcessManager extends GDBFileSystemProcessManager {
             stderr: null,
             getPID: () => undefined,
             exitCode: null,
+            signalCode: null,
             kill: () => true,
             on: (_event: 'error' | 'exit', _fn: any) => {
                 return item;

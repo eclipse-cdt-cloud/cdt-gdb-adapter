@@ -34,6 +34,7 @@ import {
 } from '../types/gdb';
 import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { GDBServerFactory } from './factories/GDBServerFactory';
+import { isProcessActive } from '../util/processes';
 
 // State of the Remote Target Debug Session
 enum SessionState {
@@ -599,8 +600,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async stopGDBServer(): Promise<void> {
         return new Promise((resolve, reject) => {
-            const exitCode = this.gdbserver?.exitCode;
-            if (!this.gdbserver || exitCode || exitCode === 0) {
+            if (!this.gdbserver || !isProcessActive(this.gdbserver)) {
                 this.logGDBRemote('skip stopping GDB server, already down');
                 resolve();
             } else {
