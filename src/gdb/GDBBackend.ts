@@ -52,6 +52,11 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         if (this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
+        if (this.proc) {
+            this.proc.on('exit', (code, signal) =>
+                this.emit('exit', code, signal)
+            );
+        }
         this.out = this.proc.stdin;
         this.hardwareBreakpoint = requestArgs.hardwareBreakpoint ? true : false;
         await this.parser.parse(this.proc.stdout);
@@ -175,19 +180,29 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                         case 'running':
                         case 'connected':
                         case 'exit':
+                            logger.verbose(
+                                `GDB command: ${token} ${command} completed with data`
+                            );
                             resolve(resultData);
                             break;
                         case 'error':
                             failure.message = resultData.msg;
+                            logger.verbose(
+                                `GDB command: ${token} ${command} failed with '${failure.message}'`
+                            );
                             reject(failure);
                             break;
                         default:
                             failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
                                 resultData
                             )}`;
+                            logger.verbose(
+                                `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
+                            );
                             reject(failure);
                     }
                 });
+                logger.verbose(`GDB write command: ${token} ${command}`);
                 this.out.write(`${token}${command}\n`);
             } else {
                 reject(new Error('gdb is not running.'));
@@ -251,6 +266,11 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public sendGDBExit() {
         return this.sendCommand('-gdb-exit');
+    }
+
+    public isActive(): boolean {
+        const exitCode = this.proc?.exitCode;
+        return !exitCode && exitCode !== 0;
     }
 
     protected nextToken() {
