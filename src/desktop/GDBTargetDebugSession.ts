@@ -578,13 +578,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.isInitialized = true;
         } catch (err) {
             this.logGDBRemote(`caught error '${err}`);
-            const errorMessage = err instanceof Error ? err.message : String(err)
-            // Print error to console to make it stickier. Has side effect of some
-            // visual feedback if neither GDB nor GDB server printed to console yet.
-            this.sendEvent(new OutputEvent(`Error: '${errorMessage}'\n`, 'server'));
             // Clean up any pending processes
             await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             // Complete connection failure
+            const errorMessage = err instanceof Error ? err.message : String(err)
             this.sendErrorResponse(
                 response,
                 1,
