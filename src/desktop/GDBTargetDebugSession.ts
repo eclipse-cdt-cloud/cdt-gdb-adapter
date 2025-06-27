@@ -30,11 +30,51 @@ import {
 import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { GDBServerFactory } from './factories/GDBServerFactory';
 
+// State of the Remote Target Debug Session
+enum SessionState {
+    /** Session & Connection not started */
+    INACTIVATE,
+    /** GDB Server process launched */
+    GDBSERVER_LAUNCHED,
+    /** GDB Server process ready to accept TCP/IP connections */
+    GDBSERVER_READY,
+    /** GDB launched, modes set */
+    GDB_LAUNCHED,
+    /** GDB fully set up and read to connect to server */
+    GDB_READY,
+    /** GDB connected to GDB server */
+    CONNECTED,
+    /** GDB session ready for user interaction */
+    SESSION_READY,
+    /** GDB session is exiting */
+    EXITING,
+    /** GDB session has exited and is no longer responding */
+    EXITED,
+}
+
+// Internal request to exit session,
+// for example if an involved process
+// unexpectedly ends
+enum ExitSessionRequest {
+    NONE,
+    EXIT,
+}
+
+// Complete Session Info
+interface SessionInfo {
+    state: SessionState;
+    exitRequest: ExitSessionRequest;
+}
+
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
     protected gdbserverFactory?: IGDBServerFactory;
     protected gdbserverProcessManager?: IGDBServerProcessManager;
     protected killGdbServer = true;
+    protected sessionInfo: SessionInfo = {
+        state: SessionState.INACTIVATE,
+        exitRequest: ExitSessionRequest.NONE,
+    };
 
     // Serial Port to capture UART output across the serial line
     protected serialPort?: SerialPort;
@@ -59,6 +99,23 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected logGDBRemote(message: string, level = LogLevel.Verbose) {
         this.logger.log('GDB Remote session: ' + message, level);
+    }
+
+    protected setSessionState(state: SessionState) {
+        const oldState = SessionState[this.sessionInfo.state];
+        const newState = SessionState[state];
+        this.logGDBRemote(`State '${oldState}' => '${newState}'`);
+        this.sessionInfo.state = state;
+    }
+
+    protected setExitSessionRequest(request: ExitSessionRequest) {
+        const acceptRequest = request > this.sessionInfo.exitRequest;
+        this.logGDBRemote(
+            `exit request ${
+                acceptRequest ? '' : 'ignored, already in progress'
+            }`
+        );
+        this.sessionInfo.exitRequest = request;
     }
 
     protected override async setupCommonLoggerAndBackends(
@@ -153,6 +210,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
             this.gdbserver = await this.gdbserverProcessManager.start(args);
+            this.setSessionState(SessionState.GDBSERVER_LAUNCHED);
             let gdbserverStartupResolved = false; // GDB Server ready for connection
             let accumulatedStdout = '';
             let accumulatedStderr = '';
@@ -194,6 +252,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     }
                 };
             }
+            this.setSessionState(SessionState.GDBSERVER_READY);
             if (this.gdbserver.stdout) {
                 this.gdbserver.stdout.on('data', (data) => {
                     const out = data.toString();
@@ -372,6 +431,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.isAttach = true;
             this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
+            this.setSessionState(SessionState.GDB_LAUNCHED);
 
             this.logGDBRemote('sendFileExecAndSymbols');
             await this.gdb.sendFileExecAndSymbols(args.program);
@@ -394,6 +454,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     }
                 }
             }
+
+            this.setSessionState(SessionState.GDB_LAUNCHED);
 
             if (target.connectCommands === undefined) {
                 this.targetType =
@@ -434,6 +496,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
 
+            this.setSessionState(SessionState.CONNECTED);
+
             this.logGDBRemote('initCommands');
             await this.gdb.sendCommands(args.initCommands);
 
@@ -454,8 +518,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.gdb.sendCommands(args.preRunCommands);
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
+            this.setSessionState(SessionState.SESSION_READY);
             this.isInitialized = true;
         } catch (err) {
+            if (this.sessionInfo.state >= SessionState.GDB_LAUNCHED) {
+                this.setExitSessionRequest(ExitSessionRequest.EXIT);
+            }
             this.logGDBRemote(`caught error '${err}`);
             this.sendErrorResponse(
                 response,
@@ -494,6 +562,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
+            this.setSessionState(SessionState.EXITING);
+
             if (this.serialPort !== undefined && this.serialPort.isOpen)
                 this.serialPort.close();
 
@@ -504,6 +574,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             await this.gdb.sendGDBExit();
+            this.setSessionState(SessionState.EXITED);
+
             if (this.killGdbServer) {
                 await this.stopGDBServer();
                 this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
