@@ -269,7 +269,10 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     }
 
     public isActive(): boolean {
-        const exitCode = this.proc?.exitCode;
+        if (!this.proc) {
+            return false;
+        }
+        const exitCode = this.proc.exitCode;
         return !exitCode && exitCode !== 0;
     }
 
