@@ -39,7 +39,7 @@ import { isProcessActive } from '../util/processes';
 // State of the Remote Target Debug Session
 enum SessionState {
     /** Session & Connection not started */
-    INACTIVATE,
+    INACTIVE,
     /** GDB Server process launched */
     GDBSERVER_LAUNCHED,
     /** GDB Server process ready to accept TCP/IP connections */
@@ -82,7 +82,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserverProcessManager?: IGDBServerProcessManager;
     protected killGdbServer = true;
     protected sessionInfo: SessionInfo = {
-        state: SessionState.INACTIVATE,
+        state: SessionState.INACTIVE,
         exitRequest: ExitSessionRequest.NONE,
     };
 
