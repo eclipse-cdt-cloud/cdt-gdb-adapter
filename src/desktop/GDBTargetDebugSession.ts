@@ -61,8 +61,12 @@ enum SessionState {
 // for example if an involved process
 // unexpectedly ends
 enum ExitSessionRequest {
+    /** No exit requested */
     NONE,
-    EXIT,
+    /** Shutdown GDB Server only, GDB not launched yet */
+    EXIT_GDBSERVER,
+    /** Trigger full disconnect by TerminateEvent */
+    EXIT_ALL,
 }
 
 // Complete Session Info
@@ -113,7 +117,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         this.sessionInfo.state = state;
     }
 
-    protected setExitSessionRequest(request: ExitSessionRequest) {
+    protected async setExitSessionRequest(request: ExitSessionRequest) {
         const acceptRequest = request > this.sessionInfo.exitRequest;
         this.logGDBRemote(
             `exit request ${
@@ -121,13 +125,25 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }`
         );
         this.sessionInfo.exitRequest = request;
-        // Ensure to send TerminateEvent from here only once
-        if (
-            acceptRequest &&
-            request > ExitSessionRequest.NONE &&
-            this.sessionInfo.state < SessionState.EXITED
-        ) {
-            this.sendEvent(new TerminatedEvent());
+        if (!acceptRequest || this.sessionInfo.state >= SessionState.EXITED) {
+            // Nothing to left to do
+            return;
+        }
+        // Handle request if higher than previous
+        switch (request) {
+            case ExitSessionRequest.EXIT_GDBSERVER:
+                if (this.killGdbServer) {
+                    await this.stopGDBServer();
+                    this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+                }
+                break;
+            case ExitSessionRequest.EXIT_ALL:
+                this.sendEvent(new TerminatedEvent());
+                break;
+            case ExitSessionRequest.NONE:
+            default:
+                // Do nothing
+                break;
         }
     }
 
@@ -297,7 +313,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 throw new Error('Missing stderr in spawned gdbserver');
             }
 
-            this.gdbserver.on('exit', (code, signal) => {
+            this.gdbserver.on('exit', async (code, signal) => {
                 const exitmsg =
                     code === null
                         ? `gdbserver is killed by signal ${signal}\n`
@@ -309,7 +325,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     reject(new Error(exitmsg + '\n' + accumulatedStderr));
                 }
                 this.logGDBRemote('GDB server exited, sending TerminateEvent');
-                this.setExitSessionRequest(ExitSessionRequest.EXIT);
+                await this.setExitSessionRequest(ExitSessionRequest.EXIT_ALL);
             });
 
             this.gdbserver.on('error', (err) => {
@@ -462,11 +478,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.spawn(args);
             this.setSessionState(SessionState.GDB_LAUNCHED);
 
-            this.gdb?.on('exit', (code, signal) => {
+            this.gdb?.on('exit', async (code, signal) => {
                 this.logGDBRemote(
                     `GDB exited with code ${code}, signal ${signal}`
                 );
-                this.setExitSessionRequest(ExitSessionRequest.EXIT);
+                await this.setExitSessionRequest(ExitSessionRequest.EXIT_ALL);
             });
 
             this.abortConnectionIfExitRequested('sendFileExecAndSymbols');
@@ -564,14 +580,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.setSessionState(SessionState.SESSION_READY);
             this.isInitialized = true;
         } catch (err) {
-            if (this.sessionInfo.state >= SessionState.GDB_LAUNCHED) {
-                this.setExitSessionRequest(ExitSessionRequest.EXIT);
-            }
             this.logGDBRemote(`caught error '${err}`);
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            // Print error to console to make it stickier. Has side effect of some
+            // visual feedback if neither GDB nor GDB server printed to console yet.
+            this.sendEvent(new OutputEvent(`Error: '${errorMessage}'\n`, 'server'));
+            // Clean up depending on reached session state
+            const exitRequest = this.sessionInfo.state >= SessionState.GDB_LAUNCHED ? ExitSessionRequest.EXIT_ALL : ExitSessionRequest.EXIT_GDBSERVER;
+            await this.setExitSessionRequest(exitRequest);
+            // Complete connection failure
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }
