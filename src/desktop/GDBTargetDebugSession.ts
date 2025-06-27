@@ -462,6 +462,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.spawn(args);
             this.setSessionState(SessionState.GDB_LAUNCHED);
 
+            this.gdb?.on('exit', (code, signal) => {
+                this.logGDBRemote(
+                    `GDB exited with code ${code}, signal ${signal}`
+                );
+                this.setExitSessionRequest(ExitSessionRequest.EXIT);
+            });
+
             this.abortConnectionIfExitRequested('sendFileExecAndSymbols');
             this.logGDBRemote('sendFileExecAndSymbols');
             await this.gdb.sendFileExecAndSymbols(args.program);
@@ -603,13 +610,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             if (this.serialPort !== undefined && this.serialPort.isOpen)
                 this.serialPort.close();
 
-            if (this.targetType === 'remote') {
-                // Need to pause first, then disconnect and exit
-                await this.pauseIfNeeded(true);
-                await this.gdb.sendCommand('disconnect');
-            }
+            // Only try clean GDB exit if process still up
+            if (this.gdb.isActive()) {
+                if (this.targetType === 'remote') {
+                    // Need to pause first, then disconnect and exit
+                    await this.pauseIfNeeded(true);
+                    await this.gdb.sendCommand('disconnect');
+                }
 
-            await this.gdb.sendGDBExit();
+                await this.gdb.sendGDBExit();
+            }
             this.setSessionState(SessionState.EXITED);
 
             if (this.killGdbServer) {
