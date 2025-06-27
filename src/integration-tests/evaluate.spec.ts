@@ -102,7 +102,7 @@ describe('evaluate request', function () {
         });
         const event = dc.waitForOutputEvent(
             'stdout',
-            'warning: "delete" commands for instruction breakpoints is not supported, please remove breakpoint from GUI'
+            'warning: "delete" command not working for IDE instruction breakpoints, please delete from GUI'
         );
         await dc.evaluateRequest({
             context: 'repl',

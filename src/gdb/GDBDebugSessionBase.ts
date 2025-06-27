@@ -1401,7 +1401,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     ) {
                         this.sendEvent(
                             new OutputEvent(
-                                'warning: "delete" commands for instruction breakpoints is not supported, please remove breakpoint from GUI',
+                                'warning: "delete" command not working for IDE instruction breakpoints, please delete from GUI',
                                 'stdout'
                             )
                         );
