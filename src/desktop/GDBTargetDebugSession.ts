@@ -74,6 +74,7 @@ enum ExitSessionRequest {
 interface SessionInfo {
     state: SessionState;
     exitRequest: ExitSessionRequest;
+    disconnectError?: string;
 }
 
 type PromiseFunction = (...args: any[]) => Promise<any>;
@@ -323,6 +324,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     gdbserverStartupResolved = true;
                     reject(new Error(exitmsg + '\n' + accumulatedStderr));
                 }
+                if (
+                    this.sessionInfo.state < SessionState.EXITING &&
+                    !this.sessionInfo.disconnectError &&
+                    code !== 0
+                ) {
+                    this.sessionInfo.disconnectError =
+                        'GDB server exited unexpectedly, see Debug Console for more info';
+                }
                 this.logGDBRemote('GDB server exited, exiting session');
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
@@ -494,6 +503,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.logGDBRemote(
                     `GDB exited with code ${code}, signal ${signal}`
                 );
+                if (
+                    this.sessionInfo.state < SessionState.EXITING &&
+                    !this.sessionInfo.disconnectError &&
+                    code !== 0
+                ) {
+                    this.sessionInfo.disconnectError =
+                        'GDB exited unexpectedly, see Debug Console for more info';
+                }
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
@@ -658,7 +675,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     ): Promise<void> {
         try {
             await this.doDisconnectRequest();
-            this.sendResponse(response);
+            if (this.sessionInfo.disconnectError) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    this.sessionInfo.disconnectError
+                );
+            } else {
+                this.sendResponse(response);
+            }
         } catch (err) {
             this.sendErrorResponse(
                 response,
