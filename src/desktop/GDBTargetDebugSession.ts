@@ -76,6 +76,8 @@ interface SessionInfo {
     exitRequest: ExitSessionRequest;
 }
 
+type PromiseFunction = (...args: any[]) => Promise<any>;
+
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
     protected gdbserverFactory?: IGDBServerFactory;
@@ -456,6 +458,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
+    protected executeOrAbort<M extends PromiseFunction>(
+        fn: M
+    ): (...args: Parameters<M>) => Promise<ReturnType<M>> {
+        const wrappedFunction = async (
+            ...args: Parameters<M>
+        ): Promise<ReturnType<M>> => {
+            this.abortConnectionIfExitRequested(fn.name);
+            this.logGDBRemote(fn.name);
+            return fn(...args);
+        };
+        return wrappedFunction;
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -477,32 +492,30 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
-            this.abortConnectionIfExitRequested('sendFileExecAndSymbols');
-            this.logGDBRemote('sendFileExecAndSymbols');
-            await this.gdb.sendFileExecAndSymbols(args.program);
-
-            this.abortConnectionIfExitRequested('sendEnablePrettyPrint');
-            this.logGDBRemote('sendEnablePrettyPrint');
-            await this.gdb.sendEnablePrettyPrint();
+            await this.executeOrAbort(
+                this.gdb.sendFileExecAndSymbols.bind(this.gdb)
+            )(args.program);
+            await this.executeOrAbort(
+                this.gdb.sendEnablePrettyPrint.bind(this.gdb)
+            )();
 
             if (args.imageAndSymbols) {
-                this.abortConnectionIfExitRequested('add additional files');
-                this.logGDBRemote('add additional files');
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
-                        await this.gdb.sendAddSymbolFile(
+                        await this.executeOrAbort(
+                            this.gdb.sendAddSymbolFile.bind(this.gdb)
+                        )(
                             args.imageAndSymbols.symbolFileName,
                             args.imageAndSymbols.symbolOffset
                         );
                     } else {
-                        await this.gdb.sendFileSymbolFile(
-                            args.imageAndSymbols.symbolFileName
-                        );
+                        await this.executeOrAbort(
+                            this.gdb.sendFileSymbolFile.bind(this.gdb)
+                        )(args.imageAndSymbols.symbolFileName);
                     }
                 }
             }
 
-            this.abortConnectionIfExitRequested('select target');
             await this.setSessionState(SessionState.GDB_READY);
 
             if (target.connectCommands === undefined) {
@@ -522,11 +535,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     target.parameters !== undefined
                         ? target.parameters
                         : defaultTarget;
-                this.logGDBRemote('select target');
-                await mi.sendTargetSelectRequest(this.gdb, {
-                    type: this.targetType,
-                    parameters: targetParameters,
-                });
+                await this.executeOrAbort(mi.sendTargetSelectRequest.bind(mi))(
+                    this.gdb,
+                    {
+                        type: this.targetType,
+                        parameters: targetParameters,
+                    }
+                );
                 this.sendEvent(
                     new OutputEvent(
                         `connected to ${
@@ -536,7 +551,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             } else {
                 this.logGDBRemote('connectCommands');
-                await this.gdb.sendCommands(target.connectCommands);
+                await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                    target.connectCommands
+                );
                 this.sendEvent(
                     new OutputEvent(
                         'connected to target using provided connectCommands'
@@ -544,11 +561,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
 
-            this.abortConnectionIfExitRequested('initCommands');
             await this.setSessionState(SessionState.CONNECTED);
 
-            this.logGDBRemote('initCommands');
-            await this.gdb.sendCommands(args.initCommands);
+            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                args.initCommands
+            );
 
             if (target.uart !== undefined) {
                 this.initializeUARTConnection(target.uart, target.host);
@@ -556,17 +573,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
-                    this.abortConnectionIfExitRequested('send load');
-                    this.logGDBRemote('send load');
-                    await this.gdb.sendLoad(
+                    await this.executeOrAbort(this.gdb.sendLoad.bind(this.gdb))(
                         args.imageAndSymbols.imageFileName,
                         args.imageAndSymbols.imageOffset
                     );
                 }
             }
-            this.abortConnectionIfExitRequested('preRunCommands');
-            this.logGDBRemote('preRunCommands');
-            await this.gdb.sendCommands(args.preRunCommands);
+            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                args.preRunCommands
+            );
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
             await this.setSessionState(SessionState.SESSION_READY);
