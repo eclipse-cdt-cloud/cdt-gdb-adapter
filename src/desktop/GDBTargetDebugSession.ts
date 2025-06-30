@@ -239,7 +239,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
             this.gdbserver = await this.gdbserverProcessManager.start(args);
+            this.logGDBRemote(`Spawned GDB Server (PID ${this.gdbserver.pid})`);
             await this.setSessionState(SessionState.GDBSERVER_LAUNCHED);
+
             let gdbserverStartupResolved = false; // GDB Server ready for connection
             let accumulatedStdout = '';
             let accumulatedStderr = '';
@@ -490,10 +492,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         const target = args.target;
         try {
             this.isAttach = true;
+            // Start GDB process
             this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
             await this.setSessionState(SessionState.GDB_LAUNCHED);
 
+            // Register exit-handler
             this.gdb?.on('exit', async (code, signal) => {
                 this.logGDBRemote(
                     `GDB exited with code ${code}, signal ${signal}`
@@ -509,6 +513,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
+            // Load files and configure GDB
             await this.executeOrAbort(
                 this.gdb.sendFileExecAndSymbols.bind(this.gdb)
             )(args.program);
@@ -535,6 +540,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             await this.setSessionState(SessionState.GDB_READY);
 
+            // Connect to remote server
             if (target.connectCommands === undefined) {
                 this.targetType =
                     target.type !== undefined ? target.type : 'remote';
@@ -580,14 +586,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             await this.setSessionState(SessionState.CONNECTED);
 
+            // Initialize debug target
             await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
                 args.initCommands
             );
 
+            // Initialize UART
             if (target.uart !== undefined) {
                 this.initializeUARTConnection(target.uart, target.host);
             }
 
+            // Load additional code/symbols
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {
                     await this.executeOrAbort(this.gdb.sendLoad.bind(this.gdb))(
@@ -596,9 +605,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     );
                 }
             }
+            // More scripting before setting the target running
             await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
                 args.preRunCommands
             );
+            // Connection completed, announce the adapter is ready for
+            // other protocol commands.
             this.sendEvent(new InitializedEvent());
             this.sendResponse(response);
             await this.setSessionState(SessionState.SESSION_READY);
@@ -607,7 +619,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.logGDBRemote(`caught error '${err}`);
             // Clean up any pending processes
             await this.setExitSessionRequest(ExitSessionRequest.EXIT);
-            // Complete connection failure
+            // Complete connection failure response
             const errorMessage =
                 err instanceof Error ? err.message : String(err);
             this.sendErrorResponse(response, 1, errorMessage);
