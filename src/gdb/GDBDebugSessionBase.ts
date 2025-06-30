@@ -439,7 +439,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    private async getInstructionBreakpointList() {
+    private async getInstructionBreakpointList(): Promise<
+        mi.MIBreakpointInfo[]
+    > {
         // Get a list of existing bps, using gdb-mi command -break-list
         const existingBps = await mi.sendBreakList(this.gdb);
         // Filter out all instruction breakpoints
