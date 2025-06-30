@@ -51,14 +51,12 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         this.gdbVersion = await this.processManager.getVersion(requestArgs);
         this.proc = await this.processManager.start(requestArgs);
         logger.verbose(`Spawned GDB (PID ${this.proc.pid})`);
-        if (this.proc.stdin == null || this.proc.stdout == null) {
+        if (!this.proc || this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
-        if (this.proc) {
-            this.proc.on('exit', (code, signal) =>
-                this.emit('exit', code, signal)
-            );
-        }
+        this.proc.on('exit', (code, signal) => {
+            this.emit('exit', code, signal);
+        });
         this.out = this.proc.stdin;
         this.hardwareBreakpoint = requestArgs.hardwareBreakpoint ? true : false;
         await this.parser.parse(this.proc.stdout);
@@ -205,7 +203,13 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                     }
                 });
                 logger.verbose(`GDB write command: ${token} ${command}`);
-                this.out.write(`${token}${command}\n`);
+                this.out.write(`${token}${command}\n`, (error) => {
+                    // Reject command based on error callback, only way to recover from potential
+                    // race condition between command in flight and GDB (forced) shutdown.
+                    if (error) {
+                        reject(error);
+                    }
+                });
             } else {
                 reject(new Error('gdb is not running.'));
             }

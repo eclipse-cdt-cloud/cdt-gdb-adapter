@@ -658,22 +658,43 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         // Only try clean GDB exit if process still up
         if (this.gdb.isActive()) {
-            if (
-                this.targetType === 'remote' &&
-                isProcessActive(this.gdbserver)
-            ) {
-                // Need to pause first, then disconnect and exit
-                await this.pauseIfNeeded(true);
-                await this.gdb.sendCommand('disconnect');
-            }
+            try {
+                // Depending on disconnect scenario, we may lose
+                // GDB backend while sending commands for graceful
+                // shutdown.
+                if (
+                    this.targetType === 'remote' &&
+                    isProcessActive(this.gdbserver)
+                ) {
+                    // Need to pause first, then disconnect and exit
+                    await this.pauseIfNeeded(true);
+                    await this.gdb.sendCommand('disconnect');
+                }
 
-            await this.gdb.sendGDBExit();
+                await this.gdb.sendGDBExit();
+                this.sendEvent(new OutputEvent('gdb exited', 'server'));
+            } catch {
+                // Not much we can do, so ignore errors during
+                // GDB disconnect.
+                this.sendEvent(
+                    new OutputEvent('gdb connection lost', 'server')
+                );
+            }
         }
         await this.setSessionState(SessionState.EXITED);
 
         if (this.killGdbServer) {
-            await this.stopGDBServer();
-            this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+            try {
+                // GDB server stop may time out and throw
+                await this.stopGDBServer();
+                this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+            } catch {
+                // Not much we can do, so ignore errors during
+                // GDB Server disconnect.
+                this.sendEvent(
+                    new OutputEvent('gdbserver connection lost', 'server')
+                );
+            }
         }
     }
 
