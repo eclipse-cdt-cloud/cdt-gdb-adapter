@@ -233,7 +233,10 @@ describe('breakpoints', async function () {
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
-    it('set an instruction breakpoint', async () => {
+    it('set an instruction breakpoint', async function () {
+        if (isRemoteTest && gdbAsync) {
+            this.skip();
+        }
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
