@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2025 Kichwa Coders, Arm Ltd. and others
+ * Copyright (c) 2025 Arm Ltd., Kichwa Coders and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
@@ -205,7 +205,7 @@ describe('launch remote unexpected session exit', function () {
         await outputPromise;
     });
 
-    it.only('terminates GDB Server if GDB unexpectedly terminates', async function () {
+    it('terminates GDB if GDB Server unexpectedly terminates', async function () {
         // Only run for remote and gdbAsync
         if (!isRemoteTest || !gdbAsync) {
             this.skip();
@@ -215,7 +215,7 @@ describe('launch remote unexpected session exit', function () {
             'stdout',
             /GDB Remote session: Spawned GDB Server \(PID \d+\)/.source,
             true,
-            99999 //WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         await dc.launch(
@@ -236,19 +236,67 @@ describe('launch remote unexpected session exit', function () {
         const waitForPromises = [
             dc.waitForOutputEvent(
                 'server',
-                'gdbserver is killed',
+                'gdbserver has exited',
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
+            // GDB doesn't seem to send exit code? Hence not waiting for
+            // output event. Debugging the code shows though correct behavior.
+            // TODO: Maybe look into this later again.
+            dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
+        ];
+        // TODO: try using listeners instead of waiting for printed output.
+        // But probably better to go with the (user-visible) output.
+        //process.addListener()
+        process.kill(pidNum);
+        // Any test error will throw here
+        await Promise.all(waitForPromises);
+    });
+
+    it('terminates GDB Server if GDB unexpectedly terminates', async function () {
+        // Only run for remote and gdbAsync
+        if (!isRemoteTest || !gdbAsync) {
+            this.skip();
+        }
+        // Rather long timeout, needed to wait through entire launch and exit process
+        const gdbserverPIDPromise = dc.waitForOutputEvent(
+            'stdout',
+            /Spawned GDB \(PID \d+\)/.source,
+            true,
+            WAIT_FOR_EVENT_TIMEOUT
+        );
+        // Launch
+        await dc.launch(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                target: {
+                    type: 'remote',
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments)
+        );
+        const spawnedOutput = await gdbserverPIDPromise;
+        expect(spawnedOutput).to.exist;
+        const pidRegExp = /Spawned GDB \(PID (\d+)\)/;
+        const pidMatch = spawnedOutput.body.output.match(pidRegExp);
+        assert(pidMatch?.length === 2);
+        const pidNum = parseInt(pidMatch[1]);
+        const waitForPromises = [
             dc.waitForOutputEvent(
                 'server',
-                'gdb has exited',
+                'GDB Remote session: GDB exited with code 1, signal null',
+                true,
+                WAIT_FOR_EVENT_TIMEOUT
+            ),
+            // GDB doesn't print anything on termination
+            dc.waitForOutputEvent(
+                'server',
+                'gdbserver stopped',
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
             dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
         ];
-        process.kill(pidNum, 'SIGINT');
+        process.kill(pidNum);
         // Any test error will throw here
         await Promise.all(waitForPromises);
     });
