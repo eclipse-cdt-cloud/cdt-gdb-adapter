@@ -56,6 +56,8 @@ enum SessionState {
     EXITING,
     /** GDB session has exited and is no longer responding */
     EXITED,
+    /** Terminated event has been sent, don't expect DAP client to respond  */
+    TERMINATED,
 }
 
 // Internal request to exit session,
@@ -139,11 +141,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         // Handle exit request based on current state
         if (request === ExitSessionRequest.EXIT) {
-            if (this.sessionInfo.state >= SessionState.SESSION_READY) {
-                this.sendEvent(new TerminatedEvent());
-            } else {
-                await this.doDisconnectRequest();
-            }
+            const shouldSendTerminateEvent = this.sessionInfo.state >= SessionState.SESSION_READY;
+            await this.doDisconnectRequest(shouldSendTerminateEvent);
         }
     }
 
@@ -650,7 +649,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
-    protected async doDisconnectRequest(): Promise<void> {
+    protected async doDisconnectRequest(sendTerminate?: boolean): Promise<void> {
         await this.setSessionState(SessionState.EXITING);
 
         if (this.serialPort !== undefined && this.serialPort.isOpen)
@@ -695,6 +694,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     new OutputEvent('gdbserver connection lost', 'server')
                 );
             }
+        }
+
+        if (sendTerminate) {
+            this.sendEvent(new TerminatedEvent());
         }
     }
 
