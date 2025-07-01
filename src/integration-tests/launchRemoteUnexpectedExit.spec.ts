@@ -28,7 +28,6 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
-    const WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT = 2000;
     const WAIT_FOR_EVENT_TIMEOUT = 1000;
 
     beforeEach(async function () {
@@ -87,13 +86,13 @@ describe('launch remote unexpected session exit', function () {
                 'server',
                 'gdbserver is killed',
                 true,
-                WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+                WAIT_FOR_EVENT_TIMEOUT
             ),
             dc.waitForOutputEvent(
                 'server',
                 'gdbserver stopped',
                 true,
-                WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+                WAIT_FOR_EVENT_TIMEOUT
             ),
         ];
         // Launch
@@ -126,7 +125,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has exited',
             true,
-            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         try {
@@ -158,7 +157,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has hit error',
             true,
-            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         const invalidGDBServerName = 'invalid_gdbserver';
@@ -192,7 +191,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has exited',
             true,
-            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         try {
@@ -224,7 +223,7 @@ describe('launch remote unexpected session exit', function () {
             'stdout',
             /GDB Remote session: Spawned GDB Server \(PID \d+\)/.source,
             true,
-            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         await dc.launch(
@@ -275,7 +274,7 @@ describe('launch remote unexpected session exit', function () {
             'stdout',
             /Spawned GDB \(PID \d+\)/.source,
             true,
-            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
         await dc.launch(
