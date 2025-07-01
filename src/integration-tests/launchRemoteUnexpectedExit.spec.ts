@@ -28,6 +28,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
+    const WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT = 2000;
     const WAIT_FOR_EVENT_TIMEOUT = 1000;
 
     beforeEach(async function () {
@@ -81,12 +82,20 @@ describe('launch remote unexpected session exit', function () {
             this.skip();
         }
         // Rather long timeout, needed to wait through entire launch and exit process
-        const outputPromise = dc.waitForOutputEvent(
-            'server',
-            'gdbserver is killed',
-            true,
-            WAIT_FOR_EVENT_TIMEOUT
-        );
+        const pendingPromises = [
+            dc.waitForOutputEvent(
+                'server',
+                'gdbserver is killed',
+                true,
+                WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            ),
+            dc.waitForOutputEvent(
+                'server',
+                'gdbserver stopped',
+                true,
+                WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
+            ),
+        ];
         // Launch
         const invalidGDBName = 'invalid_gdb';
         try {
@@ -104,7 +113,7 @@ describe('launch remote unexpected session exit', function () {
             expect(errMessage).to.equal(`spawn ${invalidGDBName} ENOENT`);
         }
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
-        await outputPromise;
+        await Promise.all(pendingPromises);
     });
 
     it('sends error response and terminates GDB server if incorrect GDB CLI arg', async function () {
@@ -117,7 +126,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has exited',
             true,
-            WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
         );
         // Launch
         try {
@@ -149,7 +158,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has hit error',
             true,
-            WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
         );
         // Launch
         const invalidGDBServerName = 'invalid_gdbserver';
@@ -183,7 +192,7 @@ describe('launch remote unexpected session exit', function () {
             'server',
             'gdbserver has exited',
             true,
-            WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
         );
         // Launch
         try {
@@ -215,7 +224,7 @@ describe('launch remote unexpected session exit', function () {
             'stdout',
             /GDB Remote session: Spawned GDB Server \(PID \d+\)/.source,
             true,
-            WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
         );
         // Launch
         await dc.launch(
@@ -240,9 +249,12 @@ describe('launch remote unexpected session exit', function () {
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
-            // GDB doesn't seem to send exit code? Hence not waiting for
-            // output event. Debugging the code shows though correct behavior.
-            // TODO: Maybe look into this later again.
+            dc.waitForOutputEvent(
+                'server',
+                'gdb exited',
+                true,
+                WAIT_FOR_EVENT_TIMEOUT
+            ),
             dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
         ];
         // TODO: try using listeners instead of waiting for printed output.
@@ -263,7 +275,7 @@ describe('launch remote unexpected session exit', function () {
             'stdout',
             /Spawned GDB \(PID \d+\)/.source,
             true,
-            WAIT_FOR_EVENT_TIMEOUT
+            WAIT_FOR_EVENT_WITH_LAUNCH_TIMEOUT
         );
         // Launch
         await dc.launch(
@@ -281,16 +293,10 @@ describe('launch remote unexpected session exit', function () {
         assert(pidMatch?.length === 2);
         const pidNum = parseInt(pidMatch[1]);
         const waitForPromises = [
+            // GDB doesn't print anything on termination, only wait for server
             dc.waitForOutputEvent(
                 'server',
-                'GDB Remote session: GDB exited with code 1, signal null',
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
-            // GDB doesn't print anything on termination
-            dc.waitForOutputEvent(
-                'server',
-                'gdbserver stopped',
+                'gdbserver is killed',
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
