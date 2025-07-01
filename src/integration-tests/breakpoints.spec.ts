@@ -22,6 +22,7 @@ import {
     gdbAsync,
     isRemoteTest,
     hardwareBreakpoint,
+    gdbNonStop,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as os from 'os';
@@ -234,17 +235,18 @@ describe('breakpoints', async function () {
     });
 
     it('set an instruction breakpoint', async function () {
-        await getScopes(dc);
-        
+        if (gdbNonStop && isRemoteTest) {
+            this.skip();
+        }
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
-                    instructionReference: '0x71c',
+                    instructionReference: '0x720',
                 },
             ],
         });
         expect(bpResp.body.breakpoints.length).eq(1);
-        expect(bpResp.body.breakpoints[0].instructionReference).eq('0x71c');
+        expect(bpResp.body.breakpoints[0].instructionReference).eq('0x720');
     });
 
     it('set type of standard breakpoint', async () => {
