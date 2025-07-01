@@ -25,6 +25,17 @@ export class MIParser {
 
     constructor(protected gdb: IGDBBackend) {}
 
+    public cancelQueue() {
+        // Entries in the form of [key, callback]
+        const entries = Object.entries(this.commandQueue);
+        entries.forEach((entry) => {
+            // Call callback with error to reject command promise
+            entry[1]('error', { msg: 'MI parser command queue cancelled' });
+            // Delete command by key
+            delete this.commandQueue[entry[0]];
+        });
+    }
+
     public parse(stream: Readable): Promise<void> {
         return new Promise((resolve) => {
             this.waitReady = resolve;
