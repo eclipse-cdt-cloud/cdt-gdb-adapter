@@ -339,7 +339,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             this.gdbserver.on('error', (err) => {
-                const errmsg = `gdbserver has hit error ${err}`;
+                const errmsg = `gdbserver has hit error ${err}\n`;
                 this.sendEvent(new OutputEvent(errmsg, 'server'));
                 if (!gdbserverStartupResolved) {
                     gdbserverStartupResolved = true;
@@ -674,12 +674,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
 
                 await this.gdb.sendGDBExit();
-                this.sendEvent(new OutputEvent('gdb exited', 'server'));
+                this.sendEvent(new OutputEvent('gdb exited\n', 'server'));
             } catch {
                 // Not much we can do, so ignore errors during
                 // GDB disconnect.
                 this.sendEvent(
-                    new OutputEvent('gdb connection lost', 'server')
+                    new OutputEvent('gdb connection lost\n', 'server')
                 );
             }
         }
@@ -689,12 +689,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             try {
                 // GDB server stop may time out and throw
                 await this.stopGDBServer();
-                this.sendEvent(new OutputEvent('gdbserver stopped', 'server'));
+                this.sendEvent(
+                    new OutputEvent('gdbserver stopped\n', 'server')
+                );
             } catch {
                 // Not much we can do, so ignore errors during
                 // GDB Server disconnect.
                 this.sendEvent(
-                    new OutputEvent('gdbserver connection lost', 'server')
+                    new OutputEvent('gdbserver connection lost\n', 'server')
                 );
             }
         }
