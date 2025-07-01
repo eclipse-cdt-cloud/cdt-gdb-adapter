@@ -25,6 +25,11 @@ import {
 import { assert, expect } from 'chai';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
+// GDB Server seems to exit in different ways when forcefully shut down. Depending
+// on mode, timing, host OS, etc.
+// We only care about it ending, hence both exit or signalled end satisfy the tests.
+const GDBSERVER_ENDED_REGEXP_STR = "(gdbserver has exited|gdbserver is killed)";
+
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
@@ -63,7 +68,7 @@ describe('launch remote unexpected session exit', function () {
         const pendingPromises = [
             dc.waitForOutputEvent(
                 'server',
-                'gdbserver has exited',
+                GDBSERVER_ENDED_REGEXP_STR,
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
@@ -84,7 +89,7 @@ describe('launch remote unexpected session exit', function () {
         const pendingPromises = [
             dc.waitForOutputEvent(
                 'server',
-                'gdbserver is killed',
+                GDBSERVER_ENDED_REGEXP_STR,
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
@@ -123,7 +128,7 @@ describe('launch remote unexpected session exit', function () {
         // Rather long timeout, needed to wait through entire launch and exit process
         const outputPromise = dc.waitForOutputEvent(
             'server',
-            'gdbserver has exited',
+            GDBSERVER_ENDED_REGEXP_STR,
             true,
             WAIT_FOR_EVENT_TIMEOUT
         );
@@ -189,7 +194,7 @@ describe('launch remote unexpected session exit', function () {
         // Rather long timeout, needed to wait through entire launch and exit process
         const outputPromise = dc.waitForOutputEvent(
             'server',
-            'gdbserver has exited',
+            GDBSERVER_ENDED_REGEXP_STR,
             true,
             WAIT_FOR_EVENT_TIMEOUT
         );
@@ -244,7 +249,7 @@ describe('launch remote unexpected session exit', function () {
         const waitForPromises = [
             dc.waitForOutputEvent(
                 'server',
-                'gdbserver has exited',
+                GDBSERVER_ENDED_REGEXP_STR,
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
@@ -295,7 +300,7 @@ describe('launch remote unexpected session exit', function () {
             // GDB doesn't print anything on termination, only wait for server
             dc.waitForOutputEvent(
                 'server',
-                'gdbserver is killed',
+                GDBSERVER_ENDED_REGEXP_STR,
                 true,
                 WAIT_FOR_EVENT_TIMEOUT
             ),
