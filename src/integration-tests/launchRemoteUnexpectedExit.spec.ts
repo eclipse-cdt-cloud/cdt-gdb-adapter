@@ -75,7 +75,7 @@ describe('launch remote unexpected session exit', function () {
         await Promise.all(pendingPromises);
     });
 
-    it('sends error response and terminates GDB server if incorrect GDB path/name', async function () {
+    it('sends error response and terminates GDB server if incorrect GDB path', async function () {
         // Only run for remote and gdbAsync
         if (!isRemoteTest || !gdbAsync) {
             this.skip();
@@ -139,7 +139,7 @@ describe('launch remote unexpected session exit', function () {
         await outputPromise;
     });
 
-    it('sends error response if incorrect GDB server path/name', async function () {
+    it('sends error response if incorrect GDB server path', async function () {
         // Only run for remote and gdbAsync
         if (!isRemoteTest || !gdbAsync) {
             this.skip();
