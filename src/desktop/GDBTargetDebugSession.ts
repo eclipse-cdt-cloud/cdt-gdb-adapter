@@ -141,7 +141,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         // Handle exit request based on current state
         if (request === ExitSessionRequest.EXIT) {
-            const shouldSendTerminateEvent = this.sessionInfo.state >= SessionState.SESSION_READY;
+            const shouldSendTerminateEvent =
+                this.sessionInfo.state >= SessionState.SESSION_READY;
             await this.doDisconnectRequest(shouldSendTerminateEvent);
         }
     }
@@ -649,7 +650,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
-    protected async doDisconnectRequest(sendTerminate?: boolean): Promise<void> {
+    protected async doDisconnectRequest(
+        sendTerminate?: boolean
+    ): Promise<void> {
         await this.setSessionState(SessionState.EXITING);
 
         if (this.serialPort !== undefined && this.serialPort.isOpen)
