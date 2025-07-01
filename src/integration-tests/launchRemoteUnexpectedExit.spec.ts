@@ -15,6 +15,7 @@ import {
 } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
+    expectRejection,
     fillDefaults,
     gdbAsync,
     getScopes,
@@ -25,15 +26,40 @@ import {
 import { assert, expect } from 'chai';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
-// GDB Server seems to exit in different ways when forcefully shut down. Depending
-// on mode, timing, host OS, etc.
-// We only care about it ending, hence both exit or signalled end satisfy the tests.
-const GDBSERVER_ENDED_REGEXP_STR = '(gdbserver has exited|gdbserver is killed)';
-
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const WAIT_FOR_EVENT_TIMEOUT = 1000;
+    // GDB Server seems to exit in different ways when forcefully shut down. Depending
+    // on mode, timing, host OS, etc.
+    // We only care about it ending, hence both exit or signalled end satisfy the tests.
+    const GDBSERVER_ENDED_REGEXP_STR =
+        '(gdbserver has exited|gdbserver is killed)';
+
+    const getDefaults = (
+        test?: Mocha.Runnable,
+        overrides?: unknown
+    ): TargetLaunchRequestArguments => {
+        return fillDefaults(test, {
+            program: emptyProgram,
+            target: {
+                type: 'remote',
+            } as TargetLaunchArguments,
+            ...(overrides as TargetLaunchArguments),
+        } as TargetLaunchRequestArguments);
+    };
+
+    const waitForServerOutput = async (
+        dc: CdtDebugClient,
+        output: string
+    ): Promise<DebugProtocol.OutputEvent> => {
+        return dc.waitForOutputEvent(
+            'server',
+            output,
+            true,
+            WAIT_FOR_EVENT_TIMEOUT
+        );
+    };
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
@@ -49,14 +75,7 @@ describe('launch remote unexpected session exit', function () {
             this.skip();
         }
         // Launch
-        await dc.launch(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments)
-        );
+        await dc.launch(getDefaults(this.test));
         // Get frame ID and build evaluateArguments
         const scope = await getScopes(dc);
         const evaluateRequestArgs: DebugProtocol.EvaluateArguments = {
@@ -66,12 +85,7 @@ describe('launch remote unexpected session exit', function () {
         };
         // Wait for multiple events, don't care about order
         const pendingPromises = [
-            dc.waitForOutputEvent(
-                'server',
-                GDBSERVER_ENDED_REGEXP_STR,
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
+            waitForServerOutput(dc, GDBSERVER_ENDED_REGEXP_STR),
             dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
         ];
         // Don't await evaluate response, it may not come depending on how quickly session shuts down.
@@ -87,35 +101,18 @@ describe('launch remote unexpected session exit', function () {
         }
         // Rather long timeout, needed to wait through entire launch and exit process
         const pendingPromises = [
-            dc.waitForOutputEvent(
-                'server',
-                GDBSERVER_ENDED_REGEXP_STR,
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
-            dc.waitForOutputEvent(
-                'server',
-                'gdbserver stopped',
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
+            waitForServerOutput(dc, GDBSERVER_ENDED_REGEXP_STR),
+            waitForServerOutput(dc, 'gdbserver stopped'),
         ];
         // Launch
         const invalidGDBName = 'invalid_gdb';
-        try {
-            await dc.launch(
-                fillDefaults(this.test, {
-                    program: emptyProgram,
-                    gdb: invalidGDBName,
-                    target: {
-                        type: 'remote',
-                    } as TargetLaunchArguments,
-                } as TargetLaunchRequestArguments)
-            );
-        } catch (err) {
-            const errMessage = (err as Error).message;
-            expect(errMessage).to.equal(`spawn ${invalidGDBName} ENOENT`);
-        }
+        const launchPromise = dc.launch(
+            getDefaults(this.test, { gdb: invalidGDBName })
+        );
+
+        const rejectError = await expectRejection(launchPromise);
+        expect(rejectError.message).to.equal(`spawn ${invalidGDBName} ENOENT`);
+
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await Promise.all(pendingPromises);
     });
@@ -126,28 +123,22 @@ describe('launch remote unexpected session exit', function () {
             this.skip();
         }
         // Rather long timeout, needed to wait through entire launch and exit process
-        const outputPromise = dc.waitForOutputEvent(
-            'server',
-            GDBSERVER_ENDED_REGEXP_STR,
-            true,
-            WAIT_FOR_EVENT_TIMEOUT
+        const outputPromise = waitForServerOutput(
+            dc,
+            GDBSERVER_ENDED_REGEXP_STR
         );
         // Launch
-        try {
-            await dc.launch(
-                fillDefaults(this.test, {
-                    program: emptyProgram,
-                    target: {
-                        type: 'remote',
-                        serverParameters: ['unknown-CLI-arg'],
-                    } as TargetLaunchArguments,
-                } as TargetLaunchRequestArguments)
-            );
-        } catch (err) {
-            const errMessage = (err as Error).message;
-            expect(errMessage.startsWith(`gdbserver has exited with code 1`)).to
-                .be.true;
-        }
+        const launchPromise = dc.launch(
+            getDefaults(this.test, {
+                target: { serverParameters: ['unknown-CLI-arg'] },
+            })
+        );
+
+        const rejectError = await expectRejection(launchPromise);
+        expect(rejectError.message).to.startWith(
+            `gdbserver has exited with code 1`
+        );
+
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await outputPromise;
     });
@@ -158,30 +149,25 @@ describe('launch remote unexpected session exit', function () {
             this.skip();
         }
         // Rather long timeout, needed to wait through entire launch and exit process
-        const outputPromise = dc.waitForOutputEvent(
-            'server',
-            'gdbserver has hit error',
-            true,
-            WAIT_FOR_EVENT_TIMEOUT
+        const outputPromise = waitForServerOutput(
+            dc,
+            'gdbserver has hit error'
         );
         // Launch
         const invalidGDBServerName = 'invalid_gdbserver';
-        try {
-            await dc.launch(
-                fillDefaults(this.test, {
-                    program: emptyProgram,
-                    target: {
-                        type: 'remote',
-                        server: invalidGDBServerName,
-                    } as TargetLaunchArguments,
-                } as TargetLaunchRequestArguments)
-            );
-        } catch (err) {
-            const errMessage = (err as Error).message;
-            expect(errMessage).to.equal(
-                `gdbserver has hit error Error: spawn ${invalidGDBServerName} ENOENT\n`
-            );
-        }
+        const launchPromise = dc.launch(
+            getDefaults(this.test, {
+                target: {
+                    type: 'remote', // required, overrides don't merge
+                    server: invalidGDBServerName,
+                } as TargetLaunchArguments,
+            })
+        );
+        const rejectError = await expectRejection(launchPromise);
+        expect(rejectError.message).to.startWith(
+            `gdbserver has hit error Error: spawn ${invalidGDBServerName} ENOENT`
+        );
+
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await outputPromise;
     });
@@ -192,28 +178,22 @@ describe('launch remote unexpected session exit', function () {
             this.skip();
         }
         // Rather long timeout, needed to wait through entire launch and exit process
-        const outputPromise = dc.waitForOutputEvent(
-            'server',
-            GDBSERVER_ENDED_REGEXP_STR,
-            true,
-            WAIT_FOR_EVENT_TIMEOUT
+        const outputPromise = waitForServerOutput(
+            dc,
+            GDBSERVER_ENDED_REGEXP_STR
         );
         // Launch
-        try {
-            await dc.launch(
-                fillDefaults(this.test, {
-                    program: emptyProgram,
-                    target: {
-                        type: 'remote',
-                        serverParameters: ['unknown-CLI-arg'],
-                    } as TargetLaunchArguments,
-                } as TargetLaunchRequestArguments)
-            );
-        } catch (err) {
-            const errMessage = (err as Error).message;
-            expect(errMessage.startsWith(`gdbserver has exited with code 1`)).to
-                .be.true;
-        }
+        const launchPromise = dc.launch(
+            getDefaults(this.test, {
+                target: { serverParameters: ['unknown-CLI-arg'] },
+            })
+        );
+
+        const rejectError = await expectRejection(launchPromise);
+        expect(rejectError.message).to.startWith(
+            `gdbserver has exited with code 1`
+        );
+
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await outputPromise;
     });
@@ -231,14 +211,7 @@ describe('launch remote unexpected session exit', function () {
             WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
-        await dc.launch(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments)
-        );
+        await dc.launch(getDefaults(this.test));
         const spawnedOutput = await gdbserverPIDPromise;
         expect(spawnedOutput).to.exist;
         const pidRegExp =
@@ -247,24 +220,12 @@ describe('launch remote unexpected session exit', function () {
         assert(pidMatch?.length === 2);
         const pidNum = parseInt(pidMatch[1]);
         const waitForPromises = [
-            dc.waitForOutputEvent(
-                'server',
-                GDBSERVER_ENDED_REGEXP_STR,
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
-            dc.waitForOutputEvent(
-                'server',
-                'gdb exited',
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
+            waitForServerOutput(dc, GDBSERVER_ENDED_REGEXP_STR),
+            waitForServerOutput(dc, 'gdb exited'),
             dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
         ];
-        // TODO: try using listeners instead of waiting for printed output.
-        // But probably better to go with the (user-visible) output.
-        //process.addListener()
         process.kill(pidNum);
+
         // Any test error will throw here
         await Promise.all(waitForPromises);
     });
@@ -282,14 +243,7 @@ describe('launch remote unexpected session exit', function () {
             WAIT_FOR_EVENT_TIMEOUT
         );
         // Launch
-        await dc.launch(
-            fillDefaults(this.test, {
-                program: emptyProgram,
-                target: {
-                    type: 'remote',
-                } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments)
-        );
+        await dc.launch(getDefaults(this.test));
         const spawnedOutput = await gdbserverPIDPromise;
         expect(spawnedOutput).to.exist;
         const pidRegExp = /Spawned GDB \(PID (\d+)\)/;
@@ -298,15 +252,11 @@ describe('launch remote unexpected session exit', function () {
         const pidNum = parseInt(pidMatch[1]);
         const waitForPromises = [
             // GDB doesn't print anything on termination, only wait for server
-            dc.waitForOutputEvent(
-                'server',
-                GDBSERVER_ENDED_REGEXP_STR,
-                true,
-                WAIT_FOR_EVENT_TIMEOUT
-            ),
+            waitForServerOutput(dc, GDBSERVER_ENDED_REGEXP_STR),
             dc.waitForEvent('terminated', WAIT_FOR_EVENT_TIMEOUT),
         ];
         process.kill(pidNum);
+
         // Any test error will throw here
         await Promise.all(waitForPromises);
     });
