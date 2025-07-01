@@ -203,13 +203,13 @@ export function fillDefaults(
         );
     }
     const args = argsIn !== undefined ? argsIn : ({} as RequestArguments);
-    args.verbose = true;
-    args.logFile = logFileName(test);
-    args.gdb = gdbPath;
-    args.openGdbConsole = openGdbConsole;
-    args.gdbAsync = gdbAsync;
-    args.gdbNonStop = gdbNonStop;
-    args.hardwareBreakpoint = hardwareBreakpoint;
+    args.verbose ??= true;
+    args.logFile ??= logFileName(test);
+    args.gdb ??= gdbPath;
+    args.openGdbConsole ??= openGdbConsole;
+    args.gdbAsync ??= gdbAsync;
+    args.gdbNonStop ??= gdbNonStop;
+    args.hardwareBreakpoint ??= hardwareBreakpoint;
     return args;
 }
 
