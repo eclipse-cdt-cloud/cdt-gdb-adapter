@@ -91,7 +91,28 @@ describe('evaluate request', function () {
         await event;
     });
 
-    it('should not send a warning when evaluating an enable/disable breakpoint command is sent', async function () {
+    it('should send a warning when evaluating a delete instruction breakpoint command is sent', async function () {
+        // set instruction breakpoint
+        await dc.setInstructionBreakpointsRequest({
+            breakpoints: [
+                {
+                    instructionReference: '0x71c',
+                },
+            ],
+        });
+        const event = dc.waitForOutputEvent(
+            'stdout',
+            'warning: "delete" command not working for IDE instruction breakpoints, please delete from GUI'
+        );
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> delete 2',
+            frameId: scope.frame.id,
+        });
+        await event;
+    });
+
+    it('should not send a warning when evaluating an enable/disable command is sent', async function () {
         const event = dc.waitForOutputEvent(
             'stdout',
             'warning: "enable" and "disable" commands cannot be reflected in the GUI'

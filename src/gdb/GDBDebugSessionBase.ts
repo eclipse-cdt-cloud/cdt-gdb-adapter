@@ -267,6 +267,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
         response.body.supportsSteppingGranularity = true;
+        response.body.supportsInstructionBreakpoints = true;
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
@@ -436,6 +437,110 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 await mi.sendExecContinue(this.gdb);
             }
         }
+    }
+
+    private async getInstructionBreakpointList(): Promise<
+        mi.MIBreakpointInfo[]
+    > {
+        // Get a list of existing bps, using gdb-mi command -break-list
+        const existingBps = await mi.sendBreakList(this.gdb);
+        // Filter out all instruction breakpoints
+        const existingInstBreakpointsList =
+            existingBps.BreakpointTable.body.filter(
+                (bp) => bp['original-location']?.[0] === '*'
+            );
+        return existingInstBreakpointsList;
+    }
+
+    protected async setInstructionBreakpointsRequest(
+        response: DebugProtocol.SetInstructionBreakpointsResponse,
+        args: DebugProtocol.SetInstructionBreakpointsArguments
+    ): Promise<void> {
+        await this.pauseIfNeeded();
+        // Get a list of existing instruction breakpoints
+        const existingInstBreakpointsList =
+            await this.getInstructionBreakpointList();
+
+        // List of Instruction breakpoints from vscode
+        const vscodeBreakpointsListBase = args.breakpoints;
+        // adjust vscode breakpoint list to contain final locations, not base + offset
+        const vscodeBreakpointsListFinal = vscodeBreakpointsListBase.map(
+            (bp) => {
+                const location = bp.offset
+                    ? BigInt(bp.instructionReference) + BigInt(bp.offset)
+                    : BigInt(bp.instructionReference);
+                return '0x' + location.toString(16);
+            }
+        );
+
+        // Create a list of breakpoints to be deleted
+        const breaksToDelete = existingInstBreakpointsList.filter(
+            (thisGDBBp) =>
+                !vscodeBreakpointsListFinal.some((bp) => {
+                    const breakpointAddress =
+                        thisGDBBp['original-location']?.slice(1);
+                    return (
+                        breakpointAddress &&
+                        BigInt(breakpointAddress) === BigInt(bp)
+                    );
+                })
+        );
+        const deletesInstBreakpoints = breaksToDelete.map(
+            (thisGDBBp) => thisGDBBp.number
+        );
+
+        // Delete erased breakpoints from gdb
+        if (deletesInstBreakpoints.length > 0) {
+            await mi.sendBreakDelete(this.gdb, {
+                breakpoints: deletesInstBreakpoints,
+            });
+            deletesInstBreakpoints.forEach(
+                (breakpoint) => delete this.logPointMessages[breakpoint]
+            );
+        }
+
+        // Create a set of existing breakpoints based on address for a more efficient lookup on existing breakpoints
+        const existingInstBreakpointsSet = new Set(
+            existingInstBreakpointsList.map((obj) =>
+                BigInt(obj['original-location']?.slice(1)!)
+            )
+        );
+
+        // Filter out breakpoints that needs to be created from existing breakpoints
+        const instBreakpointsToBeCreated = vscodeBreakpointsListFinal.filter(
+            (bp) => !existingInstBreakpointsSet.has(BigInt(bp))
+        );
+
+        // For every breakpoint in the instruction breakpoints, adjust the location (address) to be dereferenced
+        for (const bp of instBreakpointsToBeCreated) {
+            await mi.sendBreakpointInsert(this.gdb, '*' + bp);
+        }
+
+        /* Prepare response */
+
+        // Get Instruction Breakpoints
+        const gdbInstBps = await this.getInstructionBreakpointList();
+        // Fill in breakpoints list to be sent as a response
+        const actual: DebugProtocol.Breakpoint[] = gdbInstBps.map((bp) => {
+            const responseBp: DebugProtocol.Breakpoint = {
+                verified: bp.enabled === 'y',
+                id: parseInt(bp.number, 10),
+                line: parseInt(bp['line']!, 10),
+                source: {
+                    name: bp.fullname,
+                    path: bp.file,
+                },
+                instructionReference: bp['original-location']?.slice(1),
+            };
+            return responseBp;
+        });
+
+        response.body = {
+            breakpoints: actual,
+        };
+        // Send response
+        this.sendResponse(response);
+        await this.continueIfNeeded();
     }
 
     protected async setBreakPointsRequest(
@@ -1230,6 +1335,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return;
     }
 
+    private async isInstructionBreakpoint(
+        breakpointNumber: string
+    ): Promise<boolean> {
+        // Get instruction breakpoint list
+        const existingInstBreakpointsList =
+            await this.getInstructionBreakpointList();
+
+        // Check if breakpoint is part of instruction breakpoints
+        const isInstructionBp = existingInstBreakpointsList.some(
+            (bp) => parseInt(bp.number) === parseInt(breakpointNumber)
+        );
+        return isInstructionBp;
+    }
+
     protected async evaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
@@ -1261,6 +1380,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const regexEnable = new RegExp(
                     '^\\s*enable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
+                const regexDelete = new RegExp(
+                    '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
+                );
                 if (
                     args.expression.slice(1).search(regexDisable) != -1 ||
                     args.expression.slice(1).search(regexEnable) != -1
@@ -1271,6 +1393,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             'stdout'
                         )
                     );
+                }
+                const deleteRegexMatch = args.expression
+                    .slice(1)
+                    .match(regexDelete);
+                if (deleteRegexMatch) {
+                    if (
+                        await this.isInstructionBreakpoint(deleteRegexMatch[1])
+                    ) {
+                        this.sendEvent(
+                            new OutputEvent(
+                                'warning: "delete" command not working for IDE instruction breakpoints, please delete from GUI',
+                                'stdout'
+                            )
+                        );
+                    }
                 }
                 return await this.evaluateRequestGdbCommand(
                     response,
