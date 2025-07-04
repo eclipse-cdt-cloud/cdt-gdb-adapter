@@ -324,8 +324,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.gdbserver.on('exit', async (code, signal) => {
                 const exitmsg =
                     code === null
-                        ? `gdbserver is killed by signal ${signal}\n`
-                        : `gdbserver has exited with code ${code}\n`;
+                        ? `gdbserver killed by signal ${signal}\n`
+                        : `gdbserver exited with code ${code}\n`;
                 this.sendEvent(new OutputEvent(exitmsg, 'server'));
                 if (!gdbserverStartupResolved) {
                     this.logGDBRemote('GDB server exited before ready');
@@ -510,6 +510,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             // Register exit-handler
             this.gdb?.on('exit', async (code, signal) => {
+                if (code !== 0) {
+                    // Only log to debug console if forced exit.
+                    // Other than GDB server, there shouldn't be
+                    // an unexpected GDB exit with exit code 0.
+                    const exitmsg =
+                        code === null
+                            ? `gdb killed by signal ${signal}\n`
+                            : `gdb exited with code ${code}\n`;
+                    this.sendEvent(new OutputEvent(exitmsg, 'server'));
+                }
                 this.logGDBRemote(
                     `GDB exited with code ${code}, signal ${signal}`
                 );
