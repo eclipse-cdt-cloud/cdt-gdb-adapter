@@ -85,6 +85,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
     protected gdbserverFactory?: IGDBServerFactory;
     protected gdbserverProcessManager?: IGDBServerProcessManager;
+    // Cannot use isAttach which would be more appropriate. It influences
+    // behavior after connect (`continue` vs `run` command). Review if
+    // to use `isAttach` instead of `launchGdbServer` and if to introduce
+    // different flag for the post-connect behavior.
+    protected launchGdbServer = false;
     protected killGdbServer = true;
     protected sessionInfo: SessionInfo = {
         state: SessionState.INACTIVE,
@@ -164,7 +169,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         await this.setupCommonLoggerAndBackends(args);
         this.initializeCustomResetCommands(args);
 
-        if (request === 'launch') {
+        if (this.launchGdbServer) {
             const launchArgs = args as TargetLaunchRequestArguments;
             if (
                 launchArgs.target?.serverParameters === undefined &&
@@ -191,6 +196,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 'launch',
                 args
             );
+            this.launchGdbServer = true;
             await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
@@ -631,15 +637,25 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
-    protected async stopGDBServer(): Promise<void> {
+    /**
+     * Terminate GBD server process if still running
+     *
+     * @returns `true` if GDB server was actively terminated,
+     *          `false` if no GDB server process exists or
+     *          already exited
+     */
+    protected async stopGDBServer(): Promise<boolean> {
         return new Promise((resolve, reject) => {
             if (!this.gdbserver || !isProcessActive(this.gdbserver)) {
-                this.logGDBRemote('skip stopping GDB server, already down');
-                resolve();
+                const skipReason = this.launchGdbServer
+                    ? `'attach' connection`
+                    : 'already down';
+                this.logGDBRemote(`skip stopping GDB server, ${skipReason}`);
+                resolve(false);
             } else {
                 this.gdbserver.on('exit', () => {
                     this.logGDBRemote('stopping GDB server completed');
-                    resolve();
+                    resolve(true);
                 });
                 this.logGDBRemote('stopping GDB server');
                 this.gdbserver.kill();
@@ -663,12 +679,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             try {
                 // Depending on disconnect scenario, we may lose
                 // GDB backend while sending commands for graceful
-                // shutdown.
+                // shutdown. Always 'disconnect' for 'attach' connections.
                 if (
                     this.targetType === 'remote' &&
-                    isProcessActive(this.gdbserver)
+                    (!this.launchGdbServer || isProcessActive(this.gdbserver))
                 ) {
-                    // Need to pause first, then disconnect and exit
+                    // Need to pause first, then disconnect and exit.
                     await this.pauseIfNeeded(true);
                     await this.gdb.sendCommand('disconnect');
                 }
@@ -688,10 +704,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (this.killGdbServer) {
             try {
                 // GDB server stop may time out and throw
-                await this.stopGDBServer();
-                this.sendEvent(
-                    new OutputEvent('gdbserver stopped\n', 'server')
-                );
+                if (await this.stopGDBServer()) {
+                    this.sendEvent(
+                        new OutputEvent('gdbserver stopped\n', 'server')
+                    );
+                }
             } catch {
                 // Not much we can do, so ignore errors during
                 // GDB Server disconnect.
