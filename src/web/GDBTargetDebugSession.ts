@@ -336,7 +336,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         });
     }
 
-
     protected abortConnectionIfExitRequested(
         verboseLocation: string,
         errorMessage = 'GDB Server exited, abort connection'
@@ -478,7 +477,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
                 args.initCommands
             );
-
 
             // Load additional code/symbols
             if (args.imageAndSymbols) {
