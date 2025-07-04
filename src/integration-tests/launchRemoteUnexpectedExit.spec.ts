@@ -33,8 +33,7 @@ describe('launch remote unexpected session exit', function () {
     // GDB Server seems to exit in different ways when forcefully shut down. Depending
     // on mode, timing, host OS, etc.
     // We only care about it ending, hence both exit or signalled end satisfy the tests.
-    const GDBSERVER_ENDED_REGEXP_STR =
-        '(gdbserver has exited|gdbserver is killed)';
+    const GDBSERVER_ENDED_REGEXP_STR = 'gdbserver (exited|killed)';
 
     const getDefaults = (
         test?: Mocha.Runnable,
@@ -136,7 +135,7 @@ describe('launch remote unexpected session exit', function () {
 
         const rejectError = await expectRejection(launchPromise);
         expect(rejectError.message).to.startWith(
-            `gdbserver has exited with code 1`
+            `gdbserver exited with code 1`
         );
 
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
@@ -191,7 +190,7 @@ describe('launch remote unexpected session exit', function () {
 
         const rejectError = await expectRejection(launchPromise);
         expect(rejectError.message).to.startWith(
-            `gdbserver has exited with code 1`
+            `gdbserver exited with code 1`
         );
 
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
