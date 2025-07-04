@@ -85,10 +85,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
     protected gdbserverFactory?: IGDBServerFactory;
     protected gdbserverProcessManager?: IGDBServerProcessManager;
-    // Cannot use isAttach which would be more appropriate. It influences
-    // behavior after connect (`continue` vs `run` command). Review if
-    // to use `isAttach` instead of `launchGdbServer` and if to introduce
-    // different flag for the post-connect behavior.
+    // Capture if gdbserver was launched for correct disconnect behavior
     protected launchGdbServer = false;
     protected killGdbServer = true;
     protected sessionInfo: SessionInfo = {
@@ -169,7 +166,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         await this.setupCommonLoggerAndBackends(args);
         this.initializeCustomResetCommands(args);
 
-        if (this.launchGdbServer) {
+        if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
             if (
                 launchArgs.target?.serverParameters === undefined &&
@@ -196,7 +193,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 'launch',
                 args
             );
-            this.launchGdbServer = true;
             await this.attachOrLaunchRequest(response, request, resolvedArgs);
         } catch (err) {
             this.sendErrorResponse(
@@ -234,6 +230,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         const target = args.target;
 
+        this.launchGdbServer = true;
         this.killGdbServer = target.automaticallyKillServer !== false;
 
         // Wait until gdbserver is started and ready to receive connections.
@@ -689,7 +686,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             try {
                 // Depending on disconnect scenario, we may lose
                 // GDB backend while sending commands for graceful
-                // shutdown. Always 'disconnect' for 'attach' connections.
+                // shutdown.
+                // Always 'disconnect' if no gdbserver launched. Indicates
+                // this attached to a running server.
                 if (
                     this.targetType === 'remote' &&
                     (!this.launchGdbServer || isProcessActive(this.gdbserver))
