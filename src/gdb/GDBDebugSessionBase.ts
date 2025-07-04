@@ -500,9 +500,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         // Create a set of existing breakpoints based on address for a more efficient lookup on existing breakpoints
         const existingInstBreakpointsSet = new Set(
-            existingInstBreakpointsList.map((obj) =>
-                BigInt(obj['original-location']?.slice(1)!)
-            )
+            existingInstBreakpointsList
+                .map((obj) =>
+                    obj['original-location']?.slice(1) !== undefined
+                        ? BigInt(obj['original-location']?.slice(1))
+                        : undefined
+                )
+                .filter((num) => num !== undefined)
         );
 
         // Filter out breakpoints that needs to be created from existing breakpoints
@@ -524,7 +528,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const responseBp: DebugProtocol.Breakpoint = {
                 verified: bp.enabled === 'y',
                 id: parseInt(bp.number, 10),
-                line: parseInt(bp['line']!, 10),
+                line: bp['line'] ? parseInt(bp['line'], 10) : undefined,
                 source: {
                     name: bp.fullname,
                     path: bp.file,
@@ -1529,7 +1533,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                       Record<string, string | number | boolean>
                   >(
                       (accum, child) => (
-                          (accum[child.name] = this.convertValue(child)), accum
+                          (accum[child.name] = this.convertValue(child)),
+                          accum
                       ),
                       {}
                   );
