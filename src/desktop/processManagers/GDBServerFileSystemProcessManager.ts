@@ -13,7 +13,11 @@ import { dirname } from 'path';
 import { GDBFileSystemProcessManagerBase } from './GDBFileSystemProcessManagerBase';
 import { TargetLaunchRequestArguments } from '../../types/session';
 import { createEnvValues } from '../../util/createEnvValues';
-import { GetPIDType, IGDBServerProcessManager, IStdioProcess } from '../../types/gdb';
+import {
+    GetPIDType,
+    IGDBServerProcessManager,
+    IStdioProcess,
+} from '../../types/gdb';
 
 type ConvertChildProcess = ChildProcess & GetPIDType;
 
