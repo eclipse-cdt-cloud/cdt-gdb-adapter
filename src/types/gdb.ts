@@ -23,6 +23,8 @@ import {
 } from './session';
 import { GDBDebugSessionBase } from '../gdb/GDBDebugSessionBase';
 
+export type GetPIDType = { getPID: () => number | undefined };
+
 export interface IStdioProcess {
     get stdin(): Writable | null;
     get stdout(): Readable | null;

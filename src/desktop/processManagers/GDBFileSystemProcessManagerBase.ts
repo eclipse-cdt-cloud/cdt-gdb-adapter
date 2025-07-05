@@ -15,9 +15,9 @@ import { ChildProcess, spawn } from 'child_process';
 import { createEnvValues } from '../../util/createEnvValues';
 import { existsSync } from 'fs';
 import { dirname } from 'path';
-import { IStdioProcess } from '../../types/gdb';
+import { GetPIDType, IStdioProcess } from '../../types/gdb';
 
-type ConvertChildProcess = ChildProcess & { getPID: () => number | undefined };
+type ConvertChildProcess = ChildProcess & GetPIDType;
 
 export class GDBFileSystemProcessManagerBase {
     protected proc?: ChildProcess;

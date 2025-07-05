@@ -13,9 +13,9 @@ import { dirname } from 'path';
 import { GDBFileSystemProcessManagerBase } from './GDBFileSystemProcessManagerBase';
 import { TargetLaunchRequestArguments } from '../../types/session';
 import { createEnvValues } from '../../util/createEnvValues';
-import { IGDBServerProcessManager, IStdioProcess } from '../../types/gdb';
+import { GetPIDType, IGDBServerProcessManager, IStdioProcess } from '../../types/gdb';
 
-type ConvertChildProcess = ChildProcess & { getPID: () => number | undefined };
+type ConvertChildProcess = ChildProcess & GetPIDType;
 
 export class GDBServerFileSystemProcessManager
     extends GDBFileSystemProcessManagerBase
