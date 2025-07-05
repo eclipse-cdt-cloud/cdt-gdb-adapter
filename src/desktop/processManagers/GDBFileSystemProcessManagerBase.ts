@@ -17,6 +17,8 @@ import { existsSync } from 'fs';
 import { dirname } from 'path';
 import { IStdioProcess } from '../../types/gdb';
 
+type ConvertChildProcess = ChildProcess & { getPID: () => number | undefined };
+
 export class GDBFileSystemProcessManagerBase {
     protected proc?: ChildProcess;
     protected token = 0;
@@ -54,10 +56,8 @@ export class GDBFileSystemProcessManagerBase {
         const env = this.getEnvironment(options.additionalEnvironment);
 
         this.proc = spawn(executable, args, { env, cwd: options.cwd });
-        return {
-            ...this.proc,
-            getPID: () => this.proc?.pid,
-        } as unknown as IStdioProcess;
+        (this.proc as ConvertChildProcess).getPID = () => this.proc?.pid;
+        return this.proc as ConvertChildProcess;
     }
 
     public async kill() {

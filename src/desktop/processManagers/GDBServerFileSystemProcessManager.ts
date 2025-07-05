@@ -15,6 +15,8 @@ import { TargetLaunchRequestArguments } from '../../types/session';
 import { createEnvValues } from '../../util/createEnvValues';
 import { IGDBServerProcessManager, IStdioProcess } from '../../types/gdb';
 
+type ConvertChildProcess = ChildProcess & { getPID: () => number | undefined };
+
 export class GDBServerFileSystemProcessManager
     extends GDBFileSystemProcessManagerBase
     implements IGDBServerProcessManager
@@ -62,10 +64,8 @@ export class GDBServerFileSystemProcessManager
             cwd: serverCwd,
             env: serverEnvironment,
         });
-        return {
-            ...this.proc,
-            getPID: () => this.proc?.pid,
-        } as unknown as IStdioProcess;
+        (this.proc as ConvertChildProcess).getPID = () => this.proc?.pid;
+        return this.proc as ConvertChildProcess;
     }
     public async stop(): Promise<void> {
         return new Promise((resolve, reject) => {
