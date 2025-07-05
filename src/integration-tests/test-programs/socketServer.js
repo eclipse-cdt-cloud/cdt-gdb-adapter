@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const net = require('net');
 const os = require('os');
 

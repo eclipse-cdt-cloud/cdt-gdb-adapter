@@ -15,7 +15,9 @@ import { ChildProcess, spawn } from 'child_process';
 import { createEnvValues } from '../../util/createEnvValues';
 import { existsSync } from 'fs';
 import { dirname } from 'path';
-import { IStdioProcess } from '../../types/gdb';
+import { GetPIDType, IStdioProcess } from '../../types/gdb';
+
+type ConvertChildProcess = ChildProcess & GetPIDType;
 
 export class GDBFileSystemProcessManagerBase {
     protected proc?: ChildProcess;
@@ -54,7 +56,8 @@ export class GDBFileSystemProcessManagerBase {
         const env = this.getEnvironment(options.additionalEnvironment);
 
         this.proc = spawn(executable, args, { env, cwd: options.cwd });
-        return this.proc;
+        (this.proc as ConvertChildProcess).getPID = () => this.proc?.pid;
+        return this.proc as ConvertChildProcess;
     }
 
     public async kill() {

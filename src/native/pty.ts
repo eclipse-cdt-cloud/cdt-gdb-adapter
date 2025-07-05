@@ -23,7 +23,7 @@ export class Pty extends File {
     public readonly slave_name: string;
 
     constructor() {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const pty = require('../../build/Release/pty.node');
         const handles = pty.create_pty() as PtyHandles;
         super(handles.master_fd);

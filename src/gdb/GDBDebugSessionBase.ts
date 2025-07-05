@@ -156,7 +156,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Handle requests not defined in the debug adapter protocol.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected customRequest(
         command: string,
         response: DebugProtocol.Response,
@@ -501,9 +500,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         // Create a set of existing breakpoints based on address for a more efficient lookup on existing breakpoints
         const existingInstBreakpointsSet = new Set(
-            existingInstBreakpointsList.map((obj) =>
-                BigInt(obj['original-location']?.slice(1)!)
-            )
+            existingInstBreakpointsList
+                .map((obj) =>
+                    obj['original-location']?.slice(1) !== undefined
+                        ? BigInt(obj['original-location']?.slice(1))
+                        : undefined
+                )
+                .filter((num) => num !== undefined)
         );
 
         // Filter out breakpoints that needs to be created from existing breakpoints
@@ -525,7 +528,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const responseBp: DebugProtocol.Breakpoint = {
                 verified: bp.enabled === 'y',
                 id: parseInt(bp.number, 10),
-                line: parseInt(bp['line']!, 10),
+                line: bp['line'] ? parseInt(bp['line'], 10) : undefined,
                 source: {
                     name: bp.fullname,
                     path: bp.file,
@@ -1176,9 +1179,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 response.body.variables =
                     await this.handleVariableRequestRegister(ref);
             } else if (ref.type === 'frame') {
-                response.body.variables = await this.handleVariableRequestFrame(
-                    ref
-                );
+                response.body.variables =
+                    await this.handleVariableRequestFrame(ref);
             } else if (ref.type === 'object') {
                 response.body.variables =
                     await this.handleVariableRequestObject(ref);
@@ -1276,7 +1278,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                     expression: args.value,
                                 });
                                 break;
-                            } catch (err) {
+                            } catch {
                                 continue; // try another child
                             }
                         }
@@ -1531,7 +1533,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                       Record<string, string | number | boolean>
                   >(
                       (accum, child) => (
-                          (accum[child.name] = this.convertValue(child)), accum
+                          (accum[child.name] = this.convertValue(child)),
+                          accum
                       ),
                       {}
                   );
@@ -1560,7 +1563,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Implement the cdt-gdb-adapter/Memory request.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected async memoryRequest(response: MemoryResponse, args: any) {
         try {
             if (typeof args.address !== 'string') {

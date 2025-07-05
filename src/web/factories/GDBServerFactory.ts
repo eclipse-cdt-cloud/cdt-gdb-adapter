@@ -16,7 +16,7 @@ import { GDBServerWebProcessManager } from '../processManagers/GDBServerWebProce
 
 export class GDBServerFactory implements IGDBServerFactory {
     async createGDBServerManager(
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+        _args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ): Promise<IGDBServerProcessManager> {
         return new GDBServerWebProcessManager();
     }
