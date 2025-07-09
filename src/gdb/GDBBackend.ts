@@ -140,7 +140,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
             if (!this.proc) {
                 throw new Error('GDB is not running, nothing to interrupt');
             }
-            logger.verbose(`GDB signal: SIGINT to pid ${this.proc.pid}`);
+            logger.verbose(`GDB signal: SIGINT to pid ${this.proc.getPID()}`);
             this.proc.kill('SIGINT');
         }
     }

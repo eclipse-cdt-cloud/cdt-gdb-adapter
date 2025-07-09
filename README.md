@@ -6,6 +6,23 @@ We are at least learning from it.
 
 The source code can be found in the following repository: https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter
 
+## Prerequisites
+
+- Install **Node.js®** on your machine and ensure it is on your path.
+    - The currently minimum required version is 20.x (LTS).
+- Install **Yarn** which is used to build and execute scripts in this repository:
+    ```sh
+    > npm install -g yarn
+    ```
+- You need the following tools to run [`node-gyp`](https://github.com/nodejs/node-gyp)
+  as part of the `nativebuild` script. This is optional during development and enables
+  the use of the `openGdbConsole` configuration option on Linux.
+    - Install **Python** version 3.8 or later.
+    - Install a valid C++ toolchain for your host OS.
+    - See the `node-gyp`
+      [installation manual](https://github.com/nodejs/node-gyp?tab=readme-ov-file#installation)
+      for more details.
+
 ## Building
 
 Build is pretty simple.

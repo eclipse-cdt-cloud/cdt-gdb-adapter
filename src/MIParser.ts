@@ -194,7 +194,7 @@ export class MIParser {
                 this.back();
                 let key = 0;
                 while (c !== '}') {
-                    let value = this.handleCString();
+                    const value = this.handleCString();
                     if (value) result[key++] = value;
                     c = this.next();
                 }

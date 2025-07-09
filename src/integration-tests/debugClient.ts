@@ -17,7 +17,7 @@ import { expect } from 'chai';
 
 export type ReverseRequestHandler<
     A = any,
-    R extends DebugProtocol.Response = DebugProtocol.Response
+    R extends DebugProtocol.Response = DebugProtocol.Response,
 > = (args: A) => Promise<R['body']>;
 export interface ReverseRequestHandlers {
     [key: string]: ReverseRequestHandler | undefined;

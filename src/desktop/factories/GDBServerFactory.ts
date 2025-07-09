@@ -16,7 +16,7 @@ import { IGDBServerFactory, IGDBServerProcessManager } from '../../types/gdb';
 
 export class GDBServerFactory implements IGDBServerFactory {
     async createGDBServerManager(
-        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+        _args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ): Promise<IGDBServerProcessManager> {
         return new GDBServerFileSystemProcessManager();
     }

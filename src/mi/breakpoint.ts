@@ -29,10 +29,10 @@ export interface MIBreakInsertResponse extends MIResponse {
     multiple?: MIBreakpointInfo[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MIBreakDeleteRequest {}
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MIBreakDeleteResponse extends MIResponse {}
 
 export interface MIBreakListResponse extends MIResponse {
@@ -159,9 +159,8 @@ export async function sendBreakpointInsert(
     const hwBreakpoint = isHwBreakpoint ? '-h ' : '';
     const pend = options?.pending ? '-f ' : '';
     const command = `-break-insert ${temp}${hwBreakpoint}${ignore}${pend}${location}`;
-    const result = await gdb.sendCommand<MIBreakInsertResponseInternal>(
-        command
-    );
+    const result =
+        await gdb.sendCommand<MIBreakInsertResponseInternal>(command);
     const clean = cleanupBreakpointResponse(result);
     if (options?.condition) {
         await gdb.sendCommand(

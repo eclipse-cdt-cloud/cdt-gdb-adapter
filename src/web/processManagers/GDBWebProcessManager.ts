@@ -16,7 +16,7 @@ import { IGDBProcessManager, IStdioProcess } from '../../types/gdb';
 
 export class GDBWebProcessManager implements IGDBProcessManager {
     public async getVersion(
-        requestArgs?:
+        _requestArgs?:
             | LaunchRequestArguments
             | AttachRequestArguments
             | undefined
@@ -24,7 +24,7 @@ export class GDBWebProcessManager implements IGDBProcessManager {
         throw new Error('Method not implemented yet!');
     }
     public async start(
-        requestArgs: TargetLaunchRequestArguments
+        _requestArgs: TargetLaunchRequestArguments
     ): Promise<IStdioProcess> {
         throw new Error('Method not implemented yet!');
     }
