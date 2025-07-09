@@ -53,7 +53,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     ) {
         this.gdbVersion = await this.processManager.getVersion(requestArgs);
         this.proc = await this.processManager.start(requestArgs);
-        logger.verbose(`Spawned GDB (PID ${this.proc.pid})`);
+        logger.verbose(`Spawned GDB (PID ${this.proc.getPID()})`);
         if (!this.proc || this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }

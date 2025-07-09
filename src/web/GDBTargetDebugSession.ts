@@ -231,7 +231,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 );
             }
             this.gdbserver = await this.gdbserverProcessManager.start(args);
-            this.logGDBRemote(`Spawned GDB Server (PID ${this.gdbserver.pid})`);
+            this.logGDBRemote(
+                `Spawned GDB Server (PID ${this.gdbserver.getPID()})`
+            );
             await this.setSessionState(SessionState.GDBSERVER_LAUNCHED);
 
             let gdbserverStartupResolved = false; // GDB Server ready for connection
