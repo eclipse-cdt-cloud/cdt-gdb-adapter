@@ -11,7 +11,10 @@
 import { expect } from 'chai';
 import * as path from 'path';
 import * as os from 'os';
-import { LaunchRequestArguments } from '../types/session';
+import {
+    LaunchRequestArguments,
+    TargetLaunchRequestArguments,
+} from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
@@ -48,6 +51,30 @@ describe('launch', function () {
                 path: emptySrc,
                 line: 3,
             }
+        );
+    });
+
+    it('receives an error when no port is provided nor a suitable regex', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+        const errorMessage = await new Promise<Error>((resolve, reject) => {
+            dc.launchRequest(
+                fillDefaults(this.test, {
+                    program: emptyProgram,
+                    target: {
+                        serverPortRegExp: 'Not a correct regex',
+                        portDetectionTimeout: 1000,
+                    },
+                } as TargetLaunchRequestArguments)
+            )
+                .then(reject)
+                .catch(resolve);
+        });
+        expect(errorMessage.message).to.satisfy(
+            (msg: string) =>
+                msg.includes('Error') &&
+                msg.includes('port number not specified or regex is incorrect')
         );
     });
 
