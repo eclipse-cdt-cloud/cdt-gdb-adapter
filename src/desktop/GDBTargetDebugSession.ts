@@ -88,7 +88,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
             await this.startGDBServer(launchArgs);
         }
-
         await this.startGDBAndAttachToTarget(response, args);
     }
 
@@ -165,6 +164,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         : 0
                 );
             } else {
+                const timeoutForFindingPort = setTimeout(() => {
+                    reject(
+                        'Error: Cannot connect, port number not specified or regex is incorrect'
+                    );
+                }, target.portDetectionTimeout ?? 10000);
                 checkTargetPort = (data: any) => {
                     const regex = new RegExp(
                         target.serverPortRegExp
@@ -173,6 +177,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     );
                     const m = regex.exec(data);
                     if (m !== null) {
+                        clearTimeout(timeoutForFindingPort);
                         target.port = m[1];
                         checkTargetPort = (_data: any) => {
                             // do nothing now that we have our port
