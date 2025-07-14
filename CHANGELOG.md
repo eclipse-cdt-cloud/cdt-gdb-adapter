@@ -1,8 +1,10 @@
 # Change Log
 
-## Unreleased
+## 1.1.0
 
-- Updated NPM dependencies, Node and Python requirements, and Typescript version. Code changes as required for this.
+- Fixes [#361](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/361): Fixes and robustness around remote target GDB connect, disconnect, and unexpected connection loss/termination of gdb and gdbserver.
+- Enhancement [PR #384](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/384): Error handling for missing remote configuration like port.
+- Implements [#381](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/381): Update NPM dependencies, Node and Python requirements, and Typescript version. Code changes as required for this.
 
 ## 1.0.11
 
