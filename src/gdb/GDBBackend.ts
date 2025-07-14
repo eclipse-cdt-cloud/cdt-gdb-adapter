@@ -24,11 +24,15 @@ import { VarManager } from '../varManager';
 import { IGDBBackend, IGDBProcessManager, IStdioProcess } from '../types/gdb';
 import { MIParser } from '../MIParser';
 import { compareVersions } from '../util/compareVersions';
+import { isProcessActive } from '../util/processes';
+
+type WriteCallback = (error: Error | null | undefined) => void;
 
 export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     protected parser = new MIParser(this);
     protected varMgr = new VarManager(this);
     protected out?: Writable;
+    protected pendingOutCallbacks = new Set<WriteCallback>();
     protected token = 0;
     protected proc?: IStdioProcess;
     private gdbVersion?: string;
@@ -49,10 +53,24 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     ) {
         this.gdbVersion = await this.processManager.getVersion(requestArgs);
         this.proc = await this.processManager.start(requestArgs);
-        if (this.proc.stdin == null || this.proc.stdout == null) {
+        logger.verbose(`Spawned GDB (PID ${this.proc.getPID()})`);
+        if (!this.proc || this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
+        this.proc.on('exit', (code, signal) => {
+            this.emit('exit', code, signal);
+        });
         this.out = this.proc.stdin;
+        this.out.on('close', () => {
+            // Clean up when pipe gets closed.
+            // Reject pending pipe writes, they won't be served anymore
+            this.pendingOutCallbacks.forEach((callback) =>
+                callback(new Error('GDB command pipe closed'))
+            );
+            this.pendingOutCallbacks.clear();
+            // Cancel MI parser queue to avoid stalling on disconnect
+            this.parser.cancelQueue();
+        });
         this.hardwareBreakpoint = requestArgs.hardwareBreakpoint ? true : false;
         await this.parser.parse(this.proc.stdout);
         if (this.proc.stderr) {
@@ -169,26 +187,48 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                    not the stack of reading the stream and parsing the message.
                 */
                 const failure = new Error();
+                const writeCallback: WriteCallback = (error) => {
+                    // Remove from pending callbacks, no longer pending.
+                    this.pendingOutCallbacks.delete(writeCallback);
+                    // Reject command on pipe error, only way to recover from potential
+                    // race condition between command in flight and GDB (forced) shutdown.
+                    if (error) {
+                        reject(error);
+                    }
+                };
                 this.parser.queueCommand(token, (resultClass, resultData) => {
                     switch (resultClass) {
                         case 'done':
                         case 'running':
                         case 'connected':
                         case 'exit':
+                            logger.verbose(
+                                `GDB command: ${token} ${command} completed with data`
+                            );
                             resolve(resultData);
                             break;
                         case 'error':
                             failure.message = resultData.msg;
+                            logger.verbose(
+                                `GDB command: ${token} ${command} failed with '${failure.message}'`
+                            );
                             reject(failure);
                             break;
                         default:
                             failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
                                 resultData
                             )}`;
+                            logger.verbose(
+                                `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
+                            );
                             reject(failure);
                     }
                 });
-                this.out.write(`${token}${command}\n`);
+                logger.verbose(`GDB write command: ${token} ${command}`);
+                // Add callback for this context to set of pending callbacks.
+                // Means to reject pending writes on pipe loss.
+                this.pendingOutCallbacks.add(writeCallback);
+                this.out.write(`${token}${command}\n`, writeCallback);
             } else {
                 reject(new Error('gdb is not running.'));
             }
@@ -251,6 +291,10 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public sendGDBExit() {
         return this.sendCommand('-gdb-exit');
+    }
+
+    public isActive(): boolean {
+        return isProcessActive(this.proc);
     }
 
     protected nextToken() {

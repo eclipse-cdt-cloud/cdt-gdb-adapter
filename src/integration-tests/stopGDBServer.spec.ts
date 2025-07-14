@@ -26,7 +26,7 @@ describe('stop gdbserver', function () {
     });
 
     afterEach(async function () {
-        const e = dc.waitForOutputEvent('server', 'gdbserver stopped');
+        const e = dc.waitForOutputEvent('server', 'gdbserver stopped\n');
         await dc.stop();
         await e;
     });
