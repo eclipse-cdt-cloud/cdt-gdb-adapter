@@ -62,6 +62,12 @@ const numberRegex = /^-?\d+(?:\.\d*)?$/; // match only numbers (integers and flo
 const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C number types
 const cBoolRegex = /\bbool$/; // match boolean
 
+// Interface for output category pair
+interface OutputCategory {
+    output: string;
+    category: string;
+}
+
 export function hexToBase64(hex: string): string {
     // The buffer will ignore incomplete bytes (unpaired digits), so we need to catch that early
     if (hex.length % 2 !== 0) {
@@ -271,17 +277,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
-    private async switchOutputToError(
+    private switchOutputToError(
         input: string,
         category: string
-    ): Promise<{ output: string; category: string }> {
+    ): OutputCategory {
         const outputToError =
             'Breakpoint number limit is reached, erase extra breakpoints';
-        if (input.startsWith('Cannot insert hardware breakpoint')) {
-            return { output: outputToError, category: 'stderr' };
-        } else {
-            return { output: outputToError, category: category };
-        }
+        const returnPair: OutputCategory = input.startsWith(
+            'Cannot insert hardware breakpoint'
+        )
+            ? { output: outputToError, category: 'stderr' }
+            : { output: input, category: category };
+        return returnPair;
     }
 
     protected async setupCommonLoggerAndBackends(
@@ -296,8 +303,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.gdb = await this.backendFactory.createBackend(this, manager, args);
 
         this.gdb.on('consoleStreamOutput', (output, category) => {
-            this.switchOutputToError(output, category);
-            this.sendEvent(new OutputEvent(output, category));
+            const messageToPrint = this.switchOutputToError(output, category);
+            this.sendEvent(
+                new OutputEvent(messageToPrint.output, messageToPrint.category)
+            );
         });
 
         this.gdb.on('execAsync', (resultClass, resultData) =>
