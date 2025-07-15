@@ -270,9 +270,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
-    private async switchOutputToError(output: string): Promise<void> {
-        this.sendEvent(new OutputEvent(output, 'stderr'));
+
+    private async switchOutputToError(
+        input: string,
+        category: string
+    ): Promise<{ output: string; category: string }> {
+        const outputToError =
+            'Breakpoint number limit is reached, erase extra breakpoints';
+        if (input.startsWith('Cannot insert hardware breakpoint')) {
+            return { output: outputToError, category: 'stderr' };
+        } else {
+            return { output: outputToError, category: category };
+        }
     }
+
     protected async setupCommonLoggerAndBackends(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
@@ -285,13 +296,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.gdb = await this.backendFactory.createBackend(this, manager, args);
 
         this.gdb.on('consoleStreamOutput', (output, category) => {
-            if (output.startsWith('Cannot insert hardware breakpoint')) {
-                const outputToError =
-                    'Breakpoint number limit is reached, erase extra breakpoints';
-                this.switchOutputToError(outputToError);
-            } else {
-                this.sendEvent(new OutputEvent(output, category));
-            }
+            this.switchOutputToError(output, category);
+            this.sendEvent(new OutputEvent(output, category));
         });
 
         this.gdb.on('execAsync', (resultClass, resultData) =>
