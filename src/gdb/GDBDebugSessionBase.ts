@@ -501,7 +501,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 if (this.gdb.isNonStopMode()) {
                     if (this.waitPausedThreadId === 0) {
-                        this.waitPausedThreadId = await this.gdb.queryCurrentThreadId();
+                        this.waitPausedThreadId =
+                            await this.gdb.queryCurrentThreadId();
                     }
                     this.gdb.pause(this.waitPausedThreadId);
                 } else {
@@ -529,7 +530,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 } else if (this.waitPausedNeeded) {
                     if (this.gdb.isNonStopMode()) {
-                        await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+                        await mi.sendExecContinue(
+                            this.gdb,
+                            this.waitPausedThreadId
+                        );
                     } else {
                         await mi.sendExecContinue(this.gdb);
                     }
