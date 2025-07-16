@@ -132,6 +132,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // set to true if the target was interrupted where inteneded, and should
     // therefore be resumed after breakpoints are inserted.
     protected waitPausedNeeded = false;
+    // reference count of operations requiring pausing, to make sure only the
+    // first of them pauses, and the last to complete resumes
+    protected pauseCount = 0;
     protected isInitialized = false;
 
     /**
@@ -430,49 +433,56 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async pauseIfNeeded(requireAsync: true): Promise<void>;
 
     protected async pauseIfNeeded(requireAsync = false): Promise<void> {
-        this.waitPausedNeeded =
-            this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
-
-        if (this.waitPausedNeeded) {
-            let prevResolve = this.waitPaused;
-            this.waitPausedPromise = new Promise<void>((resolve) => {
-                this.waitPaused = resolve;
-            });
-            if (prevResolve) {
-                // This must be the second or further call before the stop
-                // notification from the first pause arrived, so the first
-                // pause is still waiting on its promise (or hasn't even gotten
-                // there yet because it's still awaiting the thread id) and we
-                // mustn't lose its resolve function, rather the next stop
-                // notification to arrive must resolve both promises, so
-                // daisy-chain it.
-                this.waitPausedPromise.then(prevResolve);
-                // Also, we should keep the same waitPausedthreadId.
-            } else {
-                this.waitPausedThreadId = 0;
-            }
-            if (this.gdb.isNonStopMode()) {
-                if (this.waitPausedThreadId === 0) {
-                    this.waitPausedThreadId = await this.gdb.queryCurrentThreadId();
+        this.pauseCount++;
+        if (this.pauseCount === 1) {
+            this.waitPausedNeeded =
+                this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
+            if (this.waitPausedNeeded) {
+                let prevResolve = this.waitPaused;
+                this.waitPausedPromise = new Promise<void>((resolve) => {
+                    this.waitPaused = resolve;
+                });
+                if (prevResolve) {
+                    // We must have done pause, continue, pause before the stop
+                    // notification from the first pause arrived, so the first
+                    // pause is still waiting on its promise (or hasn't even gotten
+                    // there yet because it's still awaiting the thread id) and we
+                    // mustn't lose its resolve function, rather the next stop
+                    // notification to arrive must resolve both promises, so
+                    // daisy-chain it.
+                    this.waitPausedPromise.then(prevResolve);
+                    // Also, we should keep the same waitPausedthreadId.
+                } else {
+                    this.waitPausedThreadId = 0;
                 }
-                this.gdb.pause(this.waitPausedThreadId);
-            } else {
-                this.gdb.pause();
+                if (this.gdb.isNonStopMode()) {
+                    if (this.waitPausedThreadId === 0) {
+                        this.waitPausedThreadId = await this.gdb.queryCurrentThreadId();
+                    }
+                    this.gdb.pause(this.waitPausedThreadId);
+                } else {
+                    this.gdb.pause();
+                }
             }
-
-            // This promise resolves when handling GDBAsync for the "stopped"
-            // result class, which indicates that the call to `GDBBackend::pause`
-            // is actually finished.
-            await this.waitPausedPromise;
         }
+
+        // This promise resolves when handling GDBAsync for the "stopped"
+        // result class, which indicates that the call to `GDBBackend::pause`
+        // is actually finished.
+        await this.waitPausedPromise;
     }
 
     protected async continueIfNeeded(): Promise<void> {
-        if (this.waitPausedNeeded) {
-            if (this.gdb.isNonStopMode()) {
-                await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
-            } else {
-                await mi.sendExecContinue(this.gdb);
+        if (this.pauseCount > 0) {
+            this.pauseCount--;
+            if (this.pauseCount === 0) {
+                if (this.waitPausedNeeded) {
+                    if (this.gdb.isNonStopMode()) {
+                        await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+                    } else {
+                        await mi.sendExecContinue(this.gdb);
+                    }
+                }
             }
         }
     }
