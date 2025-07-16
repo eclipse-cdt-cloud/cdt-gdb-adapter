@@ -499,7 +499,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 if (this.gdb.isNonStopMode()) {
                     if (this.waitPausedThreadId === 0) {
-                        const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+                        const threadInfo = await mi.sendThreadInfoRequest(
+                            this.gdb,
+                            {}
+                        );
 
                         this.waitPausedThreadId = parseInt(
                             threadInfo['current-thread-id'],
@@ -532,7 +535,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 } else if (this.waitPausedNeeded) {
                     if (this.gdb.isNonStopMode()) {
-                        await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
+                        await mi.sendExecContinue(
+                            this.gdb,
+                            this.waitPausedThreadId
+                        );
                     } else {
                         await mi.sendExecContinue(this.gdb);
                     }
