@@ -123,6 +123,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected threads: ThreadWithStatus[] = [];
 
     // promise that resolves once the target stops so breakpoints can be inserted
+    protected waitPausedPromise?: Promise<void>;
+    // resolve function of waitPausedPromise while waiting, undefined otherwise
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
     // the thread id that we were waiting for
     protected waitPausedThreadId = 0;
@@ -430,16 +432,32 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
 
         if (this.waitPausedNeeded) {
-            const waitPromise = new Promise<void>((resolve) => {
+            let prevResolve = this.waitPaused;
+            this.waitPausedPromise = new Promise<void>((resolve) => {
                 this.waitPaused = resolve;
             });
+            if (prevResolve) {
+                // This must be the second or further call before the stop
+                // notification from the first pause arrived, so the first
+                // pause is still waiting on its promise (or hasn't even gotten
+                // there yet because it's still awaiting thread info) and we
+                // mustn't lose its resolve function, rather the next stop
+                // notification to arrive must resolve both promises, so
+                // daisy-chain it.
+                this.waitPausedPromise.then(prevResolve);
+                // Also, we should keep the same waitPausedthreadId.
+            } else {
+                this.waitPausedThreadId = 0;
+            }
             if (this.gdb.isNonStopMode()) {
-                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
+                if (this.waitPausedThreadId === 0) {
+                    const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
 
-                this.waitPausedThreadId = parseInt(
-                    threadInfo['current-thread-id'],
-                    10
-                );
+                    this.waitPausedThreadId = parseInt(
+                        threadInfo['current-thread-id'],
+                        10
+                    );
+                }
                 this.gdb.pause(this.waitPausedThreadId);
             } else {
                 this.gdb.pause();
@@ -448,7 +466,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // This promise resolves when handling GDBAsync for the "stopped"
             // result class, which indicates that the call to `GDBBackend::pause`
             // is actually finished.
-            await waitPromise;
+            await this.waitPausedPromise;
         }
     }
 
