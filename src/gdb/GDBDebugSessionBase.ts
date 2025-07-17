@@ -277,10 +277,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
-    private switchOutputToError(
-        input: string,
-        category: string
-    ): StreamOutput {
+    private switchOutputToError(input: string, category: string): StreamOutput {
         const outputToError =
             'HW breakpoint limit reached, reduce set breakpoints';
         const returnPair: StreamOutput = input.startsWith(
