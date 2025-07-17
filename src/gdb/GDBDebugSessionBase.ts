@@ -62,6 +62,12 @@ const numberRegex = /^-?\d+(?:\.\d*)?$/; // match only numbers (integers and flo
 const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C number types
 const cBoolRegex = /\bbool$/; // match boolean
 
+// Interface for output category pair
+interface StreamOutput {
+    output: string;
+    category: string;
+}
+
 export function hexToBase64(hex: string): string {
     // The buffer will ignore incomplete bytes (unpaired digits), so we need to catch that early
     if (hex.length % 2 !== 0) {
@@ -271,6 +277,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
+    private switchOutputToError(input: string, category: string): StreamOutput {
+        const outputToError =
+            'HW breakpoint limit reached, reduce set breakpoints';
+        const returnPair: StreamOutput = input.startsWith(
+            'Cannot insert hardware breakpoint'
+        )
+            ? { output: outputToError, category: 'stderr' }
+            : { output: input, category: category };
+        return returnPair;
+    }
+
     protected async setupCommonLoggerAndBackends(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
@@ -283,7 +300,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.gdb = await this.backendFactory.createBackend(this, manager, args);
 
         this.gdb.on('consoleStreamOutput', (output, category) => {
-            this.sendEvent(new OutputEvent(output, category));
+            const messageToPrint = this.switchOutputToError(output, category);
+            this.sendEvent(
+                new OutputEvent(messageToPrint.output, messageToPrint.category)
+            );
         });
 
         this.gdb.on('execAsync', (resultClass, resultData) =>
