@@ -63,7 +63,7 @@ const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C n
 const cBoolRegex = /\bbool$/; // match boolean
 
 // Interface for output category pair
-interface OutputCategory {
+interface StreamOutput {
     output: string;
     category: string;
 }
