@@ -280,10 +280,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     private switchOutputToError(
         input: string,
         category: string
-    ): OutputCategory {
+    ): StreamOutput {
         const outputToError =
-            'Breakpoint number limit is reached, erase extra breakpoints';
-        const returnPair: OutputCategory = input.startsWith(
+            'HW breakpoint limit reached, reduce set breakpoints';
+        const returnPair: StreamOutput = input.startsWith(
             'Cannot insert hardware breakpoint'
         )
             ? { output: outputToError, category: 'stderr' }
