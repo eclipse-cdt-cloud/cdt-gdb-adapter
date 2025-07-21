@@ -51,4 +51,17 @@ describe('attach', function () {
         await dc.attachHitBreakpoint(attachArgs, { line: 25, path: src });
         expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
     });
+
+    it('can attach and hit a breakpoint with no program specified', async function () {
+        if (isRemoteTest) {
+            // attachRemote.spec.ts is the test for when isRemoteTest
+            this.skip();
+        }
+
+        const attachArgs = fillDefaults(this.test, {
+            processId: `${inferior.pid}`,
+        } as AttachRequestArguments);
+        await dc.attachHitBreakpoint(attachArgs, { line: 25, path: src });
+        expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
+    });
 });

@@ -169,8 +169,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
             if (
-                launchArgs.target?.serverParameters === undefined &&
-                !launchArgs.program
+                launchArgs.target?.serverParameters === undefined
             ) {
                 this.sendErrorResponse(
                     response,
@@ -534,9 +533,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             // Load files and configure GDB
-            await this.executeOrAbort(
-                this.gdb.sendFileExecAndSymbols.bind(this.gdb)
-            )(args.program);
+            if(args.program !== undefined && args.program !== '') {
+                await this.executeOrAbort(
+                    this.gdb.sendFileExecAndSymbols.bind(this.gdb)
+                )(args.program);
+            }
             await this.executeOrAbort(
                 this.gdb.sendEnablePrettyPrint.bind(this.gdb)
             )();
