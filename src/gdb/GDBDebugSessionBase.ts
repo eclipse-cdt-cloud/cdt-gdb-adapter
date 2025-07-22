@@ -302,15 +302,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         await this.setupCommonLoggerAndBackends(args);
 
         await this.spawn(args);
-        if (!args.program) {
-            this.sendErrorResponse(
-                response,
-                1,
-                'The program must be specified in the request arguments'
-            );
-            return;
+        if (request == 'launch') {
+            if (!args.program) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'The program must be specified in the request arguments'
+                );
+                return;
+            }
         }
-        await this.gdb.sendFileExecAndSymbols(args.program);
+        if (args.program) {
+            await this.gdb.sendFileExecAndSymbols(args.program);
+        }
         await this.gdb.sendEnablePrettyPrint();
 
         if (request === 'attach') {
