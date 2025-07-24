@@ -27,7 +27,7 @@ import { expect } from 'chai';
 describe('attach remote', function () {
     let dc: CdtDebugClient;
     let gdbserver: cp.ChildProcess;
-    let port: string;
+    let port: string | undefined = undefined;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
 
@@ -40,7 +40,7 @@ describe('attach remote', function () {
                 cwd: testProgramsDir,
             }
         );
-        port = ''; // reset port
+        port = undefined; // reset port
         port = await new Promise<string>((resolve, reject) => {
             const regex = new RegExp(/Listening on port ([0-9]+)\r?\n/);
             let accumulatedStderr = '';
