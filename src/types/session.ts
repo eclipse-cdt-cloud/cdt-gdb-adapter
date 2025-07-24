@@ -17,7 +17,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdbNonStop?: boolean;
     // defaults to the environment of the process of the adapter
     environment?: Record<string, string | null>;
-    program: string;
+    program?: string;
     // defaults to dirname of the program, if present or the cwd of the process of the adapter
     cwd?: string;
     verbose?: boolean;
