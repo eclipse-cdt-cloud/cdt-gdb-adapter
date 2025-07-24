@@ -10,6 +10,7 @@
 
 import * as cp from 'child_process';
 import * as path from 'path';
+import * as os from 'os';
 import {
     TargetAttachRequestArguments,
     TargetAttachArguments,
@@ -26,7 +27,7 @@ import { expect } from 'chai';
 describe('attach remote', function () {
     let dc: CdtDebugClient;
     let gdbserver: cp.ChildProcess;
-    let port: string;
+    let port: string | undefined = undefined;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
 
@@ -39,6 +40,7 @@ describe('attach remote', function () {
                 cwd: testProgramsDir,
             }
         );
+        port = undefined; // reset port
         port = await new Promise<string>((resolve, reject) => {
             const regex = new RegExp(/Listening on port ([0-9]+)\r?\n/);
             let accumulatedStderr = '';
@@ -67,6 +69,21 @@ describe('attach remote', function () {
     it('can attach remote and hit a breakpoint', async function () {
         const attachArgs = fillDefaults(this.test, {
             program: emptyProgram,
+            target: {
+                type: 'remote',
+                parameters: [`localhost:${port}`],
+            } as TargetAttachArguments,
+        } as TargetAttachRequestArguments);
+        await dc.attachHitBreakpoint(attachArgs, { line: 3, path: emptySrc });
+        expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
+    });
+
+    it('can attach remote and hit a breakpoint without a program', async function () {
+        if (os.platform() === 'win32') {
+            // win32 host does support this use case
+            this.skip();
+        }
+        const attachArgs = fillDefaults(this.test, {
             target: {
                 type: 'remote',
                 parameters: [`localhost:${port}`],

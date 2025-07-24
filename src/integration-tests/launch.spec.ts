@@ -129,6 +129,11 @@ describe('launch', function () {
     });
 
     it('provides a decent error if program is omitted', async function () {
+        if (isRemoteTest) {
+            // attachRemote.spec.ts is the test for when isRemoteTest
+            this.skip();
+        }
+
         const errorMessage = await new Promise<Error>((resolve, reject) => {
             dc.launchRequest(
                 fillDefaults(this.test, {} as LaunchRequestArguments)

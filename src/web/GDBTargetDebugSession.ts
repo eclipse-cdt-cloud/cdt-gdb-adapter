@@ -157,17 +157,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
-            if (
-                launchArgs.target?.serverParameters === undefined &&
-                !launchArgs.program
-            ) {
-                this.sendErrorResponse(
-                    response,
-                    1,
-                    'The program must be specified in the launch request arguments'
-                );
-                return;
-            }
             await this.startGDBServer(launchArgs);
         }
 
@@ -403,13 +392,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             // Load files and configure GDB
-            await this.executeOrAbort(
-                this.gdb.sendFileExecAndSymbols.bind(this.gdb)
-            )(args.program);
+            if (args.program !== undefined && args.program !== '') {
+                await this.executeOrAbort(
+                    this.gdb.sendFileExecAndSymbols.bind(this.gdb)
+                )(args.program);
+            }
             await this.executeOrAbort(
                 this.gdb.sendEnablePrettyPrint.bind(this.gdb)
             )();
-
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
