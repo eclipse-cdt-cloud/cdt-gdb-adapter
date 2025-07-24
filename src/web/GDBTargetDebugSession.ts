@@ -396,10 +396,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 await this.executeOrAbort(
                     this.gdb.sendFileExecAndSymbols.bind(this.gdb)
                 )(args.program);
-                await this.executeOrAbort(
-                    this.gdb.sendEnablePrettyPrint.bind(this.gdb)
-                )();
             }
+            await this.executeOrAbort(
+                this.gdb.sendEnablePrettyPrint.bind(this.gdb)
+            )();
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.symbolFileName) {
                     if (args.imageAndSymbols.symbolOffset) {
