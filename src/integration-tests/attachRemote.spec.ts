@@ -40,6 +40,7 @@ describe('attach remote', function () {
                 cwd: testProgramsDir,
             }
         );
+        port = '';  // reset port
         port = await new Promise<string>((resolve, reject) => {
             const regex = new RegExp(/Listening on port ([0-9]+)\r?\n/);
             let accumulatedStderr = '';
