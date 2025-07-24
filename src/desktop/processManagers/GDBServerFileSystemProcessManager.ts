@@ -55,8 +55,8 @@ export class GDBServerFileSystemProcessManager
             target.serverParameters !== undefined
                 ? target.serverParameters
                 : requestArgs.program
-                    ? ['--once', ':0', requestArgs.program]
-                    : ['--once', ':0'];
+                  ? ['--once', ':0', requestArgs.program]
+                  : ['--once', ':0'];
 
         // this.killGdbServer = target.automaticallyKillServer !== false;
 
