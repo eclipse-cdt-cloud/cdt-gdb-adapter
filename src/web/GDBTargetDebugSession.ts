@@ -392,7 +392,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             // Load files and configure GDB
-            if(args.program !== undefined && args.program !== '') {
+            if (args.program !== undefined && args.program !== '') {
                 await this.executeOrAbort(
                     this.gdb.sendFileExecAndSymbols.bind(this.gdb)
                 )(args.program);
