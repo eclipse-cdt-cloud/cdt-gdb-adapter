@@ -669,12 +669,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 timer = setTimeout(() => {
                     this.logGDBRemote('stopping GDB server');
                     this.gdbserver?.kill();
+                    setTimeout(() => {
+                        reject();
+                    }, 1000);
                 }, timeout);
-
-                setTimeout(() => {
-                    clearTimeout(timer);
-                    reject();
-                }, timeout + 1000);
             }
         });
     }
