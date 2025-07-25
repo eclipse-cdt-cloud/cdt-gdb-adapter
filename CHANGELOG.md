@@ -2,7 +2,7 @@
 
 # Unreleased
 
--  Fixes [#398](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/398): Give gdbserver time to gracefully disconnect before terminating it
+- Fixes [#398](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/398): Give gdbserver time to gracefully disconnect before terminating it
 
 ## 1.1.0
 
