@@ -88,7 +88,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     // Capture if gdbserver was launched for correct disconnect behavior
     protected launchGdbServer = false;
     protected killGdbServer = true;
-    protected disconnectRequestTimeout = 5000;
+    protected gdbServerDisconnectTimeout = 5000;
     protected sessionInfo: SessionInfo = {
         state: SessionState.INACTIVE,
         exitRequest: ExitSessionRequest.NONE,
@@ -146,7 +146,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (request === ExitSessionRequest.EXIT) {
             const shouldSendTerminateEvent =
                 this.sessionInfo.state >= SessionState.SESSION_READY;
-            await this.doDisconnectRequest(shouldSendTerminateEvent);
+            await this.doDisconnectRequest(0, shouldSendTerminateEvent);
         }
     }
 
@@ -222,7 +222,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         this.launchGdbServer = true;
         this.killGdbServer = target.automaticallyKillServer !== false;
-        this.disconnectRequestTimeout = target.disconnectRequestTimeout ?? 5000;
+        this.gdbServerDisconnectTimeout = 
+            (target.gdbServerDisconnectTimeout !== undefined && target.gdbServerDisconnectTimeout > 0) 
+                ? target.gdbServerDisconnectTimeout 
+                : 5000;
 
         // Wait until gdbserver is started and ready to receive connections.
         await new Promise<void>(async (resolve, reject) => {
@@ -646,7 +649,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      *          `false` if no GDB server process exists or
      *          already exited
      */
-    protected async stopGDBServer(): Promise<boolean> {
+    protected async stopGDBServer(timeout: number): Promise<boolean> {
         return new Promise((resolve, reject) => {
             if (!this.gdbserver || !isProcessActive(this.gdbserver)) {
                 const skipReason = this.launchGdbServer
@@ -655,16 +658,18 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.logGDBRemote(`skip stopping GDB server, ${skipReason}`);
                 resolve(false);
             } else {
-                const timer = setTimeout(() => {
-                    this.logGDBRemote('stopping GDB server');
-                    this.gdbserver?.kill();
-                }, this.disconnectRequestTimeout);
-
+                let timer: NodeJS.Timeout | undefined = undefined;
                 this.gdbserver.on('exit', () => {
                     this.logGDBRemote('stopping GDB server completed');
-                    clearTimeout(timer);
+                    if (timer !== undefined) {
+                        clearTimeout(timer);
+                    }
                     resolve(true);
                 });
+                timer = setTimeout(() => {
+                    this.logGDBRemote('stopping GDB server');
+                    this.gdbserver?.kill();
+                }, timeout);
             }
             setTimeout(() => {
                 reject();
@@ -673,6 +678,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     }
 
     protected async doDisconnectRequest(
+        gdbServerTimeout: number,
         sendTerminate?: boolean
     ): Promise<void> {
         await this.setSessionState(SessionState.EXITING);
@@ -712,7 +718,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (this.killGdbServer) {
             try {
                 // GDB server stop may time out and throw
-                if (await this.stopGDBServer()) {
+                if (await this.stopGDBServer(gdbServerTimeout)) {
                     this.sendEvent(
                         new OutputEvent('gdbserver stopped\n', 'server')
                     );
@@ -740,7 +746,31 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            await this.doDisconnectRequest();
+            await this.doDisconnectRequest(0);
+            if (this.sessionInfo.disconnectError) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    this.sessionInfo.disconnectError
+                );
+            } else {
+                this.sendResponse(response);
+            }
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
+    protected async terminateRequest(
+        response: DebugProtocol.TerminateResponse,
+        _args: DebugProtocol.TerminateArguments
+    ): Promise<void> {
+        try {
+            await this.doDisconnectRequest(this.gdbServerDisconnectTimeout, true);
             if (this.sessionInfo.disconnectError) {
                 this.sendErrorResponse(
                     response,
