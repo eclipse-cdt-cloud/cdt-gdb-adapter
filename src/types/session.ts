@@ -142,6 +142,8 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     // Delay after startup before continuing launch, in milliseconds. If serverPortRegExp is
     // provided, it is the delay after that regexp is seen.
     serverStartupDelay?: number;
+    // Watch server process and handle when it (unexpectedly) exists (default: true)
+    watchServerProcess?: boolean;
     // Automatically kill the launched server when client issues a disconnect (default: true)
     automaticallyKillServer?: boolean;
     // Specifies the working directory of gdbserver, defaults to cwd in RequestArguments

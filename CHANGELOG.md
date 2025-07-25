@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [cdt-gdb-vscode 173](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/173): Add `target`>`watchServerProcess` to ignore early exit of `server` executable, e.g. if a launcher for the actual gdbserver.
+
 ## 1.1.0
 
 - Fixes [#361](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/361): Fixes and robustness around remote target GDB connect, disconnect, and unexpected connection loss/termination of gdb and gdbserver.

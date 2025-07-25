@@ -87,6 +87,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserverProcessManager?: IGDBServerProcessManager;
     // Capture if gdbserver was launched for correct disconnect behavior
     protected launchGdbServer = false;
+    protected watchGdbServer = true;
     protected killGdbServer = true;
     protected sessionInfo: SessionInfo = {
         state: SessionState.INACTIVE,
@@ -220,6 +221,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         const target = args.target;
 
         this.launchGdbServer = true;
+        this.watchGdbServer = target.watchServerProcess ?? true;
         this.killGdbServer = target.automaticallyKillServer !== false;
 
         // Wait until gdbserver is started and ready to receive connections.
@@ -328,8 +330,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     this.sessionInfo.disconnectError =
                         'GDB server exited unexpectedly, see Debug Console for more info';
                 }
-                this.logGDBRemote('GDB server exited, exiting session');
-                await this.setExitSessionRequest(ExitSessionRequest.EXIT);
+                if (this.watchGdbServer) {
+                    this.logGDBRemote('GDB server exited, exiting session');
+                    await this.setExitSessionRequest(ExitSessionRequest.EXIT);
+                }
             });
 
             this.gdbserver.on('error', (err) => {
