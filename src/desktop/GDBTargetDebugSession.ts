@@ -146,7 +146,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (request === ExitSessionRequest.EXIT) {
             const shouldSendTerminateEvent =
                 this.sessionInfo.state >= SessionState.SESSION_READY;
-            await this.doDisconnectRequest(this.serverDisconnectTimeout, shouldSendTerminateEvent);
+            await this.doDisconnectRequest(
+                this.serverDisconnectTimeout,
+                shouldSendTerminateEvent
+            );
         }
     }
 
@@ -771,10 +774,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.TerminateArguments
     ): Promise<void> {
         try {
-            await this.doDisconnectRequest(
-                this.serverDisconnectTimeout,
-                true
-            );
+            await this.doDisconnectRequest(this.serverDisconnectTimeout, true);
             if (this.sessionInfo.disconnectError) {
                 this.sendErrorResponse(
                     response,
