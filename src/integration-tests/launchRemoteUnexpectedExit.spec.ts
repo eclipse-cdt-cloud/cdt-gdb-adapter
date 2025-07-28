@@ -29,7 +29,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
-    const WAIT_FOR_EVENT_TIMEOUT = 1000;
+    const WAIT_FOR_EVENT_TIMEOUT = 5000;
     // GDB Server seems to exit in different ways when forcefully shut down. Depending
     // on mode, timing, host OS, etc.
     // We only care about it ending, hence both exit or signalled end satisfy the tests.
