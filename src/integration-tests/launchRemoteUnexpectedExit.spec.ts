@@ -293,5 +293,4 @@ describe('launch remote unexpected session exit', function () {
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await Promise.all(pendingPromises);
     });
-
 });
