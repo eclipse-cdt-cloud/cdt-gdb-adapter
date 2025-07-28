@@ -227,7 +227,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         this.killGdbServer = target.automaticallyKillServer !== false;
         this.serverDisconnectTimeout =
             target.serverDisconnectTimeout !== undefined &&
-            target.serverDisconnectTimeout > 0
+            target.serverDisconnectTimeout >= 0
                 ? target.serverDisconnectTimeout
                 : 1000;
 
