@@ -148,7 +148,7 @@ export interface TargetLaunchArguments extends TargetAttachArguments {
     cwd?: string;
     // Maximum time allowed for detecting the port number, default is 10sec
     portDetectionTimeout?: number;
-    // Gracefully kill gdb-server when disconnecting, timeout in milliseconds, default is 5000
+    // Gracefully kill gdb-server when disconnecting, timeout in milliseconds, default is 1000
     gdbServerDisconnectTimeout?: number;
 }
 
