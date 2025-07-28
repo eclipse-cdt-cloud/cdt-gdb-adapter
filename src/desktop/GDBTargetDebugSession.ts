@@ -88,7 +88,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     // Capture if gdbserver was launched for correct disconnect behavior
     protected launchGdbServer = false;
     protected killGdbServer = true;
-    protected gdbServerDisconnectTimeout = 1000;
+    protected serverDisconnectTimeout = 1000;
     protected sessionInfo: SessionInfo = {
         state: SessionState.INACTIVE,
         exitRequest: ExitSessionRequest.NONE,
@@ -146,7 +146,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (request === ExitSessionRequest.EXIT) {
             const shouldSendTerminateEvent =
                 this.sessionInfo.state >= SessionState.SESSION_READY;
-            await this.doDisconnectRequest(this.gdbServerDisconnectTimeout, shouldSendTerminateEvent);
+            await this.doDisconnectRequest(this.serverDisconnectTimeout, shouldSendTerminateEvent);
         }
     }
 
@@ -222,10 +222,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         this.launchGdbServer = true;
         this.killGdbServer = target.automaticallyKillServer !== false;
-        this.gdbServerDisconnectTimeout =
-            target.gdbServerDisconnectTimeout !== undefined &&
-            target.gdbServerDisconnectTimeout > 0
-                ? target.gdbServerDisconnectTimeout
+        this.serverDisconnectTimeout =
+            target.serverDisconnectTimeout !== undefined &&
+            target.serverDisconnectTimeout > 0
+                ? target.serverDisconnectTimeout
                 : 1000;
 
         // Wait until gdbserver is started and ready to receive connections.
@@ -772,7 +772,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     ): Promise<void> {
         try {
             await this.doDisconnectRequest(
-                this.gdbServerDisconnectTimeout,
+                this.serverDisconnectTimeout,
                 true
             );
             if (this.sessionInfo.disconnectError) {
