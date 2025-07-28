@@ -222,9 +222,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
         this.launchGdbServer = true;
         this.killGdbServer = target.automaticallyKillServer !== false;
-        this.gdbServerDisconnectTimeout = 
-            (target.gdbServerDisconnectTimeout !== undefined && target.gdbServerDisconnectTimeout > 0) 
-                ? target.gdbServerDisconnectTimeout 
+        this.gdbServerDisconnectTimeout =
+            target.gdbServerDisconnectTimeout !== undefined &&
+            target.gdbServerDisconnectTimeout > 0
+                ? target.gdbServerDisconnectTimeout
                 : 5000;
 
         // Wait until gdbserver is started and ready to receive connections.
@@ -770,7 +771,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         _args: DebugProtocol.TerminateArguments
     ): Promise<void> {
         try {
-            await this.doDisconnectRequest(this.gdbServerDisconnectTimeout, true);
+            await this.doDisconnectRequest(
+                this.gdbServerDisconnectTimeout,
+                true
+            );
             if (this.sessionInfo.disconnectError) {
                 this.sendErrorResponse(
                     response,
