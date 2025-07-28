@@ -20,6 +20,7 @@ import {
     standardBeforeEach,
     testProgramsDir,
     gdbServerPath,
+    gdbAsync,
     fillDefaults,
 } from './utils';
 import { expect } from 'chai';
@@ -100,6 +101,10 @@ describe('attach remote', function () {
     });
 
     it('can attach to a non-stopping target and concurrently set breakpoints', async function () {
+        if (os.platform() === 'win32' && !gdbAsync) {
+            // win32 host can only pause remote + mi-async targets
+            this.skip();
+        }
         const attachArgs = fillDefaults(this.test, {
             program: program,
             target: {
