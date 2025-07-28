@@ -271,7 +271,7 @@ describe('launch remote unexpected session exit', function () {
             ...getDefaults(this.test),
             target: {
                 ...getDefaults(this.test).target,
-                serverDisconnectTimeout: 1000, // Use graceful shutdown
+                serverDisconnectTimeout: 2000, // Use graceful shutdown
             } as TargetLaunchArguments,
         } as TargetLaunchRequestArguments);
         const wait_for_event_timeout = 1000;
