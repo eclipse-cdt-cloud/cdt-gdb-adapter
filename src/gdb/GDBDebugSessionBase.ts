@@ -42,6 +42,7 @@ import {
 import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
+import { isWindowsPath } from '../util/isWindowsPath';
 
 class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
@@ -597,12 +598,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (!gdbbp['original-location']) {
                     return false;
                 }
+                // On Windows, perform case-insensitive comparison due to potential casing inconsistencies
+                const isWinPath = isWindowsPath(file);
+                const fileCmp = isWinPath ? file.toLowerCase() : file;
+                const prefixCmp = isWinPath ? gdbOriginalLocationPrefix.toLowerCase() : gdbOriginalLocationPrefix;
+                const origLocCmp = isWinPath ? gdbbp['original-location'].toLowerCase() : gdbbp['original-location'];
+
                 if (
-                    !(
-                        gdbbp['original-location'].includes(
-                            gdbOriginalLocationPrefix
-                        ) || gdbbp['original-location'].includes(file)
-                    )
+                    !(origLocCmp.includes(prefixCmp) || origLocCmp.includes(fileCmp))
                 ) {
                     return false;
                 }
