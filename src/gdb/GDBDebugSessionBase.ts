@@ -2169,6 +2169,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
                 if (!this.isRunning) {
                     // No need to continue after clearing tokens if all threads were stopped anyway
+                    break;
                 }
                 // Clear affected threads' running state
                 stopThreads.forEach((thread) => (thread.running = false));
