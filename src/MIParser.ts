@@ -15,7 +15,7 @@ import * as utf8 from 'utf8';
 interface Command {
     command: string;
     callback: (resultClass: string, resultData: any) => void;
-};
+}
 
 type CommandQueue = {
     [key: string]: Command;
@@ -35,7 +35,9 @@ export class MIParser {
         const entries = Object.entries(this.commandQueue);
         entries.forEach((entry) => {
             // Call callback with error to reject command promise
-            entry[1].callback('error', { msg: 'MI parser command queue cancelled' });
+            entry[1].callback('error', {
+                msg: 'MI parser command queue cancelled',
+            });
             // Delete command by key
             delete this.commandQueue[entry[0]];
         });
@@ -350,11 +352,7 @@ export class MIParser {
                         logger.error(message);
                     }
                 }
-                this.gdb.emit(
-                    'resultAsync',
-                    resultClass,
-                    resultData
-                );
+                this.gdb.emit('resultAsync', resultClass, resultData);
                 break;
             }
             case '~':
