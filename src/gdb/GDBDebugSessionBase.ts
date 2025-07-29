@@ -50,6 +50,7 @@ class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
     name: string;
     running: boolean;
+    lastRunToken: string|undefined;
     constructor(id: number, name: string, running: boolean) {
         this.id = id;
         this.name = name;
@@ -85,6 +86,21 @@ const arrayChildRegex = /[\d]+/;
 const numberRegex = /^-?\d+(?:\.\d*)?$/; // match only numbers (integers and floats)
 const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C number types
 const cBoolRegex = /\bbool$/; // match boolean
+const threadIdRegex = /.*\s+\-\-thread\s+(\d+).*/;
+const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
+
+const resumeCommands = [
+    '-exec-continue',
+    '-exec-finish',
+    '-exec-jump',
+    '-exec-next',
+    '-exec-next-instruction',
+    '-exec-return',
+    '-exec-run',
+    '-exec-step',
+    '-exec-step-instruction',
+    '-exec-until'
+];
 
 // Interface for output category pair
 interface StreamOutput {
@@ -353,8 +369,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.gdb.on('notifyAsync', (resultClass, resultData) =>
             this.handleGDBNotify(resultClass, resultData)
         );
-        this.gdb.on('errorAsync', (resultClass, resultData) =>
-            this.handleGDBError(resultClass, resultData)
+        this.gdb.on('resultAsync', (resultClass, resultData) =>
+            this.handleGDBResult(resultClass, resultData)
         );
     }
 
@@ -2062,6 +2078,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = false;
+                            thread.lastRunToken = undefined;
                         }
                     }
                     if (
@@ -2075,6 +2092,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 } else {
                     for (const thread of this.threads) {
                         thread.running = false;
+                        thread.lastRunToken = undefined;
                     }
                     if (
                         this.waitPaused &&
@@ -2213,8 +2231,44 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    protected handleGDBError(notifyClass: string, notifyData: any) {    
-        logger.error(`Incoming async error: class - ${notifyClass}, data - ${notifyData}`);
+    protected handleGDBResult(notifyClass: string, notifyData: any) {
+        // Look out for successful resume commands
+        const originalCommand = notifyData['cdt-command'];
+        const token = notifyData['cdt-token'];
+        const resumeCommand = typeof originalCommand === 'string' ? resumeCommands.some(cmd => originalCommand.includes(cmd)) : false;
+        switch (notifyClass) {
+            case 'done':
+            case 'running':
+                if (resumeCommand) {
+                    const allThreads = threadAllRegex.test(originalCommand);
+                    let updateThreads = this.threads;
+                    if (this.gdb.isNonStopMode() && !allThreads) {
+                        const threadIdMatch = threadIdRegex.exec(originalCommand);
+                        const threadId = threadIdMatch ? parseInt(threadIdMatch[1], 10) : undefined;
+                        updateThreads = this.threads.filter(thread => thread.id === threadId);
+                    }
+                    updateThreads.forEach(thread => thread.lastRunToken = notifyData['cdt-token']);
+                }
+                break;
+            case 'error':
+                const stopThreads = this.gdb.isNonStopMode() ? this.threads.filter(thread => thread.lastRunToken === token && thread.running) : this.threads;
+                const stopAll = stopThreads.length === this.threads.length;
+                stopThreads.forEach(thread => {
+                    thread.running = false;
+                    thread.lastRunToken = undefined;
+                });
+                if (stopAll) {
+                    // All threads are stopped
+                    this.sendStoppedEvent('error', this.threads[0]?.id ?? 1, true);
+                } else {
+                    // Selection of threas is stopped, send individual events
+                    stopThreads.forEach(thread => this.sendStoppedEvent('error', thread.id, false));
+                }
+                break;
+            default:
+                // Do nothing
+                break;
+        }
     }
 
     protected async handleVariableRequestFrame(
