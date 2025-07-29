@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { Readable } from 'stream';
-import { logger } from '@vscode/debugadapter/lib/logger';
+import { logger, LogLevel } from '@vscode/debugadapter/lib/logger';
 import { IGDBBackend } from './types/gdb';
 import * as utf8 from 'utf8';
 
@@ -340,7 +340,10 @@ export class MIParser {
                     command.callback(resultClass, resultData);
                     delete this.commandQueue[token];
                 } else {
-                    logger.error('GDB response with no command: ' + token);
+                    // If result is an out-of-band error, we expect this is handled higher up.
+                    // In fact currently only expected for '-exec-*' commands. Hence, only print
+                    // as error, if result class other than 'error' where this is genuinely unexpected.
+                    logger.log(`GDB response with no command: ${token}`, resultClass === 'error' ? LogLevel.Verbose : LogLevel.Error);
                 }
                 this.gdb.emit(
                     'resultAsync',
