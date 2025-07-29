@@ -633,8 +633,17 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Complete connection failure response
             const errorMessage =
                 err instanceof Error ? err.message : String(err);
-            if(process.platform === 'win32' && errorMessage.startsWith('could not connect (error 138): The system tried to join a drive')) {
-                this.sendErrorResponse(response, 1, 'could not connect: Operation timed out.');    
+            if (
+                process.platform === 'win32' &&
+                errorMessage.startsWith(
+                    'could not connect (error 138): The system tried to join a drive'
+                )
+            ) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'could not connect: Operation timed out.'
+                );
             } else {
                 this.sendErrorResponse(response, 1, errorMessage);
             }
