@@ -50,7 +50,7 @@ class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
     name: string;
     running: boolean;
-    lastRunToken: string|undefined;
+    lastRunToken: string | undefined;
     constructor(id: number, name: string, running: boolean) {
         this.id = id;
         this.name = name;
@@ -90,6 +90,7 @@ const threadIdRegex = /.*\s+\-\-thread\s+(\d+).*/;
 const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
 
 const resumeCommands = [
+    // GDB MI
     '-exec-continue',
     '-exec-finish',
     '-exec-jump',
@@ -99,7 +100,30 @@ const resumeCommands = [
     '-exec-run',
     '-exec-step',
     '-exec-step-instruction',
-    '-exec-until'
+    '-exec-until',
+    // GDB CLI (initCommands, customResetCommands)
+    'advance',
+    'continue',
+    'fg',
+    'c',
+    'finish',
+    'fin',
+    'jump',
+    'j',
+    'next',
+    'n',
+    'nexti',
+    'ni',
+    'run',
+    'r',
+    'start',
+    'starti',
+    'step',
+    's',
+    'stepi',
+    'si',
+    'until',
+    'u',
 ];
 
 // Interface for output category pair
@@ -2235,7 +2259,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Look out for successful resume commands
         const originalCommand = notifyData['cdt-command'];
         const token = notifyData['cdt-token'];
-        const resumeCommand = typeof originalCommand === 'string' ? resumeCommands.some(cmd => originalCommand.includes(cmd)) : false;
+        const resumeCommand =
+            typeof originalCommand === 'string'
+                ? resumeCommands.some(
+                      (cmd) =>
+                          originalCommand === cmd ||
+                          originalCommand.startsWith(cmd + ' ')
+                  )
+                : false;
         switch (notifyClass) {
             case 'done':
             case 'running':
@@ -2243,27 +2274,60 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     const allThreads = threadAllRegex.test(originalCommand);
                     let updateThreads = this.threads;
                     if (this.gdb.isNonStopMode() && !allThreads) {
-                        const threadIdMatch = threadIdRegex.exec(originalCommand);
-                        const threadId = threadIdMatch ? parseInt(threadIdMatch[1], 10) : undefined;
-                        updateThreads = this.threads.filter(thread => thread.id === threadId);
+                        const threadIdMatch =
+                            threadIdRegex.exec(originalCommand);
+                        const threadId = threadIdMatch
+                            ? parseInt(threadIdMatch[1], 10)
+                            : undefined;
+                        updateThreads = this.threads.filter(
+                            (thread) => thread.id === threadId
+                        );
                     }
-                    updateThreads.forEach(thread => thread.lastRunToken = notifyData['cdt-token']);
+                    updateThreads.forEach(
+                        (thread) =>
+                            (thread.lastRunToken = notifyData['cdt-token'])
+                    );
                 }
                 break;
             case 'error':
-                const stopThreads = this.gdb.isNonStopMode() ? this.threads.filter(thread => thread.lastRunToken === token && thread.running) : this.threads;
+                const isLateExecError = this.threads.some(
+                    (thread) => thread.lastRunToken === token
+                );
+                if (!isLateExecError) {
+                    // Exit here, unnecessarily sending a stopped event clears scopes and other handles
+                    break;
+                }
+                const stopThreads = this.gdb.isNonStopMode()
+                    ? this.threads.filter(
+                          (thread) =>
+                              thread.lastRunToken === token && thread.running
+                      )
+                    : this.threads;
                 const stopAll = stopThreads.length === this.threads.length;
-                stopThreads.forEach(thread => {
-                    thread.running = false;
-                    thread.lastRunToken = undefined;
-                });
+                // Clear run tokens
+                stopThreads.forEach(
+                    (thread) => (thread.lastRunToken = undefined)
+                );
+                if (!this.isRunning) {
+                    // No need to continue after clearing tokens if all threads were stopped anyway
+                    break;
+                }
+                // Clear affected threads' running state
+                stopThreads.forEach((thread) => (thread.running = false));
                 if (stopAll) {
                     // All threads are stopped
-                    this.sendStoppedEvent('error', this.threads[0]?.id ?? 1, true);
+                    this.sendStoppedEvent(
+                        'error',
+                        this.threads[0]?.id ?? 1,
+                        true
+                    );
                     this.isRunning = false;
                 } else {
-                    // Selection of threas is stopped, send individual events
-                    stopThreads.forEach(thread => this.sendStoppedEvent('error', thread.id, false));
+                    // Selection of threads has stopped but not all (see stopAll assignment).
+                    // Send individual events.
+                    stopThreads.forEach((thread) =>
+                        this.sendStoppedEvent('error', thread.id, false)
+                    );
                 }
                 break;
             default:
