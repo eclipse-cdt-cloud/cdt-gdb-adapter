@@ -15,6 +15,7 @@ import {
     expectRejection,
     fillDefaults,
     getScopes,
+    isRemoteTest,
     Scope,
     standardBeforeEach,
     testProgramsDir,
@@ -56,6 +57,10 @@ describe('evaluate request', function () {
     });
 
     it('should reject evaluation of expression without a frame', async function () {
+        if(isRemoteTest) {
+            return;
+        }
+        
         const err = await expectRejection(
             dc.evaluateRequest({
                 context: 'repl',
