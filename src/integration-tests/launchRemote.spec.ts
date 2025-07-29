@@ -156,4 +156,26 @@ describe('launch remote', function () {
             true
         );
     });
+
+    it('should not reject evaluation of expression without a frame', async function () {
+        await dc.hitBreakpoint(
+            fillDefaults(this.test, {
+                program: emptyProgram,
+                target: {
+                    type: 'remote',
+                } as TargetLaunchArguments,
+            } as TargetLaunchRequestArguments),
+            {
+                path: emptySrc,
+                line: 3,
+            }
+        );
+
+        const ret = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '>help',
+        });
+        expect(ret.body.result).to.include('\r');
+        expect(ret.command).to.include('evaluate');
+    });
 });
