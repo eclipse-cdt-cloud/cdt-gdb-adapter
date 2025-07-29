@@ -196,7 +196,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                         reject(error);
                     }
                 };
-                this.parser.queueCommand(token, (resultClass, resultData) => {
+                this.parser.queueCommand(token, command, (resultClass, resultData) => {
                     switch (resultClass) {
                         case 'done':
                         case 'running':
