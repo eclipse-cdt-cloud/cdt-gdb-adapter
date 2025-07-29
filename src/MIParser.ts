@@ -341,14 +341,12 @@ export class MIParser {
                     delete this.commandQueue[token];
                 } else {
                     logger.error('GDB response with no command: ' + token);
-                    if (resultClass === 'error') {
-                        this.gdb.emit(
-                            'errorAsync',
-                            resultClass,
-                            resultData
-                        );
-                    }
                 }
+                this.gdb.emit(
+                    'resultAsync',
+                    resultClass,
+                    resultData
+                );
                 break;
             }
             case '~':
