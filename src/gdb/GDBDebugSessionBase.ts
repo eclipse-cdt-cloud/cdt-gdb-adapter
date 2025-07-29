@@ -2260,6 +2260,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (stopAll) {
                     // All threads are stopped
                     this.sendStoppedEvent('error', this.threads[0]?.id ?? 1, true);
+                    this.isRunning = false;
                 } else {
                     // Selection of threas is stopped, send individual events
                     stopThreads.forEach(thread => this.sendStoppedEvent('error', thread.id, false));
