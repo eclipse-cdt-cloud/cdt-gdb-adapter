@@ -353,6 +353,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.gdb.on('notifyAsync', (resultClass, resultData) =>
             this.handleGDBNotify(resultClass, resultData)
         );
+        this.gdb.on('errorAsync', (resultClass, resultData) =>
+            this.handleGDBError(resultClass, resultData)
+        );
     }
 
     protected async attachOrLaunchRequest(
@@ -2208,6 +2211,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     )}`
                 );
         }
+    }
+
+    protected handleGDBError(notifyClass: string, notifyData: any) {    
+        logger.error(`Incoming async error: class - ${notifyClass}, data - ${notifyData}`);
     }
 
     protected async handleVariableRequestFrame(

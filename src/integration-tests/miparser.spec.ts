@@ -35,14 +35,14 @@ describe('MI Parser Test Suite', function () {
 
     it('simple result-record', async function () {
         const callback = sinon.spy();
-        parser.queueCommand(5, callback);
+        parser.queueCommand(5, 'command string', callback);
         parser.parseLine('5^done');
         sinon.assert.calledOnceWithExactly(callback, 'done', {});
     });
 
     it('simple result-record with multi-digit token', async function () {
         const callback = sinon.spy();
-        parser.queueCommand(1234, callback);
+        parser.queueCommand(1234, 'command string', callback);
         parser.parseLine('1234^done');
         sinon.assert.calledOnceWithExactly(callback, 'done', {});
     });
