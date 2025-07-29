@@ -1386,7 +1386,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async doEvaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments,
-        allowIncompleteCommand?: boolean
+        allowIncompleteCommand: boolean
     ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
