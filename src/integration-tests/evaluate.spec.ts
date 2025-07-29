@@ -57,10 +57,10 @@ describe('evaluate request', function () {
     });
 
     it('should reject evaluation of expression without a frame', async function () {
-        if(isRemoteTest) {
+        if (isRemoteTest) {
             return;
         }
-        
+
         const err = await expectRejection(
             dc.evaluateRequest({
                 context: 'repl',
