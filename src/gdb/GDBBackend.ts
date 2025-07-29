@@ -196,34 +196,38 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                         reject(error);
                     }
                 };
-                this.parser.queueCommand(token, command, (resultClass, resultData) => {
-                    switch (resultClass) {
-                        case 'done':
-                        case 'running':
-                        case 'connected':
-                        case 'exit':
-                            logger.verbose(
-                                `GDB command: ${token} ${command} completed with data`
-                            );
-                            resolve(resultData);
-                            break;
-                        case 'error':
-                            failure.message = resultData.msg;
-                            logger.verbose(
-                                `GDB command: ${token} ${command} failed with '${failure.message}'`
-                            );
-                            reject(failure);
-                            break;
-                        default:
-                            failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
-                                resultData
-                            )}`;
-                            logger.verbose(
-                                `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
-                            );
-                            reject(failure);
+                this.parser.queueCommand(
+                    token,
+                    command,
+                    (resultClass, resultData) => {
+                        switch (resultClass) {
+                            case 'done':
+                            case 'running':
+                            case 'connected':
+                            case 'exit':
+                                logger.verbose(
+                                    `GDB command: ${token} ${command} completed with data`
+                                );
+                                resolve(resultData);
+                                break;
+                            case 'error':
+                                failure.message = resultData.msg;
+                                logger.verbose(
+                                    `GDB command: ${token} ${command} failed with '${failure.message}'`
+                                );
+                                reject(failure);
+                                break;
+                            default:
+                                failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
+                                    resultData
+                                )}`;
+                                logger.verbose(
+                                    `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
+                                );
+                                reject(failure);
+                        }
                     }
-                });
+                );
                 logger.verbose(`GDB write command: ${token} ${command}`);
                 // Add callback for this context to set of pending callbacks.
                 // Means to reject pending writes on pipe loss.
