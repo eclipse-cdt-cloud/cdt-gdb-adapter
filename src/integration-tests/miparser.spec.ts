@@ -37,14 +37,14 @@ describe('MI Parser Test Suite', function () {
         const callback = sinon.spy();
         parser.queueCommand(5, 'command string', callback);
         parser.parseLine('5^done');
-        sinon.assert.calledOnceWithExactly(callback, 'done', {});
+        sinon.assert.calledOnceWithExactly(callback, 'done', { 'cdt-token': '5', 'cdt-command': 'command string' });
     });
 
     it('simple result-record with multi-digit token', async function () {
         const callback = sinon.spy();
         parser.queueCommand(1234, 'command string', callback);
         parser.parseLine('1234^done');
-        sinon.assert.calledOnceWithExactly(callback, 'done', {});
+        sinon.assert.calledOnceWithExactly(callback, 'done', { 'cdt-token': '1234', 'cdt-command': 'command string' });
     });
 
     it('simple result-record for unknown token number', async function () {
