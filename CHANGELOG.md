@@ -1,5 +1,9 @@
 # Change Log
 
+# Unreleased
+
+- Fixes [#398](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/398): Give gdbserver time to gracefully disconnect before terminating it
+
 ## 1.1.0
 
 - Fixes [#361](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/361): Fixes and robustness around remote target GDB connect, disconnect, and unexpected connection loss/termination of gdb and gdbserver.

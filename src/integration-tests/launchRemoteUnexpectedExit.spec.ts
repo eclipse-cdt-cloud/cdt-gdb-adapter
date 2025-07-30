@@ -43,6 +43,7 @@ describe('launch remote unexpected session exit', function () {
             program: emptyProgram,
             target: {
                 type: 'remote',
+                serverDisconnectTimeout: 0,
             } as TargetLaunchArguments,
             ...(overrides as TargetLaunchArguments),
         } as TargetLaunchRequestArguments);
@@ -258,5 +259,38 @@ describe('launch remote unexpected session exit', function () {
 
         // Any test error will throw here
         await Promise.all(waitForPromises);
+    });
+
+    it("ends GDB server if GDB exits through CLI 'quit' command using graceful shutdown", async function () {
+        // Only run for remote and gdbAsync
+        if (!isRemoteTest || !gdbAsync) {
+            this.skip();
+        }
+        // Launch
+        await dc.launch({
+            ...getDefaults(this.test),
+            target: {
+                ...getDefaults(this.test).target,
+                serverDisconnectTimeout: 2000, // Use graceful shutdown
+            } as TargetLaunchArguments,
+        } as TargetLaunchRequestArguments);
+        const wait_for_event_timeout = 1000;
+
+        // Get frame ID and build evaluateArguments
+        const scope = await getScopes(dc);
+        const evaluateRequestArgs: DebugProtocol.EvaluateArguments = {
+            expression: '> quit',
+            frameId: scope.frame.id,
+            context: 'repl',
+        };
+        // Wait for multiple events, don't care about order
+        const pendingPromises = [
+            waitForServerOutput(dc, GDBSERVER_ENDED_REGEXP_STR),
+            dc.waitForEvent('terminated', wait_for_event_timeout),
+        ];
+        // Don't await evaluate response, it may not come depending on how quickly session shuts down.
+        dc.evaluateRequest(evaluateRequestArgs);
+        // Wait for promises to resolve. No need for further checks, something would throw in error case.
+        await Promise.all(pendingPromises);
     });
 });
