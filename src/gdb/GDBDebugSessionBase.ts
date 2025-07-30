@@ -43,18 +43,7 @@ import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { isWindowsPath } from '../util/isWindowsPath';
-
-class ThreadWithStatus implements DebugProtocol.Thread {
-    id: number;
-    name: string;
-    running: boolean;
-    lastRunToken: string | undefined;
-    constructor(id: number, name: string, running: boolean) {
-        this.id = id;
-        this.name = name;
-        this.running = running;
-    }
-}
+import { ThreadWithStatus } from './common';
 
 // Allow a single number for ignore count or the form '> [number]'
 const ignoreCountRegex = /\s|>/g;
