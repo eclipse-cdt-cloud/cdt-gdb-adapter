@@ -158,7 +158,7 @@ describe('launch remote', function () {
         );
     });
 
-    it.only('should not reject evaluation of expression without a frame', async function () {
+    it('should not reject evaluation of expression without a frame', async function () {
         await dc.launchRequest(
             fillDefaults(this.test, {
                 program: loopForeverProgram,
