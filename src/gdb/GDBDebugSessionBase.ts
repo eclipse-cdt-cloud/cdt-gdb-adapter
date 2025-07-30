@@ -44,6 +44,7 @@ import { getInstructions } from '../util/disassembly';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { isWindowsPath } from '../util/isWindowsPath';
 import { ThreadWithStatus } from './common';
+import { RESUME_COMMANDS } from '../constants/gdb';
 
 // Allow a single number for ignore count or the form '> [number]'
 const ignoreCountRegex = /\s|>/g;
@@ -54,43 +55,6 @@ const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C n
 const cBoolRegex = /\bbool$/; // match boolean
 const threadIdRegex = /.*\s+\-\-thread\s+(\d+).*/;
 const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
-
-const resumeCommands = [
-    // GDB MI
-    '-exec-continue',
-    '-exec-finish',
-    '-exec-jump',
-    '-exec-next',
-    '-exec-next-instruction',
-    '-exec-return',
-    '-exec-run',
-    '-exec-step',
-    '-exec-step-instruction',
-    '-exec-until',
-    // GDB CLI (initCommands, customResetCommands)
-    'advance',
-    'continue',
-    'fg',
-    'c',
-    'finish',
-    'fin',
-    'jump',
-    'j',
-    'next',
-    'n',
-    'nexti',
-    'ni',
-    'run',
-    'r',
-    'start',
-    'starti',
-    'step',
-    's',
-    'stepi',
-    'si',
-    'until',
-    'u',
-];
 
 // Interface for output category pair
 interface StreamOutput {
@@ -2109,7 +2073,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const token = notifyData['cdt-token'];
         const resumeCommand =
             typeof originalCommand === 'string'
-                ? resumeCommands.some(
+                ? RESUME_COMMANDS.some(
                       (cmd) =>
                           originalCommand === cmd ||
                           originalCommand.startsWith(cmd + ' ')
