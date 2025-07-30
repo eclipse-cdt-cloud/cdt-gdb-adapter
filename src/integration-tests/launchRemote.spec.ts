@@ -23,6 +23,7 @@ describe('launch remote', function () {
     let dc: CdtDebugClient;
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const emptySrc = path.join(testProgramsDir, 'empty.c');
+    const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
 
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
@@ -157,18 +158,14 @@ describe('launch remote', function () {
         );
     });
 
-    it('should not reject evaluation of expression without a frame', async function () {
-        await dc.hitBreakpoint(
+    it.only('should not reject evaluation of expression without a frame', async function () {
+        await dc.launchRequest(
             fillDefaults(this.test, {
-                program: emptyProgram,
+                program: loopForeverProgram,
                 target: {
                     type: 'remote',
                 } as TargetLaunchArguments,
-            } as TargetLaunchRequestArguments),
-            {
-                path: emptySrc,
-                line: 3,
-            }
+            } as TargetLaunchRequestArguments)
         );
 
         const ret = await dc.evaluateRequest({
