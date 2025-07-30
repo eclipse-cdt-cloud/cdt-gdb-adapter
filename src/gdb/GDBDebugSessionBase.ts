@@ -2140,7 +2140,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                     updateThreads.forEach(
                         (thread) =>
-                            (thread.lastRunToken = notifyData['cdt-token'])
+                            (thread.lastRunToken = token)
                     );
                 }
                 break;
