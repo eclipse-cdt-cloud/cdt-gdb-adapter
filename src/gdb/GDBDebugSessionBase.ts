@@ -601,11 +601,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 // On Windows, perform case-insensitive comparison due to potential casing inconsistencies
                 const isWinPath = isWindowsPath(file);
                 const fileCmp = isWinPath ? file.toLowerCase() : file;
-                const prefixCmp = isWinPath ? gdbOriginalLocationPrefix.toLowerCase() : gdbOriginalLocationPrefix;
-                const origLocCmp = isWinPath ? gdbbp['original-location'].toLowerCase() : gdbbp['original-location'];
+                const prefixCmp = isWinPath
+                    ? gdbOriginalLocationPrefix.toLowerCase()
+                    : gdbOriginalLocationPrefix;
+                const origLocCmp = isWinPath
+                    ? gdbbp['original-location'].toLowerCase()
+                    : gdbbp['original-location'];
 
                 if (
-                    !(origLocCmp.includes(prefixCmp) || origLocCmp.includes(fileCmp))
+                    !(
+                        origLocCmp.includes(prefixCmp) ||
+                        origLocCmp.includes(fileCmp)
+                    )
                 ) {
                     return false;
                 }
