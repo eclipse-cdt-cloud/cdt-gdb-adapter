@@ -14,7 +14,7 @@ import * as sinon from 'sinon';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { expect } from 'chai';
 
-describe.only('MI Parser Test Suite', function () {
+describe('MI Parser Test Suite', function () {
     let gdbBackendMock: sinon.SinonStubbedInstance<GDBBackend>;
     let loggerErrorSpy: sinon.SinonSpy;
     let loggerVerboseSpy: sinon.SinonSpy;
