@@ -481,6 +481,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         return wrappedFunction;
     }
 
+    private switchAttachOutputToError(input: string): string {
+        const outputMessage = 'could not connect: Operation timed out.';
+        const returnPair: string = input.startsWith(
+            'could not connect (error 138): The system tried to join a drive'
+        )
+            ? outputMessage
+            : input;
+        return returnPair;
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -633,20 +643,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Complete connection failure response
             const errorMessage =
                 err instanceof Error ? err.message : String(err);
-            if (
-                process.platform === 'win32' &&
-                errorMessage.startsWith(
-                    'could not connect (error 138): The system tried to join a drive'
-                )
-            ) {
-                this.sendErrorResponse(
-                    response,
-                    1,
-                    'could not connect: Operation timed out.'
-                );
-            } else {
-                this.sendErrorResponse(response, 1, errorMessage);
-            }
+            const messageToPrint = this.switchAttachOutputToError(errorMessage);
+            this.sendErrorResponse(response, 1, messageToPrint);
         }
     }
 
