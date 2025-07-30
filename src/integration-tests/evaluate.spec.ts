@@ -58,7 +58,7 @@ describe('evaluate request', function () {
 
     it('should reject evaluation of expression without a frame', async function () {
         if (isRemoteTest) {
-            return;
+            this.skip();
         }
 
         const err = await expectRejection(
