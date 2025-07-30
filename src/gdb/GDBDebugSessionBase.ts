@@ -45,18 +45,7 @@ import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { isWindowsPath } from '../util/isWindowsPath';
 import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
-
-class ThreadWithStatus implements DebugProtocol.Thread {
-    id: number;
-    name: string;
-    running: boolean;
-    lastRunToken: string | undefined;
-    constructor(id: number, name: string, running: boolean) {
-        this.id = id;
-        this.name = name;
-        this.running = running;
-    }
-}
+import { ThreadWithStatus } from './common';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
