@@ -792,4 +792,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             );
         }
     }
+
+    protected async evaluateRequest(
+        response: DebugProtocol.EvaluateResponse,
+        args: DebugProtocol.EvaluateArguments
+    ): Promise<void> {
+        return this.doEvaluateRequest(response, args, true);
+    }
 }

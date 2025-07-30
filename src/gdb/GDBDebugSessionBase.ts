@@ -1390,12 +1390,23 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
     ): Promise<void> {
+        return this.doEvaluateRequest(response, args, false);
+    }
+
+    protected async doEvaluateRequest(
+        response: DebugProtocol.EvaluateResponse,
+        args: DebugProtocol.EvaluateArguments,
+        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId
+    ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
             variablesReference: 0,
         }; // default response
         try {
-            if (args.frameId === undefined) {
+            const allowCliCommand =
+                alwaysAllowCliCommand && args.expression.startsWith('>');
+
+            if (!allowCliCommand && args.frameId === undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
@@ -1405,7 +1416,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
-            if (!frameRef) {
+            if (!allowCliCommand && !frameRef) {
                 this.sendResponse(response);
                 return;
             }
