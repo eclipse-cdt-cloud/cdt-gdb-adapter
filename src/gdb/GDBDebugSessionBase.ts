@@ -46,6 +46,7 @@ import { isWindowsPath } from '../util/isWindowsPath';
 import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
+import { RESUME_COMMANDS } from '../constants/gdb';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -77,43 +78,6 @@ const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C n
 const cBoolRegex = /\bbool$/; // match boolean
 const threadIdRegex = /.*\s+\-\-thread\s+(\d+).*/;
 const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
-
-const resumeCommands = [
-    // GDB MI
-    '-exec-continue',
-    '-exec-finish',
-    '-exec-jump',
-    '-exec-next',
-    '-exec-next-instruction',
-    '-exec-return',
-    '-exec-run',
-    '-exec-step',
-    '-exec-step-instruction',
-    '-exec-until',
-    // GDB CLI (initCommands, customResetCommands)
-    'advance',
-    'continue',
-    'fg',
-    'c',
-    'finish',
-    'fin',
-    'jump',
-    'j',
-    'next',
-    'n',
-    'nexti',
-    'ni',
-    'run',
-    'r',
-    'start',
-    'starti',
-    'step',
-    's',
-    'stepi',
-    'si',
-    'until',
-    'u',
-];
 
 // Interface for output category pair
 interface StreamOutput {
@@ -2250,7 +2214,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const token = notifyData['cdt-token'];
         const resumeCommand =
             typeof originalCommand === 'string'
-                ? resumeCommands.some(
+                ? RESUME_COMMANDS.some(
                       (cmd) =>
                           originalCommand === cmd ||
                           originalCommand.startsWith(cmd + ' ')
