@@ -133,7 +133,7 @@ export interface IGDBBackend extends EventEmitter {
         listener: (output: string, category: string) => void
     ): this;
     on(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync' | 'resultAsync',
         listener: (asyncClass: string, data: any) => void
     ): this;
     on(
@@ -147,7 +147,7 @@ export interface IGDBBackend extends EventEmitter {
         category: string
     ): boolean;
     emit(
-        event: 'execAsync' | 'notifyAsync' | 'statusAsync',
+        event: 'execAsync' | 'notifyAsync' | 'statusAsync' | 'resultAsync',
         asyncClass: string,
         data: any
     ): boolean;
