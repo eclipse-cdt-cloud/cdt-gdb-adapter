@@ -3,7 +3,7 @@
 ## 1.2.0
 
 - Fixes [cdt-gdb-vscode `#173`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/173): Add `target`>`watchServerProcess` setting to ignore early exit of `server` executable, e.g. if a launcher for actual gdbserver.
-- Fixes [`#330`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/330) / [cdt-gdb-vscode `#151`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/151): Can not remove breakpoint when debugging (Windows, Theia).
+- Fixes [`#330`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/330) / [cdt-gdb-vscode `#151`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/151): Cannot remove breakpoint when debugging (Windows, Theia).
 - Fixes [`#362`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/362): Cannot execute CLI commands like `> interrupt` from Debug Console while CPU is running.  
   **Note**: Depends on whether a blocking command was executed from CLI before.
 - Fixes [`#367`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/367): Debugging with `gdbtarget` fails if `program` is omitted, despite user doc claiming it's optional.
