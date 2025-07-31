@@ -128,6 +128,14 @@ export interface IGDBBackend extends EventEmitter {
     sendCommands(commands?: string[]): Promise<void>;
     gdbVersionAtLeast(targetVersion: string): boolean;
 
+    /** Ask GDB for its current thread ID.
+     *
+     * Can return 0 when GDB has no threads, or -1 in case of unexpected errors
+     * (which will in some cases make things work anyway because "--thread -1"
+     * is equivalent to omitting "--thread" - that is probably an implementation
+     * detail though). */
+    queryCurrentThreadId(): Promise<number>;
+
     on(
         event: 'consoleStreamOutput',
         listener: (output: string, category: string) => void
