@@ -18,6 +18,7 @@ import {
     MIBreakpointInsertOptions,
     MIBreakpointLocation,
     MIShowResponse,
+    sendDataEvaluateExpression,
     sendExecInterrupt,
 } from '../mi';
 import { VarManager } from '../varManager';
@@ -295,6 +296,17 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public isActive(): boolean {
         return isProcessActive(this.proc);
+    }
+
+    public async queryCurrentThreadId(): Promise<number> {
+        const threadIdResult = await sendDataEvaluateExpression(
+            this,
+            this.gdbVersionAtLeast('7.11') ? '$_gthread' : '$_thread'
+        );
+        return threadIdResult.value !== undefined &&
+            threadIdResult.value !== 'void'
+            ? parseInt(threadIdResult.value, 10)
+            : -1;
     }
 
     protected nextToken() {

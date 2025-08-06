@@ -436,12 +436,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.waitPaused = resolve;
             });
             if (this.gdb.isNonStopMode()) {
-                const threadInfo = await mi.sendThreadInfoRequest(this.gdb, {});
-
-                this.waitPausedThreadId = parseInt(
-                    threadInfo['current-thread-id'],
-                    10
-                );
+                this.waitPausedThreadId = await this.gdb.queryCurrentThreadId();
                 this.gdb.pause(this.waitPausedThreadId);
             } else {
                 this.gdb.pause();
@@ -1934,7 +1929,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     if (
                         this.waitPaused &&
                         resultData.reason === 'signal-received' &&
-                        this.waitPausedThreadId === id
+                        (this.waitPausedThreadId === id ||
+                            this.waitPausedThreadId === -1)
                     ) {
                         suppressHandleGDBStopped = true;
                     }
