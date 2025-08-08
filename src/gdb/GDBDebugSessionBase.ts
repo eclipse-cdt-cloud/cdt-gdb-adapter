@@ -1539,10 +1539,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            if (
-                err instanceof Error &&
-                err.message.includes('var-create')
-            ) {
+            if (err instanceof Error && err.message.includes('var-create')) {
                 if (args.context === 'hover') {
                     response.success = false;
                 }
