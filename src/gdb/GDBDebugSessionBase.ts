@@ -2021,25 +2021,25 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     if (notifyData.bkpt.disp === 'del') {
                         break;
                     }
-                    let breakpoint : DebugProtocol.Breakpoint;
+                    let breakpoint: DebugProtocol.Breakpoint;
                     if (notifyData.bkpt.file) {
                         breakpoint = {
-                        id: parseInt(notifyData.bkpt.number, 10),
-                        verified: true,
-                        source: {
-                            name: notifyData.bkpt.fullname,
-                            path: notifyData.bkpt.file,
-                        },
-                        line: parseInt(notifyData.bkpt.line, 10),
+                            id: parseInt(notifyData.bkpt.number, 10),
+                            verified: true,
+                            source: {
+                                name: notifyData.bkpt.fullname,
+                                path: notifyData.bkpt.file,
+                            },
+                            line: parseInt(notifyData.bkpt.line, 10),
                         };
                     } else {
                         breakpoint = {
-                        id: parseInt(notifyData.bkpt.number, 10),
-                        verified: true,
-                        instructionReference: notifyData.bkpt.addr,
+                            id: parseInt(notifyData.bkpt.number, 10),
+                            verified: true,
+                            instructionReference: notifyData.bkpt.addr,
                         };
                     }
-                    
+
                     const breakpointevent = new BreakpointEvent(
                         'changed',
                         breakpoint
