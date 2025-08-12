@@ -2022,7 +2022,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         break;
                     }
                     let breakpoint : DebugProtocol.Breakpoint;
-                    if (notifyData.bkpt.line) {
+                    if (notifyData.bkpt.file) {
                         breakpoint = {
                         id: parseInt(notifyData.bkpt.number, 10),
                         verified: true,
