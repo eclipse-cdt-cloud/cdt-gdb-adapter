@@ -35,6 +35,7 @@ import {
     MemoryResponse,
     FrameVariableReference,
     RegisterVariableReference,
+    GlobalVariableReference,
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
@@ -104,6 +105,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * typically supplied with the --config-frozen command line argument.
      */
     protected static frozenRequestArguments?: { request?: string };
+    
+    // A variable to store current source file the debugger stopped in. For global variables
+    protected currentFile: string = '';
 
     protected gdb!: IGDBBackend;
     protected isAttach = false;
@@ -1173,6 +1177,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
+        const globals: GlobalVariableReference = {
+            type: 'globals',
+            frameHandle: args.frameId,
+        };
+
         response.body = {
             scopes: [
                 new Scope(
@@ -1184,6 +1193,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     'Registers',
                     this.variableHandles.create(registers),
                     true
+                ),
+                new Scope(
+                    'Global',
+                    this.variableHandles.create(globals),
+                    false
                 ),
             ],
         };
@@ -1214,6 +1228,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else if (ref.type === 'object') {
                 response.body.variables =
                     await this.handleVariableRequestObject(ref);
+            } else if (ref.type === 'globals') {
+                response.body.variables =
+                    await this.handleVariableRequestGlobal();
             }
             this.sendResponse(response);
         } catch (err) {
@@ -1916,6 +1933,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'stopped': {
                 let suppressHandleGDBStopped = false;
+                this.currentFile = resultData.frame.fullname;
                 if (this.gdb.isNonStopMode()) {
                     const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
@@ -2071,7 +2089,39 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
         }
     }
-
+    /**
+     * Necessary steps for viewing global variables
+     * retrieve global symbols/variables from GDB
+     * each symbol has a property stating which source file it is created to and the type attribute provides if it's static or not.
+     * A map is created in the debug-adapter for global variables to store them.
+     */
+    protected async handleVariableRequestGlobal(): Promise<
+        DebugProtocol.Variable[]
+    > {
+        const globalVariables: DebugProtocol.Variable[] = [];
+        const globalvars = await mi.sendSymbolInfoVars(this.gdb);
+        //const globalvars: mi.MISymbolInfoVarsResponse = await mi.getGlobalVars(this.gdb);
+        if (globalvars) {
+            for (const symbolgroup of globalvars.symbols.debug) {
+                // if (symbolgroup.symbols.description.includes('static')) {
+                // }
+                for (const symbol of symbolgroup.symbols) {
+                    const varValue = await mi.sendDataEvaluateExpression(
+                        this.gdb,
+                        symbol.name
+                    );
+                    globalVariables.push({
+                        name: symbol.name,
+                        value: varValue.value ?? '',
+                        variablesReference: 0,
+                    });
+                }
+            }
+        }
+        console.log(globalVariables);
+        console.log(globalvars);
+        return globalVariables;
+    }
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {

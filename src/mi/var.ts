@@ -67,6 +67,28 @@ export interface MIVarPathInfoResponse {
     path_expr: string;
 }
 
+export interface MIDebugSymbol {
+    line: string;
+    name: string;
+    type: string;
+    description: string;
+}
+
+export interface MINonDebugSymbol {
+    address: string;
+    name: string;
+}
+export interface MISymbolInfoVarsDebug {
+    filename: string;
+    fullname: string;
+    symbols: MIDebugSymbol[];
+}
+export interface MISymbolInfoVarsResponse {
+    symbols: {
+        debug: MISymbolInfoVarsDebug[];
+        nondebug: MINonDebugSymbol[];
+    };
+}
 function quote(expression: string) {
     return `"${expression}"`;
 }
@@ -202,5 +224,12 @@ export function sendVarSetFormatToHex(
     name: string
 ): Promise<void> {
     const command = `-var-set-format ${name} hexadecimal`;
+    return gdb.sendCommand(command);
+}
+
+export function sendSymbolInfoVars(
+    gdb: IGDBBackend
+): Promise<MISymbolInfoVarsResponse> {
+    const command = '-symbol-info-variables';
     return gdb.sendCommand(command);
 }

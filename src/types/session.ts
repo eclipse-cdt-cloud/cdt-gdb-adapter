@@ -58,10 +58,17 @@ export interface RegisterVariableReference {
     regname?: string;
 }
 
+export interface GlobalVariableReference {
+    type: 'globals';
+    frameHandle: number;
+    regname?: string;
+}
+
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
-    | RegisterVariableReference;
+    | RegisterVariableReference
+    | GlobalVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
