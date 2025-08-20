@@ -149,7 +149,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await this.setupCommonLoggerAndBackends(args);
-        this.initializeCustomResetCommands(args);
+        this.initializeSessionArguments(args);
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;

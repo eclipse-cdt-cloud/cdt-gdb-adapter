@@ -26,6 +26,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     initCommands?: string[];
     hardwareBreakpoint?: boolean;
     customResetCommands?: string[];
+    steppingResponseTimeout?: number;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
