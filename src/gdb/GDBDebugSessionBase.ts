@@ -43,6 +43,8 @@ import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
 import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { isWindowsPath } from '../util/isWindowsPath';
+import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
+import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 
 class ThreadWithStatus implements DebugProtocol.Thread {
     id: number;
@@ -137,6 +139,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     protected customResetCommands?: string[];
 
+    /**
+     *  steppingResponseTimeout from launch.json
+     */
+    protected steppingResponseTimeout: number =
+        DEFAULT_STEPPING_RESPONSE_TIMEOUT;
+
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
@@ -213,10 +221,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * Apply the initial custom reset arguments.
      * @param args the arguments from the user to apply custom reset arguments to.
      */
-    protected initializeCustomResetCommands(
+    protected initializeSessionArguments(
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
         this.customResetCommands = args.customResetCommands;
+        this.steppingResponseTimeout =
+            args.steppingResponseTimeout ?? DEFAULT_STEPPING_RESPONSE_TIMEOUT;
     }
 
     /**
@@ -1067,55 +1077,88 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments
     ): Promise<void> {
-        try {
-            await (args.granularity === 'instruction'
-                ? mi.sendExecNextInstruction(this.gdb, args.threadId)
-                : mi.sendExecNext(this.gdb, args.threadId));
-            this.sendResponse(response);
-        } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
-        }
+        return sendResponseWithTimeout({
+            execute: async () => {
+                await (args.granularity === 'instruction'
+                    ? mi.sendExecNextInstruction(this.gdb, args.threadId)
+                    : mi.sendExecNext(this.gdb, args.threadId));
+            },
+            onResponse: () => {
+                this.sendResponse(response);
+            },
+            onError: (err) => {
+                const errorMessage =
+                    err instanceof Error ? err.message : String(err);
+
+                this.sendEvent(
+                    new OutputEvent(
+                        `Error occurred during the nextRequest: ${errorMessage}\n`,
+                        'console'
+                    )
+                );
+                this.sendErrorResponse(response, 1, errorMessage);
+            },
+            timeout: this.steppingResponseTimeout,
+        });
     }
 
     protected async stepInRequest(
         response: DebugProtocol.StepInResponse,
         args: DebugProtocol.StepInArguments
     ): Promise<void> {
-        try {
-            await (args.granularity === 'instruction'
-                ? mi.sendExecStepInstruction(this.gdb, args.threadId)
-                : mi.sendExecStep(this.gdb, args.threadId));
-            this.sendResponse(response);
-        } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
-        }
+        return sendResponseWithTimeout({
+            execute: async () => {
+                await (args.granularity === 'instruction'
+                    ? mi.sendExecStepInstruction(this.gdb, args.threadId)
+                    : mi.sendExecStep(this.gdb, args.threadId));
+            },
+            onResponse: () => {
+                this.sendResponse(response);
+            },
+            onError: (err) => {
+                const errorMessage =
+                    err instanceof Error ? err.message : String(err);
+
+                this.sendEvent(
+                    new OutputEvent(
+                        `Error occurred during the stepInRequest: ${errorMessage}\n`,
+                        'console'
+                    )
+                );
+                this.sendErrorResponse(response, 1, errorMessage);
+            },
+            timeout: this.steppingResponseTimeout,
+        });
     }
 
     protected async stepOutRequest(
         response: DebugProtocol.StepOutResponse,
         args: DebugProtocol.StepOutArguments
     ): Promise<void> {
-        try {
-            await mi.sendExecFinish(this.gdb, {
-                threadId: args.threadId,
-                frameId: 0,
-            });
-            this.sendResponse(response);
-        } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
-        }
+        return sendResponseWithTimeout({
+            execute: async () => {
+                await mi.sendExecFinish(this.gdb, {
+                    threadId: args.threadId,
+                    frameId: 0,
+                });
+            },
+            onResponse: () => {
+                this.sendResponse(response);
+            },
+            onError: (err) => {
+                const errorMessage =
+                    err instanceof Error ? err.message : String(err);
+
+                this.sendEvent(
+                    new OutputEvent(
+                        `Error occurred during the stepOutRequest: ${errorMessage}\n`,
+                        'console'
+                    )
+                );
+                this.sendErrorResponse(response, 1, errorMessage);
+            },
+            timeout: this.steppingResponseTimeout,
+        });
     }
 
     protected async continueRequest(
