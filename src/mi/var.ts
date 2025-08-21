@@ -52,6 +52,8 @@ export interface MIVarUpdateResponse {
         in_scope: string;
         type_changed: string;
         has_more: string;
+        new_type: string;
+        new_num_children: string;
     }>;
 }
 
@@ -228,8 +230,28 @@ export function sendVarSetFormatToHex(
 }
 
 export function sendSymbolInfoVars(
-    gdb: IGDBBackend
+    gdb: IGDBBackend,
+    params?: {
+        name?: string;
+        type?: string;
+        max_result?: string;
+        non_debug?: boolean;
+    }
 ): Promise<MISymbolInfoVarsResponse> {
-    const command = '-symbol-info-variables';
+    let command = '-symbol-info-variables';
+    if (params) {
+        if (params.name) {
+            command += ` --name ^${params.name}$`;
+        }
+        if (params.type) {
+            command += ` --type ^${params.type}$`;
+        }
+        if (params.max_result) {
+            command += ` --max-result ${params.max_result}`;
+        }
+        if (params.non_debug) {
+            command += ' --include-nondebug';
+        }
+    }
     return gdb.sendCommand(command);
 }
