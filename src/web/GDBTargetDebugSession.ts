@@ -421,6 +421,11 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 }
             }
 
+            // Send GDB commands before attaching to target
+            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                args.initCommands
+            );
+
             await this.setSessionState(SessionState.GDB_READY);
 
             // Connect to remote server
@@ -468,11 +473,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             await this.setSessionState(SessionState.CONNECTED);
-
-            // Initialize debug target
-            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
-                args.initCommands
-            );
 
             // Load additional code/symbols
             if (args.imageAndSymbols) {
