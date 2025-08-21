@@ -65,22 +65,45 @@ const expectBreakpoint = async (
     expect(response.body.breakpoints.length).eq(1);
     expect(response.body.breakpoints[0].verified).eq(true);
     expect(response.body.breakpoints[0].message).eq(undefined);
-    await dc.configurationDoneRequest();
 
-    let isCorrect;
-    let outputs;
-    while (!isCorrect) {
-        // Cover the case of getting event in Linux environment.
-        // If cannot get correct event, program timeout and test case failed.
-        outputs = await dc.waitForEvent('output');
-        isCorrect = outputs.body.output.includes('breakpoint-modified');
-    }
+    // Wait for the first output event that contains 'breakpoint-modified' and
+    // for the first stopped event after that.
+    // Cannot use repeated dc.waitForEvent('output') for that because it might
+    // miss some.
+    const [[outputs, stoppedOutput]] = await Promise.all([
+        new Promise<[DebugProtocol.Event, DebugProtocol.Event]>(
+            (resolve, reject) => {
+                const timeout = setTimeout(
+                    () =>
+                        reject(
+                            new Error(
+                                'No correct sequence of events received after 2500 ms'
+                            )
+                        ),
+                    2500
+                );
+                function checkOutputEvent(outputEvent: DebugProtocol.Event) {
+                    if (
+                        outputEvent.body.output.includes('breakpoint-modified')
+                    ) {
+                        dc.off('output', checkOutputEvent);
+                        dc.once('stopped', (stoppedEvent) => {
+                            clearTimeout(timeout);
+                            resolve([outputEvent, stoppedEvent]);
+                        });
+                    }
+                }
+                dc.on('output', checkOutputEvent);
+            }
+        ),
+        dc.configurationDoneRequest(),
+    ]);
+
     expect(outputs?.body.output).includes(
         `type="${
             breakpointMode === 'hardware' ? 'hw breakpoint' : 'breakpoint'
         }"`
     );
-    const stoppedOutput = await dc.waitForEvent('stopped');
     expect(stoppedOutput.body?.reason).eq('breakpoint');
 };
 
