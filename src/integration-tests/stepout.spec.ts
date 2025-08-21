@@ -47,13 +47,17 @@ describe('stepout', async function () {
                 },
             ],
         });
-        await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
         const scope = await getScopes(dc);
-        await dc.stepOutRequest({
-            threadId: scope.thread.id,
-        });
-        const stepOutEvent = await dc.waitForEvent('stopped');
+        const [stepOutEvent] = await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.stepOutRequest({
+                threadId: scope.thread.id,
+            }),
+        ]);
         expect(stepOutEvent.body.reason).eq('step');
         const stackTrace = await dc.stackTraceRequest({
             threadId: stepOutEvent.body.threadId,
