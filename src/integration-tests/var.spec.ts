@@ -440,36 +440,36 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], '[0]', 'int', '1', {
+        verifyVariable(children.body.variables[0], '0', 'int', '1', {
             hasMemoryReference: false,
         });
-        verifyVariable(children.body.variables[1], '[1]', 'int', '2', {
+        verifyVariable(children.body.variables[1], '1', 'int', '2', {
             hasMemoryReference: false,
         });
-        verifyVariable(children.body.variables[2], '[2]', 'int', '3', {
+        verifyVariable(children.body.variables[2], '2', 'int', '3', {
             hasMemoryReference: false,
         });
         // set the variables to something different
         const set0inHex = await dc.setVariableRequest({
-            name: '[0]',
+            name: '0',
             value: '0x11',
             variablesReference: childVR,
         });
         expect(set0inHex.body.value).to.equal('17');
         const set0 = await dc.setVariableRequest({
-            name: '[0]',
+            name: '0',
             value: '11',
             variablesReference: childVR,
         });
         expect(set0.body.value).to.equal('11');
         const set1 = await dc.setVariableRequest({
-            name: '[1]',
+            name: '1',
             value: '22',
             variablesReference: childVR,
         });
         expect(set1.body.value).to.equal('22');
         const set2 = await dc.setVariableRequest({
-            name: '[2]',
+            name: '2',
             value: '33',
             variablesReference: childVR,
         });
@@ -480,13 +480,13 @@ describe('Variables Test Suite', function () {
             children.body.variables.length,
             'There is a different number of child variables than expected'
         ).to.equal(3);
-        verifyVariable(children.body.variables[0], '[0]', 'int', '11', {
+        verifyVariable(children.body.variables[0], '0', 'int', '11', {
             hasMemoryReference: false,
         });
-        verifyVariable(children.body.variables[1], '[1]', 'int', '22', {
+        verifyVariable(children.body.variables[1], '1', 'int', '22', {
             hasMemoryReference: false,
         });
-        verifyVariable(children.body.variables[2], '[2]', 'int', '33', {
+        verifyVariable(children.body.variables[2], '2', 'int', '33', {
             hasMemoryReference: false,
         });
         // step the program and see that the values were passed to the program and evaluated.
