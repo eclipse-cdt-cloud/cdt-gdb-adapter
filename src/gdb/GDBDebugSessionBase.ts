@@ -55,6 +55,27 @@ class ThreadWithStatus implements DebugProtocol.Thread {
     }
 }
 
+/**
+ * Keeps track of where in the configuration phase (between initialized event
+ * and configurationDone response) we are.
+ */
+const enum ConfiguringState {
+    /** Configuration phase has not started yet. */
+    INITIAL,
+    /** Configuration phase has started, target is running, no requests that
+     * require pausing it have arrived yet. */
+    CONFIGURING,
+    /** Configuration phase has started, at least one request that requires
+     * pausing the target has arrived or it has been paused to begin with. */
+    CONFIGURING_PAUSED,
+    /** Configuration phase is completed, the next unpausing is the one
+     * associated with the end of the phase. */
+    FINISHING,
+    /** Configuration phase is completed, any following unpausing corresponds
+     * to a pausing outside of the configuration phase. */
+    DONE,
+}
+
 // Allow a single number for ignore count or the form '> [number]'
 const ignoreCountRegex = /\s|>/g;
 const arrayRegex = /.*\[[\d]+\].*/;
@@ -124,12 +145,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected threads: ThreadWithStatus[] = [];
 
     // promise that resolves once the target stops so breakpoints can be inserted
+    protected waitPausedPromise?: Promise<void>;
+    // resolve function of waitPausedPromise while waiting, undefined otherwise
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
     // the thread id that we were waiting for
     protected waitPausedThreadId = 0;
     // set to true if the target was interrupted where inteneded, and should
     // therefore be resumed after breakpoints are inserted.
     protected waitPausedNeeded = false;
+    // reference count of operations requiring pausing, to make sure only the
+    // first of them pauses, and the last to complete resumes
+    protected pauseCount = 0;
+    // keeps track of where in the configuration phase (between initialize event
+    // and configurationDone response) we are
+    protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
     protected isInitialized = false;
 
     /**
@@ -360,8 +389,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 });
             }
         }
-        this.sendEvent(new InitializedEvent());
+        this.sendInitializedEvent();
         this.sendResponse(response);
+    }
+
+    protected sendInitializedEvent() {
+        if (this.isRunning) {
+            this.configuringState = ConfiguringState.CONFIGURING;
+        } else {
+            this.configuringState = ConfiguringState.CONFIGURING_PAUSED;
+            this.pauseCount++;
+        }
+        this.sendEvent(new InitializedEvent());
         this.isInitialized = true;
     }
 
@@ -428,33 +467,77 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async pauseIfNeeded(requireAsync: true): Promise<void>;
 
     protected async pauseIfNeeded(requireAsync = false): Promise<void> {
-        this.waitPausedNeeded =
-            this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
-
-        if (this.waitPausedNeeded) {
-            const waitPromise = new Promise<void>((resolve) => {
-                this.waitPaused = resolve;
-            });
-            if (this.gdb.isNonStopMode()) {
-                this.waitPausedThreadId = await this.gdb.queryCurrentThreadId();
-                this.gdb.pause(this.waitPausedThreadId);
-            } else {
-                this.gdb.pause();
-            }
-
-            // This promise resolves when handling GDBAsync for the "stopped"
-            // result class, which indicates that the call to `GDBBackend::pause`
-            // is actually finished.
-            await waitPromise;
+        // If we are in the configuration phase and this is the first request
+        // that requires pausing, add another pauseIfNeeded/continueIfNeeded
+        // bracket around the whole phase so we don't unnecessarily pause/
+        // continue more than once. Matching continueIfNeeded is in
+        // configurationDoneRequest.
+        if (this.configuringState === ConfiguringState.CONFIGURING) {
+            this.configuringState = ConfiguringState.CONFIGURING_PAUSED;
+            this.pauseIfNeeded(); // no need to await
         }
+
+        this.pauseCount++;
+        if (this.pauseCount === 1) {
+            this.waitPausedNeeded =
+                this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
+            if (this.waitPausedNeeded) {
+                let prevResolve = this.waitPaused;
+                this.waitPausedPromise = new Promise<void>((resolve) => {
+                    this.waitPaused = resolve;
+                });
+                if (prevResolve) {
+                    // We must have done pause, continue, pause before the stop
+                    // notification from the first pause arrived, so the first
+                    // pause is still waiting on its promise (or hasn't even gotten
+                    // there yet because it's still awaiting the thread id) and we
+                    // mustn't lose its resolve function, rather the next stop
+                    // notification to arrive must resolve both promises, so
+                    // daisy-chain it.
+                    this.waitPausedPromise.then(prevResolve);
+                    // Also, we should keep the same waitPausedthreadId.
+                } else {
+                    this.waitPausedThreadId = 0;
+                }
+                if (this.gdb.isNonStopMode()) {
+                    if (this.waitPausedThreadId === 0) {
+                        this.waitPausedThreadId =
+                            await this.gdb.queryCurrentThreadId();
+                    }
+                    this.gdb.pause(this.waitPausedThreadId);
+                } else {
+                    this.gdb.pause();
+                }
+            }
+        }
+
+        // This promise resolves when handling GDBAsync for the "stopped"
+        // result class, which indicates that the call to `GDBBackend::pause`
+        // is actually finished.
+        await this.waitPausedPromise;
     }
 
     protected async continueIfNeeded(): Promise<void> {
-        if (this.waitPausedNeeded) {
-            if (this.gdb.isNonStopMode()) {
-                await mi.sendExecContinue(this.gdb, this.waitPausedThreadId);
-            } else {
-                await mi.sendExecContinue(this.gdb);
+        if (this.pauseCount > 0) {
+            this.pauseCount--;
+            if (this.pauseCount === 0) {
+                if (this.configuringState === ConfiguringState.FINISHING) {
+                    this.configuringState = ConfiguringState.DONE;
+                    if (this.isAttach) {
+                        await mi.sendExecContinue(this.gdb);
+                    } else {
+                        await mi.sendExecRun(this.gdb);
+                    }
+                } else if (this.waitPausedNeeded) {
+                    if (this.gdb.isNonStopMode()) {
+                        await mi.sendExecContinue(
+                            this.gdb,
+                            this.waitPausedThreadId
+                        );
+                    } else {
+                        await mi.sendExecContinue(this.gdb);
+                    }
+                }
             }
         }
     }
@@ -945,10 +1028,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     'console'
                 )
             );
-            if (this.isAttach) {
-                await mi.sendExecContinue(this.gdb);
+            if (this.configuringState === ConfiguringState.CONFIGURING_PAUSED) {
+                this.configuringState = ConfiguringState.FINISHING;
+                await this.continueIfNeeded();
             } else {
-                await mi.sendExecRun(this.gdb);
+                this.configuringState = ConfiguringState.DONE;
             }
             this.sendResponse(response);
         } catch (err) {

@@ -9,12 +9,7 @@
  *********************************************************************/
 
 import { GDBDebugSession } from './GDBDebugSession';
-import {
-    InitializedEvent,
-    logger,
-    OutputEvent,
-    TerminatedEvent,
-} from '@vscode/debugadapter';
+import { logger, OutputEvent, TerminatedEvent } from '@vscode/debugadapter';
 import { LogLevel } from '@vscode/debugadapter/lib/logger';
 import * as mi from '../mi';
 import * as os from 'os';
@@ -645,10 +640,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             );
             // Connection completed, announce the adapter is ready for
             // other protocol commands.
-            this.sendEvent(new InitializedEvent());
+            this.sendInitializedEvent();
             this.sendResponse(response);
             await this.setSessionState(SessionState.SESSION_READY);
-            this.isInitialized = true;
         } catch (err) {
             this.logGDBRemote(`caught error '${err}`);
             // Clean up any pending processes
