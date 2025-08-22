@@ -63,12 +63,6 @@ describe('attach remote', function () {
     });
 
     afterEach(async function () {
-        // Set max 30s timeout because disconnectRequest() in dc.stop() can hang
-        // if a failing test left GDB in an unexpected state, causing us to miss
-        // the backtrace output.
-        if (this.timeout() > 30000) {
-            this.timeout(30000);
-        }
         await gdbserver.kill();
         await dc.stop();
     });
