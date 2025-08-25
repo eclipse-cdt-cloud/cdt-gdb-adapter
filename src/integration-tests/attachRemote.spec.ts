@@ -22,8 +22,10 @@ import {
     gdbServerPath,
     gdbAsync,
     fillDefaults,
+    gdbNonStop,
 } from './utils';
 import { expect } from 'chai';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 describe('attach remote', function () {
     let dc: CdtDebugClient;
@@ -144,6 +146,42 @@ describe('attach remote', function () {
             dc.continueRequest({ threadId: 1 }),
         ]);
         expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
+    });
+
+    it('can attach to a non-stopping target and has thread names from the beginning', async function () {
+        if (!gdbNonStop) {
+            // Over a remote connection, this functionality is currently only
+            // available in non-stop mode.
+            this.skip();
+        }
+        const attachArgs = fillDefaults(this.test, {
+            program: program,
+            target: {
+                type: 'remote',
+                parameters: [`localhost:${port}`],
+            } as TargetAttachArguments,
+            initCommands: [
+                'thread name mythreadname',
+                // Simulate a target that does not stop on attaching, unlike
+                // what gdbserver does when attaching to a Unix process.
+                '-exec-continue --all',
+            ],
+        } as TargetAttachRequestArguments);
+
+        await Promise.all([
+            dc
+                .waitForEvent('initialized')
+                .then(() => dc.configurationDoneRequest()),
+            dc.initializeRequest().then(() => dc.attachRequest(attachArgs)),
+        ]);
+
+        const threadsResponse = await dc.threadsRequest();
+        expect(threadsResponse.success).to.be.true;
+        expect(threadsResponse.body.threads)
+            .to.be.an('array')
+            .that.satisfies((threads: DebugProtocol.Thread[]) =>
+                threads.some((t) => t.name === 'mythreadname')
+            );
     });
 
     it('can detach from a running program', async function () {
