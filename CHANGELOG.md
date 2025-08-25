@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): missing thread names when attaching to targets that don’t stop on attach.
 - Fixes [`#437`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/437): `detach` request getting stuck on exited program.
 - Fixes [`#407`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/407): Getting stuck on concurrent breakpoint setup on targets that don’t stop on attach.
 - Fixes [`#427`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/427): Breakpoint source code reference to module disappears when breakpoint is hit
