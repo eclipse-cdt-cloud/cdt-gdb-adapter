@@ -2090,6 +2090,45 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
     /**
+     * Pushing to global variables response
+     */
+    private pushToGlobalVariableArray(
+        globalArray: DebugProtocol.Variable[],
+        elementToAdd: mi.MIVarCreateResponse | VarObjType
+    ): DebugProtocol.Variable[] {
+        if ('varname' in elementToAdd) {
+            globalArray.push({
+                name: elementToAdd.varname,
+                value: elementToAdd.value ?? '',
+                memoryReference: `&(${elementToAdd.varname})`,
+                variablesReference:
+                    parseInt(elementToAdd.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                              type: 'object',
+                              varobjName: elementToAdd.varname,
+                              frameHandle: -1, // Global variables don't have a frame
+                          })
+                        : 0,
+            });
+        } else {
+            globalArray.push({
+                name: elementToAdd.name,
+                value: elementToAdd.value ?? '',
+                memoryReference: `&(${elementToAdd.name})`,
+                variablesReference:
+                    parseInt(elementToAdd.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                              type: 'object',
+                              varobjName: elementToAdd.name,
+                              frameHandle: -1, // Global variables don't have a frame
+                          })
+                        : 0,
+            });
+        }
+
+        return globalArray;
+    }
+    /**
      * Necessary steps for viewing global variables
      * retrieve global symbols/variables from GDB
      * each symbol has a property stating which source file it is created to and the type attribute provides if it's static or not.
@@ -2099,7 +2138,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         DebugProtocol.Variable[]
     > {
         // Create empty array response for global variaables
-        const globalVariables: DebugProtocol.Variable[] = [];
+        let globalVariables: DebugProtocol.Variable[] = [];
         // Check if any global variables are stored in the adapter's variable map. They have threadId of -1, frameId of -1, and depth of -1 as well
         const existingGlobalVars = this.gdb.varManager.getVars(
             { threadId: -1, frameId: -1 },
@@ -2144,35 +2183,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             // Check if current source file is the same as symbol's filename
                             if (symbolGroupFile === this.currentSourcetFile) {
                                 // If it is the same, add static variable to response list
-                                globalVariables.push({
-                                    name: miVarObj.name,
-                                    value: miVarObj.value ?? '',
-                                    memoryReference: `&(${miVarObj.name})`,
-                                    variablesReference:
-                                        parseInt(miVarObj.numchild, 10) > 0
-                                            ? this.variableHandles.create({
-                                                  type: 'object',
-                                                  varobjName: miVarObj.name,
-                                                  frameHandle: -1, // Global variables don't have a frame
-                                              })
-                                            : 0,
-                                });
+                                globalVariables =
+                                    this.pushToGlobalVariableArray(
+                                        globalVariables,
+                                        miVarObj
+                                    );
                             }
                         } else {
                             // If not static variable, just add it to response
-                            globalVariables.push({
-                                name: miVarObj.name,
-                                value: miVarObj.value ?? '',
-                                memoryReference: `&(${miVarObj.name})`,
-                                variablesReference:
-                                    parseInt(miVarObj.numchild, 10) > 0
-                                        ? this.variableHandles.create({
-                                              type: 'object',
-                                              varobjName: miVarObj.name,
-                                              frameHandle: -1, // Global variables don't have a frame
-                                          })
-                                        : 0,
-                            });
+                            globalVariables = this.pushToGlobalVariableArray(
+                                globalVariables,
+                                miVarObj
+                            );
                         }
                     }
                 }
@@ -2194,7 +2216,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             {
                                 name: variableInMap.varname,
                             }
-                        );
+                        );                
                         // If changelist has the length 0, the value of update will be undefined
                         // If update is undefined, that means the variable object still exists in GDB/MI, but it hasn't changed it's value.
                         // When a variable object is erased from GDB/MI, the -var-update command will trigger an error
@@ -2244,40 +2266,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                     this.currentSourcetFile
                                 ) {
                                     // If we are in the right source file, show the corresponding static variables
-                                    globalVariables.push({
-                                        name: variableInMap.varname,
-                                        value: variableInMap.value ?? '',
-                                        memoryReference: `&(${variableInMap.varname})`,
-                                        variablesReference:
-                                            parseInt(
-                                                variableInMap.numchild,
-                                                10
-                                            ) > 0
-                                                ? this.variableHandles.create({
-                                                      type: 'object',
-                                                      varobjName:
-                                                          variableInMap.varname,
-                                                      frameHandle: -1, // Global variables don't have a frame
-                                                  })
-                                                : 0,
-                                    });
+                                    globalVariables =
+                                        this.pushToGlobalVariableArray(
+                                            globalVariables,
+                                            variableInMap
+                                        );
                                 }
                             } else {
                                 // If not static variable, then just print it
-                                globalVariables.push({
-                                    name: variableInMap.varname,
-                                    value: variableInMap.value ?? '',
-                                    memoryReference: `&(${variableInMap.varname})`,
-                                    variablesReference:
-                                        parseInt(variableInMap.numchild, 10) > 0
-                                            ? this.variableHandles.create({
-                                                  type: 'object',
-                                                  varobjName:
-                                                      variableInMap.varname,
-                                                  frameHandle: -1, // Global variables don't have a frame
-                                              })
-                                            : 0,
-                                });
+                                globalVariables =
+                                    this.pushToGlobalVariableArray(
+                                        globalVariables,
+                                        variableInMap
+                                    );
                             }
                         }
                     }
