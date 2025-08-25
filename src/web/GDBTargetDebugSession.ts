@@ -97,6 +97,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         super(backendFactory);
         this.gdbserverFactory = gdbserverFactory;
         this.logger = logger;
+        this.isRemote = true;
     }
 
     protected logGDBRemote(message: string, level = LogLevel.Verbose) {
