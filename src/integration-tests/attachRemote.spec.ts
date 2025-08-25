@@ -140,11 +140,15 @@ describe('attach remote', function () {
         ]);
 
         // If that seems to have worked, check that we ended up in a sane state.
-        await dc.pauseRequest({ threadId: 1 });
-        await dc.waitForEvent('stopped');
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.pauseRequest({ threadId: 1 }),
+        ]);
         await dc.evaluate('stop = 1');
-        await dc.continueRequest({ threadId: 1 });
-        await dc.assertStoppedLocation('breakpoint', { line: 28 });
+        await Promise.all([
+            dc.assertStoppedLocation('breakpoint', { line: 28 }),
+            dc.continueRequest({ threadId: 1 }),
+        ]);
         expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
     });
 });
