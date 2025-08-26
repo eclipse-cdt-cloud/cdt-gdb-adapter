@@ -2094,37 +2094,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     private pushToGlobalVariableArray(
         globalArray: DebugProtocol.Variable[],
-        elementToAdd: mi.MIVarCreateResponse | VarObjType
+        elementToAdd: VarObjType
     ): DebugProtocol.Variable[] {
-        if ('varname' in elementToAdd) {
-            globalArray.push({
-                name: elementToAdd.varname,
-                value: elementToAdd.value ?? '',
-                memoryReference: `&(${elementToAdd.varname})`,
-                variablesReference:
-                    parseInt(elementToAdd.numchild, 10) > 0
-                        ? this.variableHandles.create({
-                              type: 'object',
-                              varobjName: elementToAdd.varname,
-                              frameHandle: -1, // Global variables don't have a frame
-                          })
-                        : 0,
-            });
-        } else {
-            globalArray.push({
-                name: elementToAdd.name,
-                value: elementToAdd.value ?? '',
-                memoryReference: `&(${elementToAdd.name})`,
-                variablesReference:
-                    parseInt(elementToAdd.numchild, 10) > 0
-                        ? this.variableHandles.create({
-                              type: 'object',
-                              varobjName: elementToAdd.name,
-                              frameHandle: -1, // Global variables don't have a frame
-                          })
-                        : 0,
-            });
-        }
+        globalArray.push({
+            name: elementToAdd.expression,
+            value: elementToAdd.value ?? '',
+            memoryReference: `&(${elementToAdd.expression})`,
+            variablesReference:
+                parseInt(elementToAdd.numchild, 10) > 0
+                    ? this.variableHandles.create({
+                          type: 'object',
+                          varobjName: elementToAdd.varname,
+                          frameHandle: -1, // Global variables don't have a frame
+                      })
+                    : 0,
+        });
 
         return globalArray;
     }
@@ -2155,13 +2139,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     // Iterate over each global variable in the group
                     for (const symbol of symbolgroup.symbols) {
                         // Create a GDB/MI variable object for each global variable
-                        const miVarObj = await mi.sendVarCreate(this.gdb, {
-                            name: symbol.name,
-                            expression: symbol.name,
-                            frame: 'floating',
-                        });
+                        let miVarObj: mi.MIVarCreateResponse | undefined = undefined;
+                        try {
+                            miVarObj = await mi.sendVarCreate(this.gdb, {
+                                expression: symbol.name,
+                                frame: 'floating',
+                            });
+                        } catch (error: unknown) {
+                            console.log('send var create error = ' + (error as Error).message);
+                            if (!(error as Error).message.includes('-var-create')) {
+                                throw error;
+                            }
+                        }
+                        if(!miVarObj) {
+                            // Variable object creation failed, that means the expression cannot be a variable. Which means user wouldn't be able to inspect it.
+                            continue;
+                        }
                         // Add the variable to the variable map
-                        this.gdb.varManager.addVar(
+                        const varAddedResponse = this.gdb.varManager.addVar(
                             { threadId: -1, frameId: -1 }, //threadID = -1, frameID = -1 for global variables. This is an implementation choice and not a value used by GDB
                             -1, //
                             symbol.name, // variable/expression name
@@ -2171,13 +2166,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             symbol.type // type of the variable
                         );
                         // If we have an array parent entry, we need to display the address.
-                        if (arrayRegex.test(miVarObj.type)) {
-                            const addr = await mi.sendDataEvaluateExpression(
-                                this.gdb,
-                                `&(${miVarObj.name})`
-                            );
-                            miVarObj.value = addr.value ? addr.value : '';
+                        try {
+                            // Try to get the address of the array, if it is optimised out, print the message as the value of the array
+                            if (arrayRegex.test(miVarObj.type)) {
+                                const addr =
+                                    await mi.sendDataEvaluateExpression(
+                                        this.gdb,
+                                        `&(${symbol.name})`
+                                    );
+                                miVarObj.value = addr.value ? addr.value : '';
+                            }
+                        } catch (error: unknown) {
+                            // Handle error by printing the error message as a value
+                            miVarObj.value = (error as Error).message;
                         }
+
                         // If variable is not static, just add it to response
                         if (symbol.description.includes('static')) {
                             // Check if current source file is the same as symbol's filename
@@ -2186,14 +2189,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                 globalVariables =
                                     this.pushToGlobalVariableArray(
                                         globalVariables,
-                                        miVarObj
+                                        varAddedResponse
                                     );
                             }
                         } else {
                             // If not static variable, just add it to response
                             globalVariables = this.pushToGlobalVariableArray(
                                 globalVariables,
-                                miVarObj
+                                varAddedResponse
                             );
                         }
                     }
@@ -2216,7 +2219,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             {
                                 name: variableInMap.varname,
                             }
-                        );                
+                        );
                         // If changelist has the length 0, the value of update will be undefined
                         // If update is undefined, that means the variable object still exists in GDB/MI, but it hasn't changed it's value.
                         // When a variable object is erased from GDB/MI, the -var-update command will trigger an error
@@ -2253,7 +2256,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             const variableSymbol = await mi.sendSymbolInfoVars(
                                 this.gdb,
                                 {
-                                    name: variableInMap.varname,
+                                    name: variableInMap.expression,
                                 }
                             );
                             if (
