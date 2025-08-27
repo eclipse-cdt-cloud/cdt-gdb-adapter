@@ -2106,6 +2106,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             name: elementToAdd.expression,
             value: elementToAdd.value ?? '',
             memoryReference: `&(${elementToAdd.expression})`,
+            type: elementToAdd.type,
             variablesReference:
                 parseInt(elementToAdd.numchild, 10) > 0
                     ? this.variableHandles.create({

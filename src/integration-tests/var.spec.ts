@@ -122,6 +122,17 @@ describe('Variables Test Suite', function () {
         ).to.equal(numVars);
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
     });
+    
+    it('can read global variables in a program', async function (){
+        // read the variables
+        const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.be.greaterThanOrEqual(280); // a lot of global variables are in the example
+        verifyVariable(vars.body.variables[282], 'global_a', 'int', '10');
+    });
 
     it('can read and set simple registers in a program', async function () {
         // read the registers
