@@ -17,6 +17,7 @@ import {
 import {
     MIBreakpointInsertOptions,
     MIBreakpointLocation,
+    MIFeaturesResponse,
     MIShowResponse,
     sendDataEvaluateExpression,
     sendExecInterrupt,
@@ -39,6 +40,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     private gdbVersion?: string;
     protected gdbAsync = false;
     protected gdbNonStop = false;
+    protected asyncRequestedExplicitly = false;
     protected hardwareBreakpoint = false;
 
     constructor(protected readonly processManager: IGDBProcessManager) {
@@ -80,6 +82,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                 this.emit('consoleStreamOutput', newChunk, 'stderr');
             });
         }
+        this.asyncRequestedExplicitly = !!(
+            requestArgs.gdbAsync || requestArgs.gdbNonStop
+        );
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
@@ -110,6 +115,29 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public getAsyncMode(): boolean {
         return this.gdbAsync;
+    }
+
+    // When you setAsyncMode(true), call this after selecting a target (either
+    // explicitly using -target-select, or using -target-attach or -exec-run
+    // which implicitly select the "native" target (see docs of `set
+    // auto-connect-native-target`)) to check if the target actually supports
+    // async mode. If not, it resets getAsyncMode() to false.
+    // In particular, the "native" target on Windows does not support async mode
+    // in GDB < 13.
+    // Returns true iff async mode was explicitly requested in the launch/attach
+    // arguments but is unsupported by the target.
+    public async confirmAsyncMode() {
+        const features = (
+            (await this.sendCommand(
+                '-list-target-features'
+            )) as MIFeaturesResponse
+        ).features;
+        const actualAsync =
+            Array.isArray(features) && features.includes('async');
+        const warningNeeded =
+            this.gdbAsync && !actualAsync && this.asyncRequestedExplicitly;
+        this.gdbAsync = actualAsync;
+        return warningNeeded;
     }
 
     public async setNonStopMode(isSet?: boolean) {
