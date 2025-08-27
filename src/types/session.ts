@@ -64,11 +64,18 @@ export interface GlobalVariableReference {
     regname?: string;
 }
 
+export interface StaticVariableReference {
+    type: 'statics';
+    frameHandle: number;
+    regname?: string;
+}
+
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
     | RegisterVariableReference
-    | GlobalVariableReference;
+    | GlobalVariableReference
+    | StaticVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
