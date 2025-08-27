@@ -1195,13 +1195,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     this.variableHandles.create(frameVarRef),
                     false
                 ),
+                new Scope('Global', this.variableHandles.create(globals), true),
+                new Scope('Static', this.variableHandles.create(statics), true),
                 new Scope(
                     'Registers',
                     this.variableHandles.create(registers),
                     true
-                ),
-                new Scope('Global', this.variableHandles.create(globals), true),
-                new Scope('Static', this.variableHandles.create(statics), true),
+                )
             ],
         };
 
