@@ -17,6 +17,11 @@ export interface MIShowResponse extends MIResponse {
     value?: string;
 }
 
+/** Response to -list-features and -list-target-features */
+export interface MIFeaturesResponse extends MIResponse {
+    features?: string[];
+}
+
 export abstract class MIRequest<R> {
     public abstract send(backend: IGDBBackend): Promise<R>;
 }

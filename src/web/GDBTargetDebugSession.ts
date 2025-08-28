@@ -461,6 +461,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             }
+            if (this.gdb.getAsyncMode()) {
+                await this.gdb.confirmAsyncMode();
+            }
 
             await this.setSessionState(SessionState.CONNECTED);
 
