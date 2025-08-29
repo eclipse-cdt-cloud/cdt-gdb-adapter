@@ -63,12 +63,6 @@ describe('attach remote', function () {
     });
 
     afterEach(async function () {
-        // Set max 30s timeout because disconnectRequest() in dc.stop() can hang
-        // if a failing test left GDB in an unexpected state, causing us to miss
-        // the backtrace output.
-        if (this.timeout() > 30000) {
-            this.timeout(30000);
-        }
         await gdbserver.kill();
         await dc.stop();
     });
@@ -150,5 +144,26 @@ describe('attach remote', function () {
             dc.continueRequest({ threadId: 1 }),
         ]);
         expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
+    });
+
+    it('can detach from a running program', async function () {
+        const attachArgs = fillDefaults(this.test, {
+            program: program,
+            target: {
+                type: 'remote',
+                parameters: [`localhost:${port}`],
+            } as TargetAttachArguments,
+        } as TargetAttachRequestArguments);
+
+        await Promise.all([
+            dc
+                .waitForEvent('initialized')
+                .then(() => dc.configurationDoneRequest()),
+            dc.initializeRequest().then(() => dc.attachRequest(attachArgs)),
+        ]);
+
+        // The program is started and running, nothing to do here anymore, what
+        // we are testing is whether afterEach() can still disconnect after
+        // having killed the gdbserver.
     });
 });
