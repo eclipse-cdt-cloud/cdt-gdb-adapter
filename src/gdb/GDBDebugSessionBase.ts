@@ -387,6 +387,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.sendEvent(
                 new OutputEvent(`attached to process ${attachArgs.processId}`)
             );
+            if (this.gdb.getAsyncMode()) {
+                await this.gdb.confirmAsyncMode();
+            }
+        } else {
+            if (this.gdb.getAsyncMode()) {
+                // Checking whether the target supports async mode needs a
+                // target connection. Launching will implicitly select the
+                // "native" target (see docs of `set
+                // auto-connect-native-target`), so we may just as well do it
+                // explicitly here.
+                await mi.sendTargetSelectRequest(this.gdb, {
+                    type: 'native',
+                    parameters: [],
+                });
+                await this.gdb.confirmAsyncMode();
+            }
         }
 
         await this.gdb.sendCommands(args.initCommands);
