@@ -17,6 +17,7 @@ import {
 import {
     MIBreakpointInsertOptions,
     MIBreakpointLocation,
+    MIFeaturesResponse,
     MIShowResponse,
     sendDataEvaluateExpression,
     sendExecInterrupt,
@@ -110,6 +111,22 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public getAsyncMode(): boolean {
         return this.gdbAsync;
+    }
+
+    // When you setAsyncMode(true), call this after selecting a target (either
+    // explicitly using -target-select, or using -target-attach or -exec-run
+    // which implicitly select the "native" target (see docs of `set
+    // auto-connect-native-target`)) to check if the target actually supports
+    // async mode. If not, it resets getAsyncMode() to false.
+    // In particular, the "native" target on Windows does not support async mode
+    // at this time.
+    public async confirmAsyncMode() {
+        const features = (
+            (await this.sendCommand(
+                '-list-target-features'
+            )) as MIFeaturesResponse
+        ).features;
+        this.gdbAsync = Array.isArray(features) && features.includes('async');
     }
 
     public async setNonStopMode(isSet?: boolean) {

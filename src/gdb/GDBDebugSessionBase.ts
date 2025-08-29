@@ -130,6 +130,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     protected gdb!: IGDBBackend;
     protected isAttach = false;
+    protected isRemote = false;
     // isRunning === true means there are no threads stopped.
     protected isRunning = false;
 
@@ -145,6 +146,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected logPointMessages: { [key: string]: string } = {};
 
     protected threads: ThreadWithStatus[] = [];
+    protected missingThreadNames = false;
 
     // promise that resolves once the target stops so breakpoints can be inserted
     protected waitPausedPromise?: Promise<void>;
@@ -387,6 +389,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.sendEvent(
                 new OutputEvent(`attached to process ${attachArgs.processId}`)
             );
+            if (this.gdb.getAsyncMode()) {
+                await this.gdb.confirmAsyncMode();
+            }
+        } else {
+            if (this.gdb.getAsyncMode()) {
+                // Checking whether the target supports async mode needs a
+                // target connection. Launching will implicitly select the
+                // "native" target (see docs of `set
+                // auto-connect-native-target`), so we may just as well do it
+                // explicitly here.
+                await mi.sendTargetSelectRequest(this.gdb, {
+                    type: 'native',
+                    parameters: [],
+                });
+                await this.gdb.confirmAsyncMode();
+            }
         }
 
         await this.gdb.sendCommands(args.initCommands);
@@ -509,10 +527,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 } else {
                     this.waitPausedThreadId = 0;
                 }
+                let currentThreadId = -1;
+                if (this.gdb.getAsyncMode()) {
+                    currentThreadId = await this.gdb.queryCurrentThreadId();
+                    if (currentThreadId === 0) {
+                        // GDB has no threads. We can try pausing the current
+                        // thread for good measure, which will be a no-op unless
+                        // any threads appear by then, but don't wait for a stop
+                        // notification, as none will likely ever come.
+                        currentThreadId = -1;
+                        this.waitPaused!();
+                    }
+                }
                 if (this.gdb.isNonStopMode()) {
                     if (this.waitPausedThreadId === 0) {
-                        this.waitPausedThreadId =
-                            await this.gdb.queryCurrentThreadId();
+                        this.waitPausedThreadId = currentThreadId;
                     }
                     this.gdb.pause(this.waitPausedThreadId);
                 } else {
@@ -1070,11 +1099,28 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ThreadsResponse
     ): Promise<void> {
         try {
-            if (!this.isRunning) {
+            // The -thread-info command is always allowed in non-stop mode or on
+            // local targets in async all-stop mode. In sync all-stop mode or
+            // over remote connections in all-stop mode, it is only allowed when
+            // the target is stopped. GDB docs
+            // (https://sourceware.org/gdb/current/onlinedocs/gdb.html/Asynchronous-and-non_002dstop-modes.html)
+            // seem to indicate it should also always be allowed in async
+            // all-stop mode (irrespective of remote or local), but the source
+            // code (remote.c remote_target::putpkt_binary) says otherwise.
+            // The effect in situations excluded by this logic is that missing
+            // thread names are not filled in until the client issues this
+            // request at a time when the target is stopped.
+            if (
+                !this.isRunning ||
+                (this.missingThreadNames &&
+                    ((!this.isRemote && this.gdb.getAsyncMode()) ||
+                        this.gdb.isNonStopMode()))
+            ) {
                 const result = await mi.sendThreadInfoRequest(this.gdb, {});
                 this.threads = result.threads
                     .map((thread) => this.convertThread(thread))
                     .sort((a, b) => a.id - b.id);
+                this.missingThreadNames = false;
             }
 
             response.body = {
@@ -2107,6 +2153,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         switch (notifyClass) {
             case 'thread-created':
                 this.threads.push(this.convertThread(notifyData));
+                this.missingThreadNames = true;
                 break;
             case 'thread-exited': {
                 const thread: mi.MIThreadInfo = notifyData;

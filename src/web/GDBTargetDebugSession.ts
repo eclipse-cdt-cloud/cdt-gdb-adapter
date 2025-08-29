@@ -97,6 +97,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         super(backendFactory);
         this.gdbserverFactory = gdbserverFactory;
         this.logger = logger;
+        this.isRemote = true;
     }
 
     protected logGDBRemote(message: string, level = LogLevel.Verbose) {
@@ -460,6 +461,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         'connected to target using provided connectCommands'
                     )
                 );
+            }
+            if (this.gdb.getAsyncMode()) {
+                await this.gdb.confirmAsyncMode();
             }
 
             await this.setSessionState(SessionState.CONNECTED);
