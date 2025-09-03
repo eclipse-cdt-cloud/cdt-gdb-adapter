@@ -492,7 +492,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.waitPausedNeeded =
                 this.isRunning && (!requireAsync || this.gdb.getAsyncMode());
             if (this.waitPausedNeeded) {
-                let prevResolve = this.waitPaused;
+                const prevResolve = this.waitPaused;
                 this.waitPausedPromise = new Promise<void>((resolve) => {
                     this.waitPaused = resolve;
                 });
@@ -509,10 +509,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 } else {
                     this.waitPausedThreadId = 0;
                 }
+                let currentThreadId = -1;
+                if (this.gdb.getAsyncMode()) {
+                    currentThreadId = await this.gdb.queryCurrentThreadId();
+                    if (currentThreadId === 0) {
+                        // GDB has no threads. We can try pausing the current
+                        // thread for good measure, which will be a no-op unless
+                        // any threads appear by then, but don't wait for a stop
+                        // notification, as none will likely ever come.
+                        currentThreadId = -1;
+                        this.waitPaused?.();
+                    }
+                }
                 if (this.gdb.isNonStopMode()) {
                     if (this.waitPausedThreadId === 0) {
-                        this.waitPausedThreadId =
-                            await this.gdb.queryCurrentThreadId();
+                        this.waitPausedThreadId = currentThreadId;
                     }
                     this.gdb.pause(this.waitPausedThreadId);
                 } else {
