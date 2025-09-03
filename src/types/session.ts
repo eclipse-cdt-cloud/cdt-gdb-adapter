@@ -59,10 +59,24 @@ export interface RegisterVariableReference {
     regname?: string;
 }
 
+export interface GlobalVariableReference {
+    type: 'globals';
+    frameHandle: number;
+    regname?: string;
+}
+
+export interface StaticVariableReference {
+    type: 'statics';
+    frameHandle: number;
+    regname?: string;
+}
+
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
-    | RegisterVariableReference;
+    | RegisterVariableReference
+    | GlobalVariableReference
+    | StaticVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;

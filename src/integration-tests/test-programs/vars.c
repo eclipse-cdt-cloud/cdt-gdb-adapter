@@ -18,6 +18,7 @@ struct foo
     struct bar z;
     struct baz aa;
 };
+int global_a = 10;
 
 int main()
 {

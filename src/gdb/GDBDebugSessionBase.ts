@@ -35,6 +35,8 @@ import {
     MemoryResponse,
     FrameVariableReference,
     RegisterVariableReference,
+    GlobalVariableReference,
+    StaticVariableReference,
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
@@ -127,6 +129,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * typically supplied with the --config-frozen command line argument.
      */
     protected static frozenRequestArguments?: { request?: string };
+
+    // A variable to store current source file the debugger stopped in. For global variables
+    protected currentSourceFile: string = '';
 
     protected gdb!: IGDBBackend;
     protected isAttach = false;
@@ -1300,6 +1305,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
+        const globals: GlobalVariableReference = {
+            type: 'globals',
+            frameHandle: args.frameId,
+        };
+
+        const statics: StaticVariableReference = {
+            type: 'statics',
+            frameHandle: args.frameId,
+        };
+
         response.body = {
             scopes: [
                 new Scope(
@@ -1307,6 +1322,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     this.variableHandles.create(frameVarRef),
                     false
                 ),
+                new Scope('Global', this.variableHandles.create(globals), true),
+                new Scope('Static', this.variableHandles.create(statics), true),
                 new Scope(
                     'Registers',
                     this.variableHandles.create(registers),
@@ -1341,6 +1358,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else if (ref.type === 'object') {
                 response.body.variables =
                     await this.handleVariableRequestObject(ref);
+            } else if (ref.type === 'globals') {
+                response.body.variables =
+                    await this.handleVariableRequestGlobal();
+            } else if (ref.type === 'statics') {
+                response.body.variables =
+                    await this.handleVariableRequestStatic();
             }
             this.sendResponse(response);
         } catch (err) {
@@ -2043,6 +2066,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'stopped': {
                 let suppressHandleGDBStopped = false;
+                this.currentSourceFile = resultData.frame.fullname;
                 if (this.gdb.isNonStopMode()) {
                     const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
@@ -2198,6 +2222,197 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
         }
     }
+    /**
+     * Pushing to global variables response
+     */
+    private pushToGlobalVariableArray(
+        globalArray: DebugProtocol.Variable[],
+        elementToAdd: VarObjType
+    ): DebugProtocol.Variable[] {
+        globalArray.push({
+            name: elementToAdd.expression,
+            value: elementToAdd.value ?? '',
+            memoryReference: `&(${elementToAdd.expression})`,
+            type: elementToAdd.type,
+            variablesReference:
+                parseInt(elementToAdd.numchild, 10) > 0
+                    ? this.variableHandles.create({
+                          type: 'object',
+                          varobjName: elementToAdd.varname,
+                          frameHandle: -1, // Global variables don't have a frame
+                      })
+                    : 0,
+        });
+
+        return globalArray;
+    }
+
+    protected async handleVariableRequestStatic(): Promise<
+        DebugProtocol.Variable[]
+    > {
+        return [];
+    }
+
+    private async loopOnSymbolsInSymbolGroup(
+        symbolGroup: mi.MISymbolInfoVarsDebug,
+        globalVariables: DebugProtocol.Variable[]
+    ): Promise<DebugProtocol.Variable[]> {
+        // Iterate over each global variable in the group
+        for (const symbol of symbolGroup.symbols) {
+            // skip if symbol is a static variable, we cannot create a variable object with a floating frame for static global variables as two files can have the same variable name
+            if (symbol.description.includes('static')) {
+                continue;
+            }
+
+            // Create a GDB/MI variable object for each global variable
+            let miVarObj: mi.MIVarCreateResponse | undefined = undefined;
+            try {
+                miVarObj = await mi.sendVarCreate(this.gdb, {
+                    expression: symbol.name,
+                    frame: 'floating',
+                });
+            } catch (error: unknown) {
+                // Cannot create variable object, that means it's probably not saved in the data section of memory (const members)
+                if (!(error as Error).message.includes('-var-create')) {
+                    throw error;
+                }
+            }
+            if (!miVarObj) {
+                // Variable object creation failed, that means the expression cannot be a variable. Which means user wouldn't be able to inspect it.
+                continue;
+            }
+            // If we have an array parent entry, we need to display the address.
+            try {
+                // Try to get the address of the array, if it is optimised out, print the message as the value of the array
+                if (arrayRegex.test(miVarObj.type)) {
+                    const addr = await mi.sendDataEvaluateExpression(
+                        this.gdb,
+                        `&(${symbol.name})`
+                    );
+                    miVarObj.value = addr.value ? addr.value : '';
+                }
+            } catch (error: unknown) {
+                // Handle error by printing the error message as a value
+                miVarObj.value = (error as Error).message;
+            }
+            // Add the variable to the variable map
+            const varAddedResponse = this.gdb.varManager.addVar(
+                { threadId: -1, frameId: -1 }, //threadID = -1, frameID = -1 for global variables. This is an implementation choice and not a value used by GDB
+                -1, //depth
+                symbol.name, // variable/expression name
+                true, // is it a variable?
+                false, // is it a child variable? we don't store child variables in this method. It is only stored in VariableRequestObject
+                miVarObj, // return of GDB/MI variable object creation function
+                symbol.type // type of the variable
+            );
+            globalVariables = this.pushToGlobalVariableArray(
+                globalVariables,
+                varAddedResponse
+            );
+        }
+        return globalVariables;
+    }
+    /**
+     * Necessary steps for viewing global variables
+     * retrieve global symbols/variables from GDB
+     * each symbol has a property stating which source file it is created to and the type attribute provides if it's static or not.
+     * A map is created in the debug-adapter for global variables to store them.
+     */
+    protected async handleVariableRequestGlobal(): Promise<
+        DebugProtocol.Variable[]
+    > {
+        // Create empty array response for global variaables
+        let globalVariables: DebugProtocol.Variable[] = [];
+        // Check if any global variables are stored in the adapter's variable map. They have threadId of -1, frameId of -1, and depth of -1 as well
+        const existingGlobalVars = this.gdb.varManager.getVars(
+            { threadId: -1, frameId: -1 },
+            -1
+        );
+        // Get all global variables from GDB
+        const globalvars = await mi.sendSymbolInfoVars(this.gdb);
+        // if there are no global variables stored in adapter's map
+        if (!existingGlobalVars) {
+            if (globalvars.symbols.debug.length > 0) {
+                // Iterate over global variables debug groups (global variables are grouped by source file)
+                for (const symbolgroup of globalvars.symbols.debug) {
+                    globalVariables = await this.loopOnSymbolsInSymbolGroup(
+                        symbolgroup,
+                        globalVariables
+                    );
+                }
+            } else {
+                // No global variables found in GDB either
+            }
+        } else {
+            // There are global variables in the adapter's variable map
+            if (globalvars.symbols.debug.length > 0) {
+                // There are global variables in GDB as well
+                // Make sure the adapter's map and GDB are in sync
+                // Array of variables to erase from adapter's map
+                for (const variableInMap of existingGlobalVars) {
+                    // Ignore it if it's a child variable or an expression
+                    if (variableInMap.isVar && !variableInMap.isChild) {
+                        // request update from GDB
+                        const variableUpdate = await mi.sendVarUpdate(
+                            this.gdb,
+                            {
+                                name: variableInMap.varname,
+                            }
+                        );
+                        // If changelist has the length 0, the value of update will be undefined
+                        // If update is undefined, that means the variable object still exists in GDB/MI, but it hasn't changed it's value.
+                        // When a variable object is erased from GDB/MI, the -var-update command will trigger an error
+                        const update = variableUpdate.changelist[0];
+                        let pushFlag = true;
+                        if (update) {
+                            // If in_scope === true, that means the value is valid and it should be updated in the variable map
+                            if (update.in_scope === 'true') {
+                                if (update.name === variableInMap.varname) {
+                                    // Update the value
+                                    variableInMap.value = update.value;
+                                    variableInMap.type =
+                                        update.type_changed === 'true'
+                                            ? update.new_type
+                                            : variableInMap.type;
+                                    variableInMap.numchild =
+                                        update.type_changed === 'true'
+                                            ? update.new_num_children
+                                            : variableInMap.numchild;
+                                }
+                            } else if (update.in_scope === 'invalid') {
+                                // If in_scope === 'invalid', that means variable no longer exists, i.e. a new executable file is being debugged
+                                this.gdb.varManager.removeVar(
+                                    { threadId: -1, frameId: -1 },
+                                    -1,
+                                    variableInMap.varname
+                                );
+                                pushFlag = false;
+                            }
+                            // in_scope === 'false' is not possible for global variables
+                        }
+                        if (pushFlag) {
+                            // Push global variable to response to be shown in IDE
+                            globalVariables = this.pushToGlobalVariableArray(
+                                globalVariables,
+                                variableInMap
+                            );
+                        }
+                    }
+                }
+            } else {
+                // There are no global variables in GDB
+                // Erase global variables from adapter's map
+                for (const variableInMap of existingGlobalVars) {
+                    this.gdb.varManager.removeVar(
+                        { threadId: -1, frameId: -1 },
+                        -1,
+                        variableInMap.varname
+                    );
+                }
+            }
+        }
+        return globalVariables;
+    }
 
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
@@ -2348,7 +2563,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
-        if (!frameRef) {
+        if (!frameRef && ref.frameHandle !== -1) {
+            // Global variables have frameHandle -1
             return Promise.resolve(variables);
         }
 

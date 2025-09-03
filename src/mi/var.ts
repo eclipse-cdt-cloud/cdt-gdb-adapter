@@ -52,6 +52,8 @@ export interface MIVarUpdateResponse {
         in_scope: string;
         type_changed: string;
         has_more: string;
+        new_type: string;
+        new_num_children: string;
     }>;
 }
 
@@ -67,6 +69,28 @@ export interface MIVarPathInfoResponse {
     path_expr: string;
 }
 
+export interface MIDebugSymbol {
+    line: string;
+    name: string;
+    type: string;
+    description: string;
+}
+
+export interface MINonDebugSymbol {
+    address: string;
+    name: string;
+}
+export interface MISymbolInfoVarsDebug {
+    filename: string;
+    fullname: string;
+    symbols: MIDebugSymbol[];
+}
+export interface MISymbolInfoVarsResponse {
+    symbols: {
+        debug: MISymbolInfoVarsDebug[];
+        nondebug: MINonDebugSymbol[];
+    };
+}
 function quote(expression: string) {
     return `"${expression}"`;
 }
@@ -202,5 +226,32 @@ export function sendVarSetFormatToHex(
     name: string
 ): Promise<void> {
     const command = `-var-set-format ${name} hexadecimal`;
+    return gdb.sendCommand(command);
+}
+
+export function sendSymbolInfoVars(
+    gdb: IGDBBackend,
+    params?: {
+        name?: string;
+        type?: string;
+        max_result?: string;
+        non_debug?: boolean;
+    }
+): Promise<MISymbolInfoVarsResponse> {
+    let command = '-symbol-info-variables';
+    if (params) {
+        if (params.name) {
+            command += ` --name ^${params.name}$`;
+        }
+        if (params.type) {
+            command += ` --type ^${params.type}$`;
+        }
+        if (params.max_result) {
+            command += ` --max-result ${params.max_result}`;
+        }
+        if (params.non_debug) {
+            command += ' --include-nondebug';
+        }
+    }
     return gdb.sendCommand(command);
 }
