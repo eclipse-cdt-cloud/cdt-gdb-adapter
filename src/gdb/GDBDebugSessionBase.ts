@@ -45,17 +45,8 @@ import { calculateMemoryOffset } from '../util/calculateMemoryOffset';
 import { isWindowsPath } from '../util/isWindowsPath';
 import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
-
-class ThreadWithStatus implements DebugProtocol.Thread {
-    id: number;
-    name: string;
-    running: boolean;
-    constructor(id: number, name: string, running: boolean) {
-        this.id = id;
-        this.name = name;
-        this.running = running;
-    }
-}
+import { ThreadWithStatus } from './common';
+import { RESUME_COMMANDS } from '../constants/gdb';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -85,6 +76,8 @@ const arrayChildRegex = /[\d]+/;
 const numberRegex = /^-?\d+(?:\.\d*)?$/; // match only numbers (integers and floats)
 const cNumberTypeRegex = /\b(?:char|short|int|long|float|double)$/; // match C number types
 const cBoolRegex = /\bbool$/; // match boolean
+const threadIdRegex = /.*\s+\-\-thread\s+(\d+).*/;
+const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
 
 // Interface for output category pair
 interface StreamOutput {
@@ -352,6 +345,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
         this.gdb.on('notifyAsync', (resultClass, resultData) =>
             this.handleGDBNotify(resultClass, resultData)
+        );
+        this.gdb.on('resultAsync', (resultClass, resultData) =>
+            this.handleGDBResult(resultClass, resultData)
         );
     }
 
@@ -2059,6 +2055,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     for (const thread of this.threads) {
                         if (thread.id === id) {
                             thread.running = false;
+                            thread.lastRunToken = undefined;
                         }
                     }
                     if (
@@ -2072,6 +2069,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 } else {
                     for (const thread of this.threads) {
                         thread.running = false;
+                        thread.lastRunToken = undefined;
                     }
                     if (
                         this.waitPaused &&
@@ -2207,6 +2205,86 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         notifyData
                     )}`
                 );
+        }
+    }
+
+    protected handleGDBResult(notifyClass: string, notifyData: any) {
+        // Look out for successful resume commands
+        const originalCommand = notifyData['cdt-command'];
+        const token = notifyData['cdt-token'];
+        const resumeCommand =
+            typeof originalCommand === 'string'
+                ? RESUME_COMMANDS.some(
+                      (cmd) =>
+                          originalCommand === cmd ||
+                          originalCommand.startsWith(cmd + ' ')
+                  )
+                : false;
+        switch (notifyClass) {
+            case 'done':
+            case 'running':
+                if (resumeCommand) {
+                    const allThreads = threadAllRegex.test(originalCommand);
+                    let updateThreads = this.threads;
+                    if (this.gdb.isNonStopMode() && !allThreads) {
+                        const threadIdMatch =
+                            threadIdRegex.exec(originalCommand);
+                        const threadId = threadIdMatch
+                            ? parseInt(threadIdMatch[1], 10)
+                            : undefined;
+                        updateThreads = this.threads.filter(
+                            (thread) => thread.id === threadId
+                        );
+                    }
+                    updateThreads.forEach(
+                        (thread) => (thread.lastRunToken = token)
+                    );
+                }
+                break;
+            case 'error':
+                const isLateExecError = this.threads.some(
+                    (thread) => thread.lastRunToken === token
+                );
+                if (!isLateExecError) {
+                    // Exit here, unnecessarily sending a stopped event clears scopes and other handles
+                    break;
+                }
+                const stopThreads = this.gdb.isNonStopMode()
+                    ? this.threads.filter(
+                          (thread) =>
+                              thread.lastRunToken === token && thread.running
+                      )
+                    : this.threads;
+                const stopAll = stopThreads.length === this.threads.length;
+                // Clear run tokens
+                stopThreads.forEach(
+                    (thread) => (thread.lastRunToken = undefined)
+                );
+                if (!this.isRunning) {
+                    // No need to continue after clearing tokens if all threads were stopped anyway
+                    break;
+                }
+                // Clear affected threads' running state
+                stopThreads.forEach((thread) => (thread.running = false));
+                if (stopAll) {
+                    // All threads are stopped
+                    this.sendStoppedEvent(
+                        'error',
+                        this.threads[0]?.id ?? 1,
+                        true
+                    );
+                    this.isRunning = false;
+                } else {
+                    // Selection of threads has stopped but not all (see stopAll assignment).
+                    // Send individual events.
+                    stopThreads.forEach((thread) =>
+                        this.sendStoppedEvent('error', thread.id, false)
+                    );
+                }
+                break;
+            default:
+                // Do nothing
+                break;
         }
     }
 

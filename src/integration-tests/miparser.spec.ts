@@ -12,15 +12,20 @@ import { GDBBackend } from '../gdb/GDBBackend';
 import { MIParser } from '../MIParser';
 import * as sinon from 'sinon';
 import { logger } from '@vscode/debugadapter/lib/logger';
+import { expect } from 'chai';
 
 describe('MI Parser Test Suite', function () {
     let gdbBackendMock: sinon.SinonStubbedInstance<GDBBackend>;
     let loggerErrorSpy: sinon.SinonSpy;
+    let loggerVerboseSpy: sinon.SinonSpy;
+    let callback: sinon.SinonSpy;
     let parser: MIParser;
 
     beforeEach(async function () {
         gdbBackendMock = sinon.createStubInstance(GDBBackend);
         loggerErrorSpy = sinon.spy(logger, 'error');
+        loggerVerboseSpy = sinon.spy(logger, 'verbose');
+        callback = sinon.spy();
 
         parser = new MIParser(gdbBackendMock);
     });
@@ -30,21 +35,116 @@ describe('MI Parser Test Suite', function () {
             sinon.assert.notCalled(loggerErrorSpy);
         } finally {
             sinon.restore();
+            sinon.resetHistory();
         }
     });
 
+    const resetSpyHistories = () => {
+        callback.resetHistory();
+        loggerVerboseSpy.resetHistory();
+        loggerErrorSpy.resetHistory();
+        gdbBackendMock.emit.resetHistory();
+    };
+
+    const assertCallbackAndEmitResultAsync = (
+        resultClass: string,
+        resultData: any
+    ) => {
+        sinon.assert.calledOnceWithExactly(callback, resultClass, resultData);
+        sinon.assert.calledOnceWithExactly(
+            gdbBackendMock.emit as sinon.SinonStub,
+            'resultAsync',
+            resultClass,
+            resultData
+        );
+    };
+
+    const assertNoCallbackButEmitResultAsync = (
+        resultClass: string,
+        resultData: any
+    ) => {
+        sinon.assert.notCalled(callback);
+        sinon.assert.calledOnceWithExactly(
+            gdbBackendMock.emit as sinon.SinonStub,
+            'resultAsync',
+            resultClass,
+            resultData
+        );
+    };
+
+    type LogBehavior = 'verbose' | 'error' | 'both' | 'none';
+    const assertNoCommandTokenLog = (
+        token: string,
+        logBehavior: LogBehavior
+    ) => {
+        switch (logBehavior) {
+            case 'verbose':
+                expect(
+                    loggerVerboseSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.true;
+                expect(
+                    loggerErrorSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.false;
+                break;
+            case 'error':
+                expect(
+                    loggerVerboseSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.false;
+                expect(
+                    loggerErrorSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.true;
+                break;
+            case 'both':
+                expect(
+                    loggerVerboseSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.true;
+                expect(
+                    loggerErrorSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.true;
+                break;
+            case 'none':
+                expect(
+                    loggerVerboseSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.false;
+                expect(
+                    loggerErrorSpy.calledWithExactly(
+                        `GDB response with no command: ${token}`
+                    )
+                ).to.be.false;
+                break;
+        }
+    };
+
     it('simple result-record', async function () {
-        const callback = sinon.spy();
-        parser.queueCommand(5, callback);
+        parser.queueCommand(5, 'command string', callback);
         parser.parseLine('5^done');
-        sinon.assert.calledOnceWithExactly(callback, 'done', {});
+        assertCallbackAndEmitResultAsync('done', {
+            'cdt-token': '5',
+            'cdt-command': 'command string',
+        });
     });
 
     it('simple result-record with multi-digit token', async function () {
-        const callback = sinon.spy();
-        parser.queueCommand(1234, callback);
+        parser.queueCommand(1234, 'command string', callback);
         parser.parseLine('1234^done');
-        sinon.assert.calledOnceWithExactly(callback, 'done', {});
+        assertCallbackAndEmitResultAsync('done', {
+            'cdt-token': '1234',
+            'cdt-command': 'command string',
+        });
     });
 
     it('simple result-record for unknown token number', async function () {
@@ -53,6 +153,11 @@ describe('MI Parser Test Suite', function () {
             loggerErrorSpy,
             'GDB response with no command: 5'
         );
+        expect(
+            gdbBackendMock.emit.calledOnceWithExactly('resultAsync', 'done', {
+                'cdt-token': '5',
+            })
+        ).to.be.true;
         loggerErrorSpy.resetHistory();
     });
 
@@ -62,6 +167,11 @@ describe('MI Parser Test Suite', function () {
             loggerErrorSpy,
             'GDB response with no command: '
         );
+        expect(
+            gdbBackendMock.emit.calledOnceWithExactly('resultAsync', 'done', {
+                'cdt-token': '',
+            })
+        ).to.be.true;
         loggerErrorSpy.resetHistory();
     });
 
@@ -172,5 +282,98 @@ describe('MI Parser Test Suite', function () {
                 },
             }
         );
+    });
+
+    it('correctly handles error result for a command', async function () {
+        // Command
+        parser.queueCommand(5, '-exec-continue --thread 8', callback);
+        // Error result
+        parser.parseLine('5^error,msg="Command aborted"');
+        assertCallbackAndEmitResultAsync('error', {
+            'cdt-token': '5',
+            'cdt-command': '-exec-continue --thread 8',
+            msg: 'Command aborted',
+        });
+        assertNoCommandTokenLog('5', 'none');
+    });
+
+    it('correctly handles late arrival error after done result for command', async function () {
+        // Command
+        parser.queueCommand(5, '-exec-continue --thread 8', callback);
+        // Done result
+        parser.parseLine('5^done');
+        assertCallbackAndEmitResultAsync('done', {
+            'cdt-token': '5',
+            'cdt-command': '-exec-continue --thread 8',
+        });
+        assertNoCommandTokenLog('5', 'none');
+        resetSpyHistories();
+        // Late arrival error response for same command
+        parser.parseLine('5^error,msg="any error"');
+        assertNoCallbackButEmitResultAsync('error', {
+            'cdt-token': '5',
+            msg: 'any error',
+        });
+        assertNoCommandTokenLog('5', 'verbose');
+    });
+
+    it('correctly handles unrelated done result between command and its done result', async function () {
+        // Command
+        parser.queueCommand(5, '-exec-continue --thread 8', callback);
+        // Unrelated result without command in queue
+        parser.parseLine('6^done');
+        assertNoCallbackButEmitResultAsync('done', {
+            'cdt-token': '6',
+        });
+        assertNoCommandTokenLog('6', 'error');
+        resetSpyHistories();
+        // Done result for command
+        parser.parseLine('5^done');
+        assertCallbackAndEmitResultAsync('done', {
+            'cdt-token': '5',
+            'cdt-command': '-exec-continue --thread 8',
+        });
+        assertNoCommandTokenLog('5', 'none');
+    });
+
+    it('correctly handles unrelated done result between command and its error result', async function () {
+        // Command
+        parser.queueCommand(5, '-exec-continue --thread 8', callback);
+        // Unrelated result without command in queue
+        parser.parseLine('6^done');
+        assertNoCallbackButEmitResultAsync('done', {
+            'cdt-token': '6',
+        });
+        assertNoCommandTokenLog('6', 'error');
+        resetSpyHistories();
+        // Done result for command
+        parser.parseLine('5^error,msg="failed"');
+        assertCallbackAndEmitResultAsync('error', {
+            'cdt-token': '5',
+            'cdt-command': '-exec-continue --thread 8',
+            msg: 'failed',
+        });
+        assertNoCommandTokenLog('5', 'none');
+    });
+
+    it('correctly handles unrelated error result between command and its error result', async function () {
+        // Command
+        parser.queueCommand(5, '-exec-continue --thread 8', callback);
+        // Unrelated error result without command in queue
+        parser.parseLine('6^error,msg="one error"');
+        assertNoCallbackButEmitResultAsync('error', {
+            'cdt-token': '6',
+            msg: 'one error',
+        });
+        assertNoCommandTokenLog('6', 'verbose');
+        resetSpyHistories();
+        // Error result for command
+        parser.parseLine('5^error,msg="another error"');
+        assertCallbackAndEmitResultAsync('error', {
+            'cdt-token': '5',
+            'cdt-command': '-exec-continue --thread 8',
+            msg: 'another error',
+        });
+        assertNoCommandTokenLog('5', 'none');
     });
 });
