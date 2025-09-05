@@ -59,14 +59,8 @@ describe('lateAsyncErrorsRemote', async function () {
         });
 
         // Stopped by default
-        let stoppedEvent: DebugProtocol.StoppedEvent | undefined = undefined;
-        await Promise.all([
-            new Promise<void>(async (resolve) => {
-                stoppedEvent = (await dc.waitForEvent(
-                    'stopped'
-                )) as DebugProtocol.StoppedEvent;
-                resolve();
-            }),
+        let [stoppedEvent] = await Promise.all([
+            dc.waitForEvent('stopped'),
             dc.configurationDoneRequest(),
         ]);
 
@@ -101,25 +95,17 @@ describe('lateAsyncErrorsRemote', async function () {
             breakpoints: [{ line: lineTags['inner1 stop'] }],
         });
 
-        await Promise.all([
+        const threadId =
+            (stoppedEvent as DebugProtocol.StoppedEvent).body.threadId ?? 1;
+        [, stoppedEvent] = await Promise.all([
             dc.waitForEvent('continued'), // Continue will cause continued event, error noticed late
-            new Promise<void>(async (resolve) => {
-                // Late error after attempt to install watchpoints, store it
-                stoppedEvent = (await dc.waitForEvent(
-                    'stopped'
-                )) as DebugProtocol.StoppedEvent;
-                resolve();
-            }),
+            dc.waitForEvent('stopped'), // Stop due to late error after attempt to install watchpoints
             dc.waitForOutputEvent(
                 // Proof we had too many breakpoints
                 'log',
                 'You may have requested too many hardware breakpoints/watchpoints.\n'
             ),
-            dc.continueRequest({
-                threadId:
-                    (stoppedEvent as unknown as DebugProtocol.StoppedEvent).body
-                        .threadId ?? 1,
-            }),
+            dc.continueRequest({ threadId }),
         ]);
         expect(stoppedEvent).to.not.be.undefined;
         if (!stoppedEvent) {
@@ -143,15 +129,15 @@ describe('lateAsyncErrorsRemote', async function () {
             source: { path: src },
             breakpoints: [{ line: lineTags['inner1 stop'] }],
         });
+        const threadIdAfterError =
+            (stoppedEvent as DebugProtocol.StoppedEvent).body.threadId ?? 1;
         // Set next breakpoint to hit, run and hit it
         await Promise.all([
             dc.assertStoppedLocation('breakpoint', {
                 line: lineTags['inner1 stop'],
             }),
             dc.continueRequest({
-                threadId:
-                    (stoppedEvent as unknown as DebugProtocol.StoppedEvent).body
-                        .threadId ?? 1,
+                threadId: threadIdAfterError,
             }),
         ]);
     });
