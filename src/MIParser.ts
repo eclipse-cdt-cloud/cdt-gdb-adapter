@@ -12,8 +12,13 @@ import { logger } from '@vscode/debugadapter/lib/logger';
 import { IGDBBackend } from './types/gdb';
 import * as utf8 from 'utf8';
 
+interface Command {
+    command: string;
+    callback: (resultClass: string, resultData: any) => void;
+}
+
 type CommandQueue = {
-    [key: string]: (resultClass: string, resultData: any) => void;
+    [key: string]: Command;
 };
 
 export class MIParser {
@@ -30,7 +35,9 @@ export class MIParser {
         const entries = Object.entries(this.commandQueue);
         entries.forEach((entry) => {
             // Call callback with error to reject command promise
-            entry[1]('error', { msg: 'MI parser command queue cancelled' });
+            entry[1].callback('error', {
+                msg: 'MI parser command queue cancelled',
+            });
             // Delete command by key
             delete this.commandQueue[entry[0]];
         });
@@ -66,9 +73,10 @@ export class MIParser {
 
     public queueCommand(
         token: number,
-        command: (resultClass: string, resultData: any) => void
+        command: string,
+        callback: (resultClass: string, resultData: any) => void
     ) {
-        this.commandQueue[token] = command;
+        this.commandQueue[token] = { command, callback };
     }
 
     protected peek() {
@@ -326,14 +334,25 @@ export class MIParser {
                     );
                 }
                 const command = this.commandQueue[token];
+                const resultClass = this.handleString();
+                const resultData = this.handleAsyncData();
+                resultData['cdt-token'] = token;
                 if (command) {
-                    const resultClass = this.handleString();
-                    const resultData = this.handleAsyncData();
-                    command(resultClass, resultData);
+                    resultData['cdt-command'] = command.command;
+                    command.callback(resultClass, resultData);
                     delete this.commandQueue[token];
                 } else {
-                    logger.error('GDB response with no command: ' + token);
+                    // If result is an out-of-band error, we expect this is handled higher up.
+                    // In fact currently only expected for '-exec-*' commands. Hence, only print
+                    // as error, if result class other than 'error' where this is genuinely unexpected.
+                    const message = `GDB response with no command: ${token}`;
+                    if (resultClass === 'error') {
+                        logger.verbose(message);
+                    } else {
+                        logger.error(message);
+                    }
                 }
+                this.gdb.emit('resultAsync', resultClass, resultData);
                 break;
             }
             case '~':
