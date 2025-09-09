@@ -607,8 +607,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const existingWatchpoints = await mi.sendBreakList(this.gdb);
         // Filter out all watchpoints
         const existingWatchpointsList =
-            existingWatchpoints.BreakpointTable.body.filter(
-                (bp) => bp['type'].includes('watchpoint')
+            existingWatchpoints.BreakpointTable.body.filter((bp) =>
+                bp['type'].includes('watchpoint')
             );
         return existingWatchpointsList;
     }

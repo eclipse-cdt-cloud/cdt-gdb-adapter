@@ -242,7 +242,7 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     dataId: 'incrementAnother',
-                    accessType: 'read'
+                    accessType: 'read',
                 },
             ],
         });
