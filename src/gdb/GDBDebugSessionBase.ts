@@ -2319,41 +2319,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
         }
     }
-    /**
-     * Pushing to global variables response
-     */
-    private pushToGlobalVariableArray(
-        globalArray: DebugProtocol.Variable[],
-        elementToAdd: VarObjType
-    ): DebugProtocol.Variable[] {
-        globalArray.push({
-            name: elementToAdd.expression,
-            value: elementToAdd.value ?? '',
-            memoryReference: `&(${elementToAdd.expression})`,
-            type: elementToAdd.type,
-            variablesReference:
-                parseInt(elementToAdd.numchild, 10) > 0
-                    ? this.variableHandles.create({
-                          type: 'object',
-                          varobjName: elementToAdd.varname,
-                          frameHandle: -1, // Global variables don't have a frame
-                      })
-                    : 0,
-        });
-
-        return globalArray;
-    }
-
-    protected async handleVariableRequestStatic(): Promise<
-        DebugProtocol.Variable[]
-    > {
-        return [];
-    }
 
     private async loopOnSymbolsInSymbolGroup(
-        symbolGroup: mi.MISymbolInfoVarsDebug,
-        globalVariables?: DebugProtocol.Variable[]
-    ): Promise<DebugProtocol.Variable[] | void> {
+        symbolGroup: mi.MISymbolInfoVarsDebug
+    ): Promise<void> {
         // Iterate over each global variable in the group
         for (const symbol of symbolGroup.symbols) {
             // skip if symbol is a static variable, we cannot create a variable object with a floating frame for static global variables as two files can have the same variable name
@@ -2393,7 +2362,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 miVarObj.value = (error as Error).message;
             }
             // Add the variable to the variable map
-            const varAddedResponse = this.gdb.varManager.addVar(
+            this.gdb.varManager.addVar(
                 { threadId: -1, frameId: -1 }, //threadID = -1, frameID = -1 for global variables. This is an implementation choice and not a value used by GDB
                 -1, //depth
                 symbol.name, // variable/expression name
@@ -2402,14 +2371,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 miVarObj, // return of GDB/MI variable object creation function
                 symbol.type // type of the variable
             );
-            if (globalVariables !== undefined) {
-                globalVariables = this.pushToGlobalVariableArray(
-                    globalVariables,
-                    varAddedResponse
-                );
-            }
         }
-        return globalVariables;
     }
 
     /**
