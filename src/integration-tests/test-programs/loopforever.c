@@ -14,7 +14,7 @@ int inner2(void) {
 
 int main(int argc, char *argv[])
 {
-    time_t start_time = time(NULL);
+    time_t start_time = time(NULL);  // main function
     while (stop == 0) {
         if (time(NULL) > start_time + 10) {
             // Don't actually loop forever as that can hang tests
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
             // especially on Windows where pause does not work (yet)
             return 1;
         }
-        inner1();
+        inner1();  // inner1 stop
         inner2();
     }
     return 0;
