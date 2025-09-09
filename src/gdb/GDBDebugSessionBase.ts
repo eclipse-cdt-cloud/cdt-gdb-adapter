@@ -2388,6 +2388,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         for (const symbolgroup of globalvars.symbols.debug) {
             await this.loopOnSymbolsInSymbolGroup(symbolgroup);
         }
+        return;
     }
 
     protected async handleVariableRequestFrame(
