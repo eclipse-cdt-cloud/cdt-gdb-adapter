@@ -250,9 +250,6 @@ describe('breakpoints', async function () {
     });
 
     it('set an instruction breakpoint', async function () {
-        if (gdbNonStop && isRemoteTest) {
-            this.skip();
-        }
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
