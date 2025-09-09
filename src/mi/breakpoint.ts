@@ -29,6 +29,15 @@ export interface MIBreakInsertResponse extends MIResponse {
     multiple?: MIBreakpointInfo[];
 }
 
+// Watchpoint response
+export interface MIBreakWatchResponse extends MIResponse {
+    number: string;
+    exp: string;
+}
+
+// Watchpoint options
+type MIWatchpointInsertOptions = 'read' | 'write' | 'readWrite';
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MIBreakDeleteRequest {}
 
@@ -169,6 +178,17 @@ export async function sendBreakpointInsert(
     }
 
     return clean;
+}
+
+export async function sendBreakWatchpoint(
+    gdb: IGDBBackend,
+    expression: string,
+    options?: MIWatchpointInsertOptions
+): Promise<MIBreakWatchResponse> {
+    const watchPointType =
+        options === 'read' ? '-r ' : options === 'readWrite' ? '-a ' : '';
+    const command = `-break-watch ${watchPointType}${expression}`;
+    return gdb.sendCommand(command);
 }
 
 export function sendBreakDelete(

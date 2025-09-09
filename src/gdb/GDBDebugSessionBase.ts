@@ -35,8 +35,8 @@ import {
     MemoryResponse,
     FrameVariableReference,
     RegisterVariableReference,
-    GlobalVariableReference,
-    StaticVariableReference,
+    //GlobalVariableReference,
+    //StaticVariableReference,
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
@@ -132,6 +132,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     // A variable to store current source file the debugger stopped in. For global variables
     protected currentSourceFile: string = '';
+    // A variable to store whether this is the first scope request or not
+    private globalVariablesPopulated = false;
 
     protected gdb!: IGDBBackend;
     protected isAttach = false;
@@ -319,6 +321,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsSteppingGranularity = true;
         response.body.supportsInstructionBreakpoints = true;
         response.body.supportsTerminateRequest = true;
+        response.body.supportsDataBreakpoints = true;
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
@@ -557,6 +560,37 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    protected async dataBreakpointInfoRequest(
+        response: DebugProtocol.DataBreakpointInfoResponse,
+        args: DebugProtocol.DataBreakpointInfoArguments
+    ): Promise<void> {
+        // The args.dataId is the expression to watch
+        const varExpression = args.name;
+        // Check if the variable is already in the Global variables map
+        const varInMap = this.gdb.varManager.getVar(
+            { threadId: -1, frameId: -1 },
+            -1,
+            varExpression
+        );
+        // if found, return the dataId (expression) and description. i.e. Data Breakpoint is eligibile for expression
+        if (varInMap) {
+            response.body = {
+                dataId: varExpression,
+                description: `Data breakpoint for ${varExpression}`,
+                accessTypes: ['read', 'write', 'readWrite'],
+                canPersist: false,
+            };
+        } else {
+            // If not found, expression is not a global variable and it is not eligible for Data Breakpoint
+            response.body = {
+                dataId: null,
+                description: `No data breakpoint for ${varExpression}`,
+            };
+        }
+
+        this.sendResponse(response);
+    }
+
     private async getInstructionBreakpointList(): Promise<
         mi.MIBreakpointInfo[]
     > {
@@ -568,6 +602,69 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 (bp) => bp['original-location']?.[0] === '*'
             );
         return existingInstBreakpointsList;
+    }
+
+    private async getWatchpointList(): Promise<mi.MIBreakpointInfo[]> {
+        // Get a list of existing watchpoints, using gdb-mi command -break-list
+        const existingWatchpoints = await mi.sendBreakList(this.gdb);
+        // Filter out all watchpoints
+        const existingWatchpointsList =
+            existingWatchpoints.BreakpointTable.body.filter(
+                (bp) => bp['type'].includes('watchpoint')
+            );
+        return existingWatchpointsList;
+    }
+
+    protected async setDataBreakpointsRequest(
+        response: DebugProtocol.SetDataBreakpointsResponse,
+        args: DebugProtocol.SetDataBreakpointsArguments
+    ): Promise<void> {
+        await this.pauseIfNeeded();
+        // Get existing GDB watchpoints
+        let existingGDBWatchpointsList = await this.getWatchpointList();
+        // Get the list of watchpoints from vscode
+        const vscodeWatchpointsListBase = args.breakpoints;
+        // Filter out watchpoints to be deleted, vscode is the golden reference
+        const watchpointsToDelete = existingGDBWatchpointsList.filter(
+            (bp) =>
+                !vscodeWatchpointsListBase.some(
+                    (vsbp) => vsbp.dataId === bp.what
+                )
+        );
+        // Delete watchpoints to be deleted from GDB
+        if (watchpointsToDelete.length > 0) {
+            await mi.sendBreakDelete(this.gdb, {
+                breakpoints: watchpointsToDelete.map((bp) => bp.number),
+            });
+            // update GDB watchpoint list
+            existingGDBWatchpointsList = await this.getWatchpointList();
+        }
+        // Create a list of watchpoints to be created
+        const watchpointsToBeCreated = vscodeWatchpointsListBase.filter(
+            (bp) =>
+                !existingGDBWatchpointsList.some(
+                    (gdbbp) => gdbbp.what === bp.dataId
+                )
+        );
+        // Create watchpoints in GDB
+        for (const bp of watchpointsToBeCreated) {
+            await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
+        }
+        // Get the updated list of GDB watchpoints
+        const gdbWatchpoints = await this.getWatchpointList();
+        // Prepare response
+        const actual: DebugProtocol.Breakpoint[] = gdbWatchpoints.map((bp) => {
+            const responseBp: DebugProtocol.Breakpoint = {
+                verified: bp.enabled === 'y',
+                id: parseInt(bp.number, 10),
+            };
+            return responseBp;
+        });
+        response.body = {
+            breakpoints: actual,
+        };
+        this.sendResponse(response);
+        await this.continueIfNeeded();
     }
 
     protected async setInstructionBreakpointsRequest(
@@ -1305,6 +1402,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
+        /** 
         const globals: GlobalVariableReference = {
             type: 'globals',
             frameHandle: args.frameId,
@@ -1314,6 +1412,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             type: 'statics',
             frameHandle: args.frameId,
         };
+        */
+
+        // if first scope request, populate the variable map with global variables
+        if (this.globalVariablesPopulated === false) {
+            // call function that populates the variable map with global variables
+            this.globalVariablesPopulated = true;
+            this.populateGlobalVariables();
+        }
 
         response.body = {
             scopes: [
@@ -1322,8 +1428,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     this.variableHandles.create(frameVarRef),
                     false
                 ),
-                new Scope('Global', this.variableHandles.create(globals), true),
-                new Scope('Static', this.variableHandles.create(statics), true),
+                //new Scope('Global', this.variableHandles.create(globals), true),
+                //new Scope('Static', this.variableHandles.create(statics), true),
                 new Scope(
                     'Registers',
                     this.variableHandles.create(registers),
@@ -2255,8 +2361,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     private async loopOnSymbolsInSymbolGroup(
         symbolGroup: mi.MISymbolInfoVarsDebug,
-        globalVariables: DebugProtocol.Variable[]
-    ): Promise<DebugProtocol.Variable[]> {
+        globalVariables?: DebugProtocol.Variable[]
+    ): Promise<DebugProtocol.Variable[] | void> {
         // Iterate over each global variable in the group
         for (const symbol of symbolGroup.symbols) {
             // skip if symbol is a static variable, we cannot create a variable object with a floating frame for static global variables as two files can have the same variable name
@@ -2305,13 +2411,32 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 miVarObj, // return of GDB/MI variable object creation function
                 symbol.type // type of the variable
             );
-            globalVariables = this.pushToGlobalVariableArray(
-                globalVariables,
-                varAddedResponse
-            );
+            if (globalVariables !== undefined) {
+                globalVariables = this.pushToGlobalVariableArray(
+                    globalVariables,
+                    varAddedResponse
+                );
+            }
         }
         return globalVariables;
     }
+
+    /**
+     * function to populate variable map with global variables
+     */
+    protected async populateGlobalVariables(): Promise<void> {
+        // Get all global variables from GDB
+        const globalvars = await mi.sendSymbolInfoVars(this.gdb);
+        // If there are no global variables found
+        if (globalvars.symbols.debug.length === 0) {
+            return;
+        }
+        // Iterate over global variables debug groups (global variables are grouped by source file)
+        for (const symbolgroup of globalvars.symbols.debug) {
+            await this.loopOnSymbolsInSymbolGroup(symbolgroup);
+        }
+    }
+
     /**
      * Necessary steps for viewing global variables
      * retrieve global symbols/variables from GDB
@@ -2335,10 +2460,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             if (globalvars.symbols.debug.length > 0) {
                 // Iterate over global variables debug groups (global variables are grouped by source file)
                 for (const symbolgroup of globalvars.symbols.debug) {
-                    globalVariables = await this.loopOnSymbolsInSymbolGroup(
-                        symbolgroup,
-                        globalVariables
-                    );
+                    globalVariables =
+                        (await this.loopOnSymbolsInSymbolGroup(
+                            symbolgroup,
+                            globalVariables
+                        )) ?? []; // ?? to satisfy typescript that globalVariables won't be undefined
                 }
             } else {
                 // No global variables found in GDB either

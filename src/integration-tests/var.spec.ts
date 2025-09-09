@@ -122,8 +122,8 @@ describe('Variables Test Suite', function () {
         ).to.equal(numVars);
         verifyVariable(vars.body.variables[2], 'c', 'int', '35');
     });
-    
-    it('can read global variables in a program', async function (){
+
+    it('can read global variables in a program', async function () {
         // read the variables
         const vr = scope.scopes.body.scopes[1].variablesReference;
         const vars = await dc.variablesRequest({ variablesReference: vr });
