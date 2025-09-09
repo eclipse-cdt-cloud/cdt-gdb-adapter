@@ -634,9 +634,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Filter out watchpoints to be deleted, vscode is the golden reference
         const watchpointsToDelete = existingGDBWatchpointsList.filter(
             (bp) =>
-                !vscodeWatchpointsList.some(
-                    (vsbp) => vsbp.dataId === bp.what
-                )
+                !vscodeWatchpointsList.some((vsbp) => vsbp.dataId === bp.what)
         );
         // Delete watchpoints to be deleted from GDB
         if (watchpointsToDelete.length > 0) {
@@ -2468,7 +2466,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 // Do nothing
                 break;
         }
-
     }
 
     protected async handleVariableRequestFrame(
