@@ -569,32 +569,36 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         const varExpression = args.name;
-        // Check if the variable is already in the Global variables map
-        const varInMap = this.gdb.varManager.getVar(
-            { threadId: -1, frameId: -1 },
-            -1,
-            varExpression
-        );
-        /**
-         * For now, we only support Data Breakpoints for non-static global variables with primitive data types.
-         * The plan for the forseeable future is to expand our support to static global variables, struct/union data types, and classes.
-         */
-        // if found, return the dataId (expression) and description. i.e. Data Breakpoint is eligibile for expression
-        if (varInMap) {
-            response.body = {
-                dataId: varExpression,
-                description: `Data breakpoint for ${varExpression}`,
-                accessTypes: ['read', 'write', 'readWrite'],
-                canPersist: false,
-            };
-        } else {
-            // If not found, expression is not a global variable and it is not eligible for Data Breakpoint
+        // Send the varExpression as a query to the symbol info variables command
+        try {
+            const symbols = await mi.sendSymbolInfoVars(this.gdb, {
+                name: `^${varExpression}$`,
+            });
+            /** If there are debug symbols matching the varExpression, then we can set a data breakpoint. 
+             * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
+             * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
+            */
+
+            if (symbols.symbols.debug.length > 0) {
+                response.body = {
+                    dataId: varExpression,
+                    description: `Data breakpoint for ${varExpression}`,
+                    accessTypes: ['read', 'write', 'readWrite'],
+                    canPersist: false,
+                };
+            } else {
+                response.body = {
+                    dataId: null,
+                    description: `No data breakpoint for ${varExpression}`,
+                };
+            }
+        } catch (err) {
+            // Silently failing, no data breakpoint can be set for the expression
             response.body = {
                 dataId: null,
                 description: `No data breakpoint for ${varExpression}`,
             };
         }
-
         this.sendResponse(response);
     }
 
