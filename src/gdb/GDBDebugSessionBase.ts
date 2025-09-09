@@ -130,8 +130,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     protected static frozenRequestArguments?: { request?: string };
 
-    // A variable to store current source file the debugger stopped in. For global variables
-    protected currentSourceFile: string = '';
     // A variable to store whether this is the first scope request or not
     private globalVariablesPopulated = false;
 
@@ -2166,7 +2164,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 break;
             case 'stopped': {
                 let suppressHandleGDBStopped = false;
-                this.currentSourceFile = resultData.frame.fullname;
                 if (this.gdb.isNonStopMode()) {
                     const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
