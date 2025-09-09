@@ -241,10 +241,10 @@ export function sendSymbolInfoVars(
     let command = '-symbol-info-variables';
     if (params) {
         if (params.name) {
-            command += ` --name ^${params.name}$`;
+            command += ` --name ${params.name}`;
         }
         if (params.type) {
-            command += ` --type ^${params.type}$`;
+            command += ` --type ${params.type}`;
         }
         if (params.max_result) {
             command += ` --max-result ${params.max_result}`;
