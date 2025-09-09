@@ -571,10 +571,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const symbols = await mi.sendSymbolInfoVars(this.gdb, {
                 name: `^${varExpression}$`,
             });
-            /** If there are debug symbols matching the varExpression, then we can set a data breakpoint. 
+            /** If there are debug symbols matching the varExpression, then we can set a data breakpoint.
              * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
              * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
-            */
+             */
 
             if (symbols.symbols.debug.length > 0) {
                 response.body = {
@@ -1407,7 +1407,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             type: 'registers',
             frameHandle: args.frameId,
         };
-
 
         response.body = {
             scopes: [
