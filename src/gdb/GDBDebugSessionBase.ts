@@ -1464,12 +1464,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else if (ref.type === 'object') {
                 response.body.variables =
                     await this.handleVariableRequestObject(ref);
-            } else if (ref.type === 'globals') {
-                response.body.variables =
-                    await this.handleVariableRequestGlobal();
-            } else if (ref.type === 'statics') {
-                response.body.variables =
-                    await this.handleVariableRequestStatic();
             }
             this.sendResponse(response);
         } catch (err) {
@@ -2435,109 +2429,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         for (const symbolgroup of globalvars.symbols.debug) {
             await this.loopOnSymbolsInSymbolGroup(symbolgroup);
         }
-    }
-
-    /**
-     * Necessary steps for viewing global variables
-     * retrieve global symbols/variables from GDB
-     * each symbol has a property stating which source file it is created to and the type attribute provides if it's static or not.
-     * A map is created in the debug-adapter for global variables to store them.
-     */
-    protected async handleVariableRequestGlobal(): Promise<
-        DebugProtocol.Variable[]
-    > {
-        // Create empty array response for global variaables
-        let globalVariables: DebugProtocol.Variable[] = [];
-        // Check if any global variables are stored in the adapter's variable map. They have threadId of -1, frameId of -1, and depth of -1 as well
-        const existingGlobalVars = this.gdb.varManager.getVars(
-            { threadId: -1, frameId: -1 },
-            -1
-        );
-        // Get all global variables from GDB
-        const globalvars = await mi.sendSymbolInfoVars(this.gdb);
-        // if there are no global variables stored in adapter's map
-        if (!existingGlobalVars) {
-            if (globalvars.symbols.debug.length > 0) {
-                // Iterate over global variables debug groups (global variables are grouped by source file)
-                for (const symbolgroup of globalvars.symbols.debug) {
-                    globalVariables =
-                        (await this.loopOnSymbolsInSymbolGroup(
-                            symbolgroup,
-                            globalVariables
-                        )) ?? []; // ?? to satisfy typescript that globalVariables won't be undefined
-                }
-            } else {
-                // No global variables found in GDB either
-            }
-        } else {
-            // There are global variables in the adapter's variable map
-            if (globalvars.symbols.debug.length > 0) {
-                // There are global variables in GDB as well
-                // Make sure the adapter's map and GDB are in sync
-                // Array of variables to erase from adapter's map
-                for (const variableInMap of existingGlobalVars) {
-                    // Ignore it if it's a child variable or an expression
-                    if (variableInMap.isVar && !variableInMap.isChild) {
-                        // request update from GDB
-                        const variableUpdate = await mi.sendVarUpdate(
-                            this.gdb,
-                            {
-                                name: variableInMap.varname,
-                            }
-                        );
-                        // If changelist has the length 0, the value of update will be undefined
-                        // If update is undefined, that means the variable object still exists in GDB/MI, but it hasn't changed it's value.
-                        // When a variable object is erased from GDB/MI, the -var-update command will trigger an error
-                        const update = variableUpdate.changelist[0];
-                        let pushFlag = true;
-                        if (update) {
-                            // If in_scope === true, that means the value is valid and it should be updated in the variable map
-                            if (update.in_scope === 'true') {
-                                if (update.name === variableInMap.varname) {
-                                    // Update the value
-                                    variableInMap.value = update.value;
-                                    variableInMap.type =
-                                        update.type_changed === 'true'
-                                            ? update.new_type
-                                            : variableInMap.type;
-                                    variableInMap.numchild =
-                                        update.type_changed === 'true'
-                                            ? update.new_num_children
-                                            : variableInMap.numchild;
-                                }
-                            } else if (update.in_scope === 'invalid') {
-                                // If in_scope === 'invalid', that means variable no longer exists, i.e. a new executable file is being debugged
-                                this.gdb.varManager.removeVar(
-                                    { threadId: -1, frameId: -1 },
-                                    -1,
-                                    variableInMap.varname
-                                );
-                                pushFlag = false;
-                            }
-                            // in_scope === 'false' is not possible for global variables
-                        }
-                        if (pushFlag) {
-                            // Push global variable to response to be shown in IDE
-                            globalVariables = this.pushToGlobalVariableArray(
-                                globalVariables,
-                                variableInMap
-                            );
-                        }
-                    }
-                }
-            } else {
-                // There are no global variables in GDB
-                // Erase global variables from adapter's map
-                for (const variableInMap of existingGlobalVars) {
-                    this.gdb.varManager.removeVar(
-                        { threadId: -1, frameId: -1 },
-                        -1,
-                        variableInMap.varname
-                    );
-                }
-            }
-        }
-        return globalVariables;
     }
 
     protected async handleVariableRequestFrame(
