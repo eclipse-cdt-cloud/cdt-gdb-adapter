@@ -1,12 +1,10 @@
-volatile int incrementAnother = 0xDEADBEEF; 
 int main() {
     int count = 0, another = 0;
     while (1) {
         count ++; 
         // line with no code
-        if(incrementAnother == 0xDEADBEEF) {
-            another ++;
-        }
+        another ++;
     }    
     return 0;
 }
+volatile int incrementAnother = 0xDEADBEEF; 

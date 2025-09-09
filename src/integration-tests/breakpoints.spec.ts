@@ -235,9 +235,6 @@ describe('breakpoints', async function () {
     });
 
     it('sets a data brreakpoint', async function () {
-        if (gdbNonStop && isRemoteTest) {
-            this.skip();
-        }
         const bpResp = await dc.setDataBreakpointsRequest({
             breakpoints: [
                 {
@@ -250,6 +247,9 @@ describe('breakpoints', async function () {
     });
 
     it('set an instruction breakpoint', async function () {
+        if (gdbNonStop && isRemoteTest) {
+            this.skip();
+        }
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
@@ -444,12 +444,12 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 7,
+                    line: 6,
                 },
             ],
         });
         expect(bpResp1.body.breakpoints.length).to.eq(1);
-        expect(bpResp1.body.breakpoints[0].line).eq(7);
+        expect(bpResp1.body.breakpoints[0].line).eq(6);
         const bpResp2 = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -458,17 +458,17 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 5,
+                    line: 4,
                 },
                 {
                     column: 1,
-                    line: 7,
+                    line: 6,
                 },
             ],
         });
         expect(bpResp2.body.breakpoints.length).to.eq(2);
-        expect(bpResp2.body.breakpoints[0].line).eq(5);
-        expect(bpResp2.body.breakpoints[1].line).eq(7);
+        expect(bpResp2.body.breakpoints[0].line).eq(4);
+        expect(bpResp2.body.breakpoints[1].line).eq(6);
         // Make sure the GDB id of the breakpoint on line 6 is unchanged
         expect(bpResp2.body.breakpoints[1].id).eq(
             bpResp1.body.breakpoints[0].id
@@ -528,13 +528,13 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 6, // this will be relocated to line 7 as no code on line 6
+                    line: 5, // this will be relocated to line 6 as no code on line 5
                 },
             ],
         } as DebugProtocol.SetBreakpointsArguments;
         const bpResp = await dc.setBreakpointsRequest(args);
         // Make sure the GDB id of the breakpoint is unchanged
-        expect(bpResp.body.breakpoints[0].line).eq(7);
+        expect(bpResp.body.breakpoints[0].line).eq(6);
     });
 
     it('maintains gdb breakpoint when relocated', async function () {
@@ -550,16 +550,16 @@ describe('breakpoints', async function () {
             breakpoints: [
                 {
                     column: 1,
-                    line: 6, // this will be relocated to line 7 as no code on line 6
+                    line: 5, // this will be relocated to line 6 as no code on line 5
                 },
             ],
         } as DebugProtocol.SetBreakpointsArguments;
         const bpResp1 = await dc.setBreakpointsRequest(args);
         expect(bpResp1.body.breakpoints.length).to.eq(1);
-        expect(bpResp1.body.breakpoints[0].line).eq(7);
+        expect(bpResp1.body.breakpoints[0].line).eq(6);
         const bpResp2 = await dc.setBreakpointsRequest(args);
         expect(bpResp2.body.breakpoints.length).to.eq(1);
-        expect(bpResp2.body.breakpoints[0].line).eq(7);
+        expect(bpResp2.body.breakpoints[0].line).eq(6);
         // Make sure the GDB id of the breakpoint is unchanged
         expect(bpResp2.body.breakpoints[0].id).eq(
             bpResp1.body.breakpoints[0].id

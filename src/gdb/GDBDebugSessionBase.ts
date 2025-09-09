@@ -35,8 +35,6 @@ import {
     MemoryResponse,
     FrameVariableReference,
     RegisterVariableReference,
-    //GlobalVariableReference,
-    //StaticVariableReference,
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
@@ -569,7 +567,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.DataBreakpointInfoResponse,
         args: DebugProtocol.DataBreakpointInfoArguments
     ): Promise<void> {
-        // The args.dataId is the expression to watch
+        // The args.name is the expression to watch
         const varExpression = args.name;
         // Check if the variable is already in the Global variables map
         const varInMap = this.gdb.varManager.getVar(
@@ -577,6 +575,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             -1,
             varExpression
         );
+        /**
+         * For now, we only support Data Breakpoints for non-static global variables with primitive data types.
+         * The plan for the forseeable future is to expand our support to static global variables, struct/union data types, and classes.
+         */
         // if found, return the dataId (expression) and description. i.e. Data Breakpoint is eligibile for expression
         if (varInMap) {
             response.body = {
@@ -611,10 +613,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     private async getWatchpointList(): Promise<mi.MIBreakpointInfo[]> {
         // Get a list of existing watchpoints, using gdb-mi command -break-list
-        const existingWatchpoints = await mi.sendBreakList(this.gdb);
+        const fullBreakpointsList = await mi.sendBreakList(this.gdb);
         // Filter out all watchpoints
         const existingWatchpointsList =
-            existingWatchpoints.BreakpointTable.body.filter((bp) =>
+            fullBreakpointsList.BreakpointTable.body.filter((bp) =>
                 bp['type'].includes('watchpoint')
             );
         return existingWatchpointsList;
@@ -628,11 +630,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Get existing GDB watchpoints
         let existingGDBWatchpointsList = await this.getWatchpointList();
         // Get the list of watchpoints from vscode
-        const vscodeWatchpointsListBase = args.breakpoints;
+        const vscodeWatchpointsList = args.breakpoints;
         // Filter out watchpoints to be deleted, vscode is the golden reference
         const watchpointsToDelete = existingGDBWatchpointsList.filter(
             (bp) =>
-                !vscodeWatchpointsListBase.some(
+                !vscodeWatchpointsList.some(
                     (vsbp) => vsbp.dataId === bp.what
                 )
         );
@@ -645,7 +647,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             existingGDBWatchpointsList = await this.getWatchpointList();
         }
         // Create a list of watchpoints to be created
-        const watchpointsToBeCreated = vscodeWatchpointsListBase.filter(
+        const watchpointsToBeCreated = vscodeWatchpointsList.filter(
             (bp) =>
                 !existingGDBWatchpointsList.some(
                     (gdbbp) => gdbbp.what === bp.dataId
@@ -1406,18 +1408,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             type: 'registers',
             frameHandle: args.frameId,
         };
-
-        /** 
-        const globals: GlobalVariableReference = {
-            type: 'globals',
-            frameHandle: args.frameId,
-        };
-
-        const statics: StaticVariableReference = {
-            type: 'statics',
-            frameHandle: args.frameId,
-        };
-        */
 
         // if first scope request, populate the variable map with global variables
         if (this.globalVariablesPopulated === false) {
