@@ -1393,10 +1393,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    protected scopesRequest(
+    protected async scopesRequest(
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
-    ): void {
+    ): Promise<void> {
         const frameVarRef: FrameVariableReference = {
             type: 'frame',
             frameHandle: args.frameId,
@@ -1411,7 +1411,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         if (this.globalVariablesPopulated === false) {
             // call function that populates the variable map with global variables
             this.globalVariablesPopulated = true;
-            this.populateGlobalVariables();
+            await this.populateGlobalVariables();
         }
 
         response.body = {
