@@ -121,9 +121,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     protected static frozenRequestArguments?: { request?: string };
 
-    // A variable to store whether this is the first scope request or not
-    private globalVariablesPopulated = false;
-
     protected gdb!: IGDBBackend;
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
@@ -1411,12 +1408,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             frameHandle: args.frameId,
         };
 
-        // if first scope request, populate the variable map with global variables
-        if (this.globalVariablesPopulated === false) {
-            // call function that populates the variable map with global variables
-            this.globalVariablesPopulated = true;
-            await this.populateGlobalVariables();
-        }
 
         response.body = {
             scopes: [
@@ -2319,77 +2310,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     )}`
                 );
         }
-    }
-
-    private async loopOnSymbolsInSymbolGroup(
-        symbolGroup: mi.MISymbolInfoVarsDebug
-    ): Promise<void> {
-        // Iterate over each global variable in the group
-        for (const symbol of symbolGroup.symbols) {
-            // skip if symbol is a static variable, we cannot create a variable object with a floating frame for static global variables as two files can have the same variable name
-            if (symbol.description.includes('static')) {
-                continue;
-            }
-
-            // Create a GDB/MI variable object for each global variable
-            let miVarObj: mi.MIVarCreateResponse | undefined = undefined;
-            try {
-                miVarObj = await mi.sendVarCreate(this.gdb, {
-                    expression: symbol.name,
-                    frame: 'floating',
-                });
-            } catch (error: unknown) {
-                // Cannot create variable object, that means it's probably not saved in the data section of memory (const members)
-                if (!(error as Error).message.includes('-var-create')) {
-                    throw error;
-                }
-            }
-            if (!miVarObj) {
-                // Variable object creation failed, that means the expression cannot be a variable. Which means user wouldn't be able to inspect it.
-                continue;
-            }
-            // If we have an array parent entry, we need to display the address.
-            try {
-                // Try to get the address of the array, if it is optimised out, print the message as the value of the array
-                if (arrayRegex.test(miVarObj.type)) {
-                    const addr = await mi.sendDataEvaluateExpression(
-                        this.gdb,
-                        `&(${symbol.name})`
-                    );
-                    miVarObj.value = addr.value ? addr.value : '';
-                }
-            } catch (error: unknown) {
-                // Handle error by printing the error message as a value
-                miVarObj.value = (error as Error).message;
-            }
-            // Add the variable to the variable map
-            this.gdb.varManager.addVar(
-                { threadId: -1, frameId: -1 }, //threadID = -1, frameID = -1 for global variables. This is an implementation choice and not a value used by GDB
-                -1, //depth
-                symbol.name, // variable/expression name
-                true, // is it a variable?
-                false, // is it a child variable? we don't store child variables in this method. It is only stored in VariableRequestObject
-                miVarObj, // return of GDB/MI variable object creation function
-                symbol.type // type of the variable
-            );
-        }
-    }
-
-    /**
-     * function to populate variable map with global variables
-     */
-    protected async populateGlobalVariables(): Promise<void> {
-        // Get all global variables from GDB
-        const globalvars = await mi.sendSymbolInfoVars(this.gdb);
-        // If there are no global variables found
-        if (globalvars.symbols.debug.length === 0) {
-            return;
-        }
-        // Iterate over global variables debug groups (global variables are grouped by source file)
-        for (const symbolgroup of globalvars.symbols.debug) {
-            await this.loopOnSymbolsInSymbolGroup(symbolgroup);
-        }
-        return;
     }
 
     protected handleGDBResult(notifyClass: string, notifyData: any) {
