@@ -234,6 +234,21 @@ describe('breakpoints', async function () {
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
+    it('sets a data brreakpoint', async function () {
+        if (gdbNonStop && isRemoteTest) {
+            this.skip();
+        }
+        const bpResp = await dc.setDataBreakpointsRequest({
+            breakpoints: [
+                {
+                    dataId: 'incrementAnother',
+                    accessType: 'read'
+                },
+            ],
+        });
+        expect(bpResp.body.breakpoints.length).eq(1);
+    });
+
     it('set an instruction breakpoint', async function () {
         if (gdbNonStop && isRemoteTest) {
             this.skip();
