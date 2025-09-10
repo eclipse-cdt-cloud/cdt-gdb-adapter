@@ -2539,7 +2539,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
         if (!frameRef) {
-            // Global variables have frameHandle -1
             return Promise.resolve(variables);
         }
 
