@@ -567,8 +567,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // The args.name is the expression to watch
         const varExpression = args.name;
         if (args.asAddress) {
+            // The expression is an address, so we can set a data breakpoint directly withouth checking if it's a global symbol
             response.body = {
-                dataId: varExpression,
+                dataId:
+                    // Check if bytes to be watched are more than 1, if so add the offset to the expression
+                    args.bytes! > 1
+                        ? varExpression + `+0x${args.bytes}`
+                        : varExpression,
                 description: `Data breakpoint for ${varExpression}`,
                 accessTypes: ['read', 'write', 'readWrite'],
                 canPersist: false,
@@ -664,8 +669,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
         // Create watchpoints in GDB
         for (const bp of watchpointsToBeCreated) {
+            // If the dataId is an address, it needs to be dereferenced. For now we only consider the address to be a hex value not a decimal
             if (bp.dataId.startsWith('0x')) {
-                bp.dataId = '*' + bp.dataId;
+                bp.dataId = `*(${bp.dataId})`;
             }
             await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
         }
