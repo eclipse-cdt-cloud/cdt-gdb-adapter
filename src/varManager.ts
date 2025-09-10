@@ -48,10 +48,6 @@ export class VarManager {
         if (vars) {
             for (const varobj of vars) {
                 if (varobj.expression === expression) {
-                    if (depth === -1) {
-                        // if Global variable, then we don't really care about type information
-                        return varobj;
-                    }
                     if (type !== 'registers') {
                         type = 'local';
                     }
@@ -159,7 +155,7 @@ export class VarManager {
                 const createResponse = await sendVarCreate(this.gdb, {
                     frame: 'current',
                     expression: varobj.expression,
-                    frameRef: frameRef?.frameId === -1 ? undefined : frameRef,
+                    frameRef,
                 });
                 returnVar = this.addVar(
                     frameRef,

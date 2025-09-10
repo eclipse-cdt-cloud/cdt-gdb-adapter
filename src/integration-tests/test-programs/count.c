@@ -7,4 +7,4 @@ int main() {
     }    
     return 0;
 }
-volatile int incrementAnother = 0xDEADBEEF; 
+volatile int g_variable = 0xDEADBEEF; 

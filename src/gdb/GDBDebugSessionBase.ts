@@ -1394,10 +1394,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    protected async scopesRequest(
+    protected scopesRequest(
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
-    ): Promise<void> {
+    ): void {
         const frameVarRef: FrameVariableReference = {
             type: 'frame',
             frameHandle: args.frameId,
@@ -1415,8 +1415,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     this.variableHandles.create(frameVarRef),
                     false
                 ),
-                //new Scope('Global', this.variableHandles.create(globals), true),
-                //new Scope('Static', this.variableHandles.create(statics), true),
                 new Scope(
                     'Registers',
                     this.variableHandles.create(registers),
@@ -2540,7 +2538,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
-        if (!frameRef && ref.frameHandle !== -1) {
+        if (!frameRef) {
             // Global variables have frameHandle -1
             return Promise.resolve(variables);
         }

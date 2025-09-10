@@ -234,11 +234,11 @@ describe('breakpoints', async function () {
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
-    it('sets a data brreakpoint', async function () {
+    it('sets a data breakpoint', async function () {
         const bpResp = await dc.setDataBreakpointsRequest({
             breakpoints: [
                 {
-                    dataId: 'incrementAnother',
+                    dataId: 'g_variable',
                     accessType: 'read',
                 },
             ],

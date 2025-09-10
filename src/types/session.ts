@@ -74,9 +74,7 @@ export interface StaticVariableReference {
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
-    | RegisterVariableReference
-    | GlobalVariableReference
-    | StaticVariableReference;
+    | RegisterVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
