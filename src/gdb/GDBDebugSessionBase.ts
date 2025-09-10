@@ -574,6 +574,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             /** If there are debug symbols matching the varExpression, then we can set a data breakpoint.
              * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
              * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
+             * Also a guard should be added to prevent setting data breakpoints on invalid expressions.
              */
 
             if (symbols.symbols.debug.length > 0) {
