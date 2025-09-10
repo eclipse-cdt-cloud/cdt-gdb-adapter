@@ -566,6 +566,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         const varExpression = args.name;
+        if(args.asAddress) {
+            response.body = {
+                    dataId: varExpression,
+                    description: `Data breakpoint for ${varExpression}`,
+                    accessTypes: ['read', 'write', 'readWrite'],
+                    canPersist: false,
+                };
+        } else {
         // Send the varExpression as a query to the symbol info variables command
         try {
             const symbols = await mi.sendSymbolInfoVars(this.gdb, {
@@ -597,6 +605,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 description: `No data breakpoint for ${varExpression}`,
             };
         }
+    }
         this.sendResponse(response);
     }
 
@@ -655,6 +664,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
         // Create watchpoints in GDB
         for (const bp of watchpointsToBeCreated) {
+            if(bp.dataId.startsWith('0x'))
+            {
+                bp.dataId = '*' + bp.dataId;
+            }
             await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
         }
         // Get the updated list of GDB watchpoints
