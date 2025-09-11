@@ -375,6 +375,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
         await this.gdb.sendEnablePrettyPrint();
 
+        await this.gdb.sendCommands(args.initCommands);
+
         if (request === 'attach') {
             this.isAttach = true;
             const attachArgs = args as AttachRequestArguments;
@@ -385,8 +387,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 new OutputEvent(`attached to process ${attachArgs.processId}`)
             );
         }
-
-        await this.gdb.sendCommands(args.initCommands);
 
         if (request === 'launch') {
             const launchArgs = args as LaunchRequestArguments;
