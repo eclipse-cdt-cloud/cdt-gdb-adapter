@@ -580,7 +580,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         : varExpression,
                 description: `Data breakpoint for ${varExpression}`,
                 accessTypes: ['read', 'write', 'readWrite'],
-                canPersist: false,
+                canPersist: true,
             };
         } else {
             // Send the varExpression as a query to the symbol info variables command
@@ -599,7 +599,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         dataId: varExpression,
                         description: `Data breakpoint for ${varExpression}`,
                         accessTypes: ['read', 'write', 'readWrite'],
-                        canPersist: false,
+                        canPersist: true,
                     };
                 } else {
                     response.body = {
@@ -673,6 +673,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
         // Create watchpoints in GDB
         for (const bp of watchpointsToBeCreated) {
+            // If the dataId is an address, written in decimal, dereference it as well
+            if (numberRegex.test(bp.dataId) && !bp.dataId.startsWith('0x')) {
+                bp.dataId = `*(${bp.dataId})`;
+            }
             // If the dataId is an address, it needs to be dereferenced. For now we only consider the address to be a hex value not a decimal
             if (bp.dataId.startsWith('0x')) {
                 bp.dataId = `*(${bp.dataId})`;
