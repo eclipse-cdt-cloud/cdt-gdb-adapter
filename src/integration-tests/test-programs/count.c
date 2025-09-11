@@ -7,3 +7,4 @@ int main() {
     }    
     return 0;
 }
+volatile int g_variable = 0xDEADBEEF; 

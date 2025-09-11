@@ -307,6 +307,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsSteppingGranularity = true;
         response.body.supportsInstructionBreakpoints = true;
         response.body.supportsTerminateRequest = true;
+        response.body.supportsDataBreakpoints = true;
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
@@ -559,6 +560,64 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    protected async dataBreakpointInfoRequest(
+        response: DebugProtocol.DataBreakpointInfoResponse,
+        args: DebugProtocol.DataBreakpointInfoArguments
+    ): Promise<void> {
+        // The args.name is the expression to watch
+        let varExpression = args.name;
+        if (args.asAddress && args.bytes) {
+            // Make sure the address is in hex format, if not convert it to hex
+            if (!varExpression.startsWith('0x')) {
+                varExpression = `0x${BigInt(varExpression).toString(16)}`;
+            }
+            // The expression is an address, so we can set a data breakpoint directly withouth checking if it's a global symbol
+            response.body = {
+                dataId:
+                    // Check if bytes to be watched are more than 1, if so add the offset to the expression
+                    args.bytes > 1
+                        ? varExpression + `+0x${args.bytes}`
+                        : varExpression,
+                description: `Data breakpoint for ${varExpression}`,
+                accessTypes: ['read', 'write', 'readWrite'],
+                canPersist: true,
+            };
+        } else {
+            // Send the varExpression as a query to the symbol info variables command
+            try {
+                const symbols = await mi.sendSymbolInfoVars(this.gdb, {
+                    name: `^${varExpression}$`,
+                });
+                /** If there are debug symbols matching the varExpression, then we can set a data breakpoint.
+                 * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
+                 * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
+                 * Also a guard should be added to prevent setting data breakpoints on invalid expressions.
+                 */
+
+                if (symbols.symbols.debug.length > 0) {
+                    response.body = {
+                        dataId: varExpression,
+                        description: `Data breakpoint for ${varExpression}`,
+                        accessTypes: ['read', 'write', 'readWrite'],
+                        canPersist: true,
+                    };
+                } else {
+                    response.body = {
+                        dataId: null,
+                        description: `No data breakpoint for ${varExpression}`,
+                    };
+                }
+            } catch {
+                // Silently failing, no data breakpoint can be set for the expression
+                response.body = {
+                    dataId: null,
+                    description: `No data breakpoint for ${varExpression}`,
+                };
+            }
+        }
+        this.sendResponse(response);
+    }
+
     private async getInstructionBreakpointList(): Promise<
         mi.MIBreakpointInfo[]
     > {
@@ -570,6 +629,86 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 (bp) => bp['original-location']?.[0] === '*'
             );
         return existingInstBreakpointsList;
+    }
+
+    private async getWatchpointList(): Promise<mi.MIBreakpointInfo[]> {
+        // Get a list of existing watchpoints, using gdb-mi command -break-list
+        const fullBreakpointsList = await mi.sendBreakList(this.gdb);
+        // Filter out all watchpoints
+        const existingWatchpointsList =
+            fullBreakpointsList.BreakpointTable.body.filter((bp) =>
+                bp['type'].includes('watchpoint')
+            );
+        return existingWatchpointsList;
+    }
+
+    protected async setDataBreakpointsRequest(
+        response: DebugProtocol.SetDataBreakpointsResponse,
+        args: DebugProtocol.SetDataBreakpointsArguments
+    ): Promise<void> {
+        await this.pauseIfNeeded();
+        // Get existing GDB watchpoints
+        let existingGDBWatchpointsList = await this.getWatchpointList();
+        // Get the list of watchpoints from vscode
+        const vscodeWatchpointsList = args.breakpoints;
+        // Filter out watchpoints to be deleted, vscode is the golden reference
+        const watchpointsToDelete = existingGDBWatchpointsList.filter(
+            (bp) =>
+                !vscodeWatchpointsList.some((vsbp) => {
+                    if (bp.what?.startsWith('*')) {
+                        return (
+                            vsbp.dataId === bp.what.slice(2, bp.what.length - 1)
+                        );
+                    } else {
+                        return vsbp.dataId === bp.what;
+                    }
+                })
+        );
+        // Delete watchpoints to be deleted from GDB
+        if (watchpointsToDelete.length > 0) {
+            await mi.sendBreakDelete(this.gdb, {
+                breakpoints: watchpointsToDelete.map((bp) => bp.number),
+            });
+            // update GDB watchpoint list
+            existingGDBWatchpointsList = await this.getWatchpointList();
+        }
+        // Create a list of watchpoints to be created
+        const watchpointsToBeCreated = vscodeWatchpointsList.filter(
+            (bp) =>
+                !existingGDBWatchpointsList.some((gdbbp) => {
+                    if (gdbbp.what?.startsWith('*')) {
+                        return (
+                            bp.dataId ===
+                            gdbbp.what.slice(2, gdbbp.what.length - 1)
+                        );
+                    } else {
+                        return bp.dataId === gdbbp.what;
+                    }
+                })
+        );
+        // Create watchpoints in GDB
+        for (const bp of watchpointsToBeCreated) {
+            // If the dataId is an address, written in decimal or hex, then add the dereferencing operator before sending it to GDB
+            if (numberRegex.test(bp.dataId) || bp.dataId.startsWith('0x')) {
+                bp.dataId = `*(${bp.dataId})`;
+            }
+            await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
+        }
+        // Get the updated list of GDB watchpoints
+        const gdbWatchpoints = await this.getWatchpointList();
+        // Prepare response
+        const actual: DebugProtocol.Breakpoint[] = gdbWatchpoints.map((bp) => {
+            const responseBp: DebugProtocol.Breakpoint = {
+                verified: bp.enabled === 'y',
+                id: parseInt(bp.number, 10),
+            };
+            return responseBp;
+        });
+        response.body = {
+            breakpoints: actual,
+        };
+        this.sendResponse(response);
+        await this.continueIfNeeded();
     }
 
     protected async setInstructionBreakpointsRequest(
