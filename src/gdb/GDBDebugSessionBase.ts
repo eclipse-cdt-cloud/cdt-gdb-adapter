@@ -565,8 +565,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         args: DebugProtocol.DataBreakpointInfoArguments
     ): Promise<void> {
         // The args.name is the expression to watch
-        const varExpression = args.name;
+        let varExpression = args.name;
         if (args.asAddress) {
+            // Make sure the address is in hex format, if not convert it to hex
+            if (!varExpression.startsWith('0x')) {
+                varExpression = `0x${BigInt(varExpression).toString(16)}`;
+            }
             // The expression is an address, so we can set a data breakpoint directly withouth checking if it's a global symbol
             response.body = {
                 dataId:
