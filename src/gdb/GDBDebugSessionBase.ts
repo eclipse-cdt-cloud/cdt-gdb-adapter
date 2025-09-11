@@ -1552,10 +1552,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             if (args.expression.startsWith('>') && args.context === 'repl') {
                 const regexDisable = new RegExp(
-                    '^\\s*disable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                    '^\\s*(?:dis|disa|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
                 const regexEnable = new RegExp(
-                    '^\\s*enable\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                    '^\\s*(?:en|enable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
                 const regexDelete = new RegExp(
                     '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
