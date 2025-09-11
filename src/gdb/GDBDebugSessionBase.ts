@@ -654,7 +654,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Filter out watchpoints to be deleted, vscode is the golden reference
         const watchpointsToDelete = existingGDBWatchpointsList.filter(
             (bp) =>
-                !vscodeWatchpointsList.some((vsbp) => vsbp.dataId === bp.what)
+                !vscodeWatchpointsList.some((vsbp) => {
+                    if (bp.what?.startsWith('*')) {
+                        return (
+                            vsbp.dataId === bp.what.slice(2, bp.what.length - 1)
+                        );
+                    } else {
+                        return vsbp.dataId === bp.what;
+                    }
+                })
         );
         // Delete watchpoints to be deleted from GDB
         if (watchpointsToDelete.length > 0) {
@@ -667,18 +675,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Create a list of watchpoints to be created
         const watchpointsToBeCreated = vscodeWatchpointsList.filter(
             (bp) =>
-                !existingGDBWatchpointsList.some(
-                    (gdbbp) => gdbbp.what === bp.dataId
-                )
+                !existingGDBWatchpointsList.some((gdbbp) => {
+                    if (gdbbp.what?.startsWith('*')) {
+                        return (
+                            bp.dataId ===
+                            gdbbp.what.slice(2, gdbbp.what.length - 1)
+                        );
+                    } else {
+                        return bp.dataId === gdbbp.what;
+                    }
+                })
         );
         // Create watchpoints in GDB
         for (const bp of watchpointsToBeCreated) {
-            // If the dataId is an address, written in decimal, dereference it as well
-            if (numberRegex.test(bp.dataId) && !bp.dataId.startsWith('0x')) {
-                bp.dataId = `*(${bp.dataId})`;
-            }
-            // If the dataId is an address, it needs to be dereferenced. For now we only consider the address to be a hex value not a decimal
-            if (bp.dataId.startsWith('0x')) {
+            // If the dataId is an address, written in decimal or hex, then add the dereferencing operator before sending it to GDB
+            if (numberRegex.test(bp.dataId) || bp.dataId.startsWith('0x')) {
                 bp.dataId = `*(${bp.dataId})`;
             }
             await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
