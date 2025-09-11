@@ -566,7 +566,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         let varExpression = args.name;
-        if (args.asAddress) {
+        if (args.asAddress && args.bytes) {
             // Make sure the address is in hex format, if not convert it to hex
             if (!varExpression.startsWith('0x')) {
                 varExpression = `0x${BigInt(varExpression).toString(16)}`;
@@ -575,7 +575,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             response.body = {
                 dataId:
                     // Check if bytes to be watched are more than 1, if so add the offset to the expression
-                    args.bytes! > 1
+                    args.bytes > 1
                         ? varExpression + `+0x${args.bytes}`
                         : varExpression,
                 description: `Data breakpoint for ${varExpression}`,
@@ -607,7 +607,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         description: `No data breakpoint for ${varExpression}`,
                     };
                 }
-            } catch (err) {
+            } catch {
                 // Silently failing, no data breakpoint can be set for the expression
                 response.body = {
                     dataId: null,
