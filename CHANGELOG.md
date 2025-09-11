@@ -1,10 +1,17 @@
 # Change Log
 
-## Unreleased
+## 1.3.0
 
-- Fixes [`#437`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/437): `detach` request getting stuck on exited program.
+- Implements [`#422`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/422): Initial support for data breakpoints.
+  **Note**: Initially supports global symbols with simple datatypes.
+- Fixes [`#402`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/402): Better handle setting too many breakpoints.
 - Fixes [`#407`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/407): Getting stuck on concurrent breakpoint setup on targets that don’t stop on attach.
-- Fixes [`#427`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/427): Breakpoint source code reference to module disappears when breakpoint is hit
+- Fixes [`#408`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/408): Avoid unnecessary ThreadInfoRequests.
+- Fixes [`#420`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/420): Disabling evaluate request error messages when hovering over comments.
+- Fixes [`#427`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/427): Breakpoint source code reference to module disappears when breakpoint is hit.
+- Fixes [`#428`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/428): User experience issues in step operations on slow sessions.
+- Fixes [`#437`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/437): `detach` request getting stuck on exited program.
+- Fixes [`#444`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/444): Adding more robustness to warning messages of the evaluateRequest.
 
 ## 1.2.0
 
