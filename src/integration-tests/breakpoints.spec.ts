@@ -234,11 +234,59 @@ describe('breakpoints', async function () {
         expect(stoppedEvent.body).to.have.property('reason', 'breakpoint');
     });
 
-    it('sets a data breakpoint', async function () {
+    it('sets a data breakpoint for a symbol', async function () {
+        const isEligible = await dc.dataBreakpointInfoRequest({
+            name: 'g_variable',
+        });
+        expect(isEligible.body).not.eq(undefined);
+        expect(isEligible.body.dataId).eq('g_variable');
         const bpResp = await dc.setDataBreakpointsRequest({
             breakpoints: [
                 {
                     dataId: 'g_variable',
+                    accessType: 'read',
+                },
+            ],
+        });
+        expect(bpResp.body.breakpoints.length).eq(1);
+    });
+
+    it('sets a data breakpoint for an address', async function () {
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+        const scope = await getScopes(dc);
+        const evalRequestOutput = await dc.evaluateRequest({
+            expression: '&g_variable',
+            context: 'repl',
+            frameId: scope.frame.id,
+        });
+        const addr = evalRequestOutput.body.result.split(' ')[0];
+        const isEligible = await dc.dataBreakpointInfoRequest({
+            name: addr,
+            asAddress: true,
+            bytes: 4,
+        });
+        expect(isEligible.body).not.eq(undefined);
+        expect(isEligible.body.dataId).eq(addr + '+0x4');
+        // Now set the data breakpoint
+        const bpResp = await dc.setDataBreakpointsRequest({
+            breakpoints: [
+                {
+                    dataId: addr,
                     accessType: 'read',
                 },
             ],
