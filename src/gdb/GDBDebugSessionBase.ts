@@ -587,7 +587,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
                 const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, { name: `^${varExpression}$` });
-                if(isFunction.symbols.debug.length > 0) { 
+                if(isFunction.symbols.debug) { 
                     throw new Error(`Cannot set data breakpoint for function ${varExpression}`); 
                 }
                 const address = await mi.sendDataEvaluateExpression(this.gdb, `&${varExpression}` );

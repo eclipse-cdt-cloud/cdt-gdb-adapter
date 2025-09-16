@@ -251,6 +251,22 @@ describe('breakpoints', async function () {
         expect(bpResp.body.breakpoints.length).eq(1);
     });
 
+    it('fails to set a data breakpoint for a non symbol', async function () {
+        const isEligible = await dc.dataBreakpointInfoRequest({
+            name: 'r0',
+        });
+        expect(isEligible.body).not.eq(undefined);
+        expect(isEligible.body.dataId).eq(null);
+    });
+
+    it('fails to set a data breakpoint for a function', async function () {
+        const isEligible = await dc.dataBreakpointInfoRequest({
+            name: 'main',
+        });
+        expect(isEligible.body).not.eq(undefined);
+        expect(isEligible.body.dataId).eq(null);
+    });
+
     it('sets a data breakpoint for an address', async function () {
         await dc.setBreakpointsRequest({
             source: {
