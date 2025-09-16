@@ -566,6 +566,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         let varExpression = args.name;
+        // If the expression is an address, then directly allow data breakpoint setting
         if (args.asAddress && args.bytes) {
             // Make sure the address is in hex format, if not convert it to hex
             if (!varExpression.startsWith('0x')) {
@@ -583,18 +584,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 canPersist: true,
             };
         } else {
-            // Send the varExpression as a query to the symbol info variables command
+            // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
-                const symbols = await mi.sendSymbolInfoVars(this.gdb, {
-                    name: `^${varExpression}$`,
-                });
-                /** If there are debug symbols matching the varExpression, then we can set a data breakpoint.
-                 * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
-                 * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
-                 * Also a guard should be added to prevent setting data breakpoints on invalid expressions.
-                 */
-
-                if (symbols.symbols.debug.length > 0) {
+                const address = await mi.sendDataEvaluateExpression(this.gdb, `&${varExpression}` );
+                const size = await mi.sendDataEvaluateExpression(this.gdb, `sizeof(${varExpression})` );
+                if (address.value && size.value) {
                     response.body = {
                         dataId: varExpression,
                         description: `Data breakpoint for ${varExpression}`,
