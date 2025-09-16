@@ -586,12 +586,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         } else {
             // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
-                const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, { name: `^${varExpression}$` });
-                if(isFunction.symbols.debug) { 
-                    throw new Error(`Cannot set data breakpoint for function ${varExpression}`); 
+                const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, {
+                    name: `^${varExpression}$`,
+                });
+                if (isFunction.symbols.debug) {
+                    throw new Error(
+                        `Cannot set data breakpoint for function ${varExpression}`
+                    );
                 }
-                const address = await mi.sendDataEvaluateExpression(this.gdb, `&${varExpression}` );
-                const size = await mi.sendDataEvaluateExpression(this.gdb, `sizeof(${varExpression})` );
+                const address = await mi.sendDataEvaluateExpression(
+                    this.gdb,
+                    `&${varExpression}`
+                );
+                const size = await mi.sendDataEvaluateExpression(
+                    this.gdb,
+                    `sizeof(${varExpression})`
+                );
                 if (address.value && size.value) {
                     response.body = {
                         dataId: varExpression,
@@ -600,11 +610,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         canPersist: true,
                     };
                 } else {
-                response.body = {
-                    dataId: null,
-                    description: `No data breakpoint for ${varExpression}`,
-                };
-            }
+                    response.body = {
+                        dataId: null,
+                        description: `No data breakpoint for ${varExpression}`,
+                    };
+                }
             } catch {
                 // Silently failing, no data breakpoint can be set for the expression
                 response.body = {

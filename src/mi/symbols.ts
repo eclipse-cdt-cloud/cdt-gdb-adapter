@@ -69,7 +69,7 @@ export function sendSymbolInfoFunctions(
         max_result?: string;
         non_debug?: boolean;
     }
-) : Promise<MISymbolInfoResponse> {
+): Promise<MISymbolInfoResponse> {
     let command = '-symbol-info-functions';
     if (params) {
         if (params.name) {
