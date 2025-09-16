@@ -612,11 +612,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     )
                 );
             }
-            if (this.gdb.getAsyncMode()) {
-                if (await this.gdb.confirmAsyncMode()) {
-                    this.warnAsyncDisabled();
-                }
-            }
 
             await this.setSessionState(SessionState.CONNECTED);
 
@@ -624,6 +619,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
                 args.initCommands
             );
+
+            // Check for async mode support after initCommands have possibly
+            // selected a different target
+            if (this.gdb.getAsyncMode()) {
+                if (await this.gdb.confirmAsyncMode()) {
+                    this.warnAsyncDisabled();
+                }
+            }
 
             // Initialize UART
             if (target.uart !== undefined) {

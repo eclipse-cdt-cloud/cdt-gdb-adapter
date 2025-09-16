@@ -393,11 +393,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.sendEvent(
                 new OutputEvent(`attached to process ${attachArgs.processId}`)
             );
-            if (this.gdb.getAsyncMode()) {
-                if (await this.gdb.confirmAsyncMode()) {
-                    this.warnAsyncDisabled();
-                }
-            }
         } else {
             if (this.gdb.getAsyncMode()) {
                 // Checking whether the target supports async mode needs a
@@ -409,13 +404,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     type: 'native',
                     parameters: [],
                 });
-                if (await this.gdb.confirmAsyncMode()) {
-                    this.warnAsyncDisabled();
-                }
             }
         }
 
         await this.gdb.sendCommands(args.initCommands);
+
+        // Check for async mode support after initCommands have possibly
+        // selected a different target
+        if (this.gdb.getAsyncMode()) {
+            if (await this.gdb.confirmAsyncMode()) {
+                this.warnAsyncDisabled();
+            }
+        }
 
         if (request === 'launch') {
             const launchArgs = args as LaunchRequestArguments;
