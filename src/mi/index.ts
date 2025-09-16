@@ -16,3 +16,4 @@ export * from './target';
 export * from './thread';
 export * from './var';
 export * from './interpreter';
+export * from './symbols';
