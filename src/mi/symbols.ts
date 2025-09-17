@@ -1,5 +1,5 @@
 /*********************************************************************
- * Copyright (c) 2018 QNX Software Systems and others
+ * Copyright (c) 2025 QNX Software Systems, Arm Limited and others
  *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
