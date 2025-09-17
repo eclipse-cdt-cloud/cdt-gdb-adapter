@@ -700,7 +700,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             if (numberRegex.test(bp.dataId) || bp.dataId.startsWith('0x')) {
                 bp.dataId = `*(${bp.dataId})`;
             }
-            await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
+            try {
+                await mi.sendBreakWatchpoint(
+                    this.gdb,
+                    bp.dataId,
+                    bp.accessType
+                );
+            } catch (err) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'Data breakpoint could not be created: ' +
+                        (err instanceof Error ? err.message : String(err))
+                );
+            }
         }
         // Get the updated list of GDB watchpoints
         const gdbWatchpoints = await this.getWatchpointList();
