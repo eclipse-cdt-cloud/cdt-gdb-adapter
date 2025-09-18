@@ -25,7 +25,10 @@ export class VarManager {
         this.gdb = gdb;
     }
 
-    public getKey(frameRef: FrameReference, depth: number): string {
+    public getKey(frameRef: FrameReference | undefined, depth: number): string {
+        if (!frameRef) {
+            return `global`;
+        }
         return `frame${frameRef.frameId}_thread${frameRef.threadId}_depth${depth}`;
     }
 
@@ -33,9 +36,7 @@ export class VarManager {
         frameRef: FrameReference | undefined,
         depth: number
     ): VarObjType[] | undefined {
-        return frameRef
-            ? this.variableMap.get(this.getKey(frameRef, depth))
-            : undefined;
+        return this.variableMap.get(this.getKey(frameRef, depth));
     }
 
     public getVar(
@@ -85,14 +86,10 @@ export class VarManager {
         varCreateResponse: MIVarCreateResponse,
         type?: string
     ): VarObjType {
-        let vars = frameRef
-            ? this.variableMap.get(this.getKey(frameRef, depth))
-            : undefined;
+        let vars = this.variableMap.get(this.getKey(frameRef, depth));
         if (!vars) {
             vars = [];
-            if (frameRef) {
-                this.variableMap.set(this.getKey(frameRef, depth), vars);
-            }
+            this.variableMap.set(this.getKey(frameRef, depth), vars);
         }
         const varobj: VarObjType = {
             varname: varCreateResponse.name,
