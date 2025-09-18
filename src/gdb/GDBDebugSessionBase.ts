@@ -595,6 +595,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         let varExpression = args.name;
+        // If the expression is an address, then directly allow data breakpoint setting
         if (args.asAddress && args.bytes) {
             // Make sure the address is in hex format, if not convert it to hex
             if (!varExpression.startsWith('0x')) {
@@ -612,18 +613,25 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 canPersist: true,
             };
         } else {
-            // Send the varExpression as a query to the symbol info variables command
+            // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
-                const symbols = await mi.sendSymbolInfoVars(this.gdb, {
+                const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, {
                     name: `^${varExpression}$`,
                 });
-                /** If there are debug symbols matching the varExpression, then we can set a data breakpoint.
-                 * We are currently supporting primitive expressions only. ie. no pointer dereferencing, no struct members, no arrays.
-                 * The plan for the forseeable future is to expand our support for arrays, struct/union data types, and classes.
-                 * Also a guard should be added to prevent setting data breakpoints on invalid expressions.
-                 */
-
-                if (symbols.symbols.debug.length > 0) {
+                if (isFunction.symbols.debug) {
+                    throw new Error(
+                        `Cannot set data breakpoint for function ${varExpression}`
+                    );
+                }
+                const address = await mi.sendDataEvaluateExpression(
+                    this.gdb,
+                    `&${varExpression}`
+                );
+                const size = await mi.sendDataEvaluateExpression(
+                    this.gdb,
+                    `sizeof(${varExpression})`
+                );
+                if (address.value && size.value) {
                     response.body = {
                         dataId: varExpression,
                         description: `Data breakpoint for ${varExpression}`,
@@ -721,7 +729,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             if (numberRegex.test(bp.dataId) || bp.dataId.startsWith('0x')) {
                 bp.dataId = `*(${bp.dataId})`;
             }
-            await mi.sendBreakWatchpoint(this.gdb, bp.dataId, bp.accessType);
+            try {
+                await mi.sendBreakWatchpoint(
+                    this.gdb,
+                    bp.dataId,
+                    bp.accessType
+                );
+            } catch (err) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'Data breakpoint could not be created: ' +
+                        (err instanceof Error ? err.message : String(err))
+                );
+            }
         }
         // Get the updated list of GDB watchpoints
         const gdbWatchpoints = await this.getWatchpointList();
