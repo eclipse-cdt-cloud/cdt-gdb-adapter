@@ -1744,7 +1744,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     private async getFrameContext(
-        frameRef?: FrameReference
+        frameRef?: FrameReference,
+        isAux?: boolean
     ): Promise<
         [
             IGDBBackend /* GDB Backend*/,
@@ -1753,7 +1754,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             boolean /* isAux */,
         ]
     > {
-        if (this.auxGdb && this.isRunning) {
+        if (this.auxGdb && (isAux || (isAux === undefined && this.isRunning))) {
             return [this.auxGdb, undefined, 0, true];
         }
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
@@ -1780,10 +1781,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             variablesReference: 0,
         }; // default response
         try {
-            const allowCliCommand =
-                alwaysAllowCliCommand && args.expression.startsWith('>');
+            const isCliCommand =
+                args.expression.startsWith('>') && args.context === 'repl';
+            const isAux = this.auxGdb && this.isRunning;
 
-            if (!allowCliCommand && args.frameId === undefined) {
+            // Do not allow CLI commands if using auxiliary GDB for running program.
+            // Free CLI usage can lead to aux GDB state.
+            if (isCliCommand && isAux) {
+                throw new Error(
+                    'Cannot execute CLI commands with auxiliary GDB while program runs.'
+                );
+            }
+
+            const allowCliCommand = alwaysAllowCliCommand && isCliCommand;
+
+            // Only proceed for undefined frameId if allowed CLI command or using auxiliary GDB
+            if (!allowCliCommand && !isAux && args.frameId === undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
@@ -1793,12 +1806,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
-            if (!allowCliCommand && !initialFrameRef) {
+            // Only proceed for undefined frameRef if allowed CLI command or using auxiliary GDB
+            if (!allowCliCommand && !isAux && !initialFrameRef) {
                 this.sendResponse(response);
                 return;
             }
 
-            if (args.expression.startsWith('>') && args.context === 'repl') {
+            if (isCliCommand) {
                 const regexDisable = new RegExp(
                     '^\\s*(?:dis|disa|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
