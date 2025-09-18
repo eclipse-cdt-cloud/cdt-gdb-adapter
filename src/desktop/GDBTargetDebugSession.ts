@@ -620,6 +620,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 args.initCommands
             );
 
+            // Check for async mode support after initCommands have possibly
+            // selected a different target
+            if (this.gdb.getAsyncMode()) {
+                if (await this.gdb.confirmAsyncMode()) {
+                    this.warnAsyncDisabled();
+                }
+            }
+
             // Initialize UART
             if (target.uart !== undefined) {
                 this.initializeUARTConnection(target.uart, target.host);

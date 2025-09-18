@@ -352,6 +352,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
     }
 
+    protected warnAsyncDisabled() {
+        this.sendEvent(
+            new OutputEvent(
+                'The target does not support gdbAsync. Most debugger interactions will only work while the target is stopped.',
+                'important'
+            )
+        );
+    }
+
     protected async attachOrLaunchRequest(
         response: DebugProtocol.Response,
         request: 'launch' | 'attach',
@@ -384,9 +393,29 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.sendEvent(
                 new OutputEvent(`attached to process ${attachArgs.processId}`)
             );
+        } else {
+            if (this.gdb.getAsyncMode()) {
+                // Checking whether the target supports async mode needs a
+                // target connection. Launching will implicitly select the
+                // "native" target (see docs of `set
+                // auto-connect-native-target`), so we may just as well do it
+                // explicitly here.
+                await mi.sendTargetSelectRequest(this.gdb, {
+                    type: 'native',
+                    parameters: [],
+                });
+            }
         }
 
         await this.gdb.sendCommands(args.initCommands);
+
+        // Check for async mode support after initCommands have possibly
+        // selected a different target
+        if (this.gdb.getAsyncMode()) {
+            if (await this.gdb.confirmAsyncMode()) {
+                this.warnAsyncDisabled();
+            }
+        }
 
         if (request === 'launch') {
             const launchArgs = args as LaunchRequestArguments;

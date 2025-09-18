@@ -469,6 +469,14 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 args.initCommands
             );
 
+            // Check for async mode support after initCommands have possibly
+            // selected a different target
+            if (this.gdb.getAsyncMode()) {
+                if (await this.gdb.confirmAsyncMode()) {
+                    this.warnAsyncDisabled();
+                }
+            }
+
             // Load additional code/symbols
             if (args.imageAndSymbols) {
                 if (args.imageAndSymbols.imageFileName) {

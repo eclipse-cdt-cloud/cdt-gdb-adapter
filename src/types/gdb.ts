@@ -86,6 +86,8 @@ export interface IGDBBackend extends EventEmitter {
 
     getAsyncMode: () => boolean;
 
+    confirmAsyncMode: () => Promise<boolean>;
+
     setNonStopMode: (isSet?: boolean) => Promise<void>;
 
     isNonStopMode: () => boolean;
