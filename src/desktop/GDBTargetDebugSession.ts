@@ -22,6 +22,7 @@ import {
     UARTArguments,
 } from '../types/session';
 import {
+    IGDBBackend,
     IGDBBackendFactory,
     IGDBServerFactory,
     IGDBServerProcessManager,
@@ -500,6 +501,34 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         return returnPair;
     }
 
+    protected async configureGdbAndLoadFiles(
+        gdb: IGDBBackend,
+        args: TargetAttachRequestArguments
+    ): Promise<void> {
+        // Load files and configure GDB
+        if (args.program !== undefined && args.program !== '') {
+            await this.executeOrAbort(gdb.sendFileExecAndSymbols.bind(gdb))(
+                args.program
+            );
+        }
+        await this.executeOrAbort(gdb.sendEnablePrettyPrint.bind(gdb))();
+
+        if (args.imageAndSymbols) {
+            if (args.imageAndSymbols.symbolFileName) {
+                if (args.imageAndSymbols.symbolOffset) {
+                    await this.executeOrAbort(gdb.sendAddSymbolFile.bind(gdb))(
+                        args.imageAndSymbols.symbolFileName,
+                        args.imageAndSymbols.symbolOffset
+                    );
+                } else {
+                    await this.executeOrAbort(gdb.sendFileSymbolFile.bind(gdb))(
+                        args.imageAndSymbols.symbolFileName
+                    );
+                }
+            }
+        }
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -541,53 +570,24 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
-            // Load files and configure GDB
-            if (args.program !== undefined && args.program !== '') {
-                await this.executeOrAbort(
-                    this.gdb.sendFileExecAndSymbols.bind(this.gdb)
-                )(args.program);
-            }
-            await this.executeOrAbort(
-                this.gdb.sendEnablePrettyPrint.bind(this.gdb)
-            )();
-
-            if (args.imageAndSymbols) {
-                if (args.imageAndSymbols.symbolFileName) {
-                    if (args.imageAndSymbols.symbolOffset) {
-                        await this.executeOrAbort(
-                            this.gdb.sendAddSymbolFile.bind(this.gdb)
-                        )(
-                            args.imageAndSymbols.symbolFileName,
-                            args.imageAndSymbols.symbolOffset
-                        );
-                    } else {
-                        await this.executeOrAbort(
-                            this.gdb.sendFileSymbolFile.bind(this.gdb)
-                        )(args.imageAndSymbols.symbolFileName);
-                    }
-                }
-            }
+            await this.configureGdbAndLoadFiles(this.gdb, args);
 
             await this.setSessionState(SessionState.GDB_READY);
+
+            const targetPort = target.port;
+            const targetHost = targetPort
+                ? (target.host ?? 'localhost')
+                : undefined;
+            const targetString = targetHost
+                ? `${targetHost}:${targetPort}`
+                : undefined;
 
             // Connect to remote server
             if (target.connectCommands === undefined) {
                 this.targetType =
                     target.type !== undefined ? target.type : 'remote';
-                let defaultTarget: string[];
-                if (target.port !== undefined) {
-                    defaultTarget = [
-                        target.host !== undefined
-                            ? `${target.host}:${target.port}`
-                            : `localhost:${target.port}`,
-                    ];
-                } else {
-                    defaultTarget = [];
-                }
-                const targetParameters =
-                    target.parameters !== undefined
-                        ? target.parameters
-                        : defaultTarget;
+                const defaultTarget = targetString ? [targetString] : [];
+                const targetParameters = target.parameters ?? defaultTarget;
                 await this.executeOrAbort(mi.sendTargetSelectRequest.bind(mi))(
                     this.gdb,
                     {
