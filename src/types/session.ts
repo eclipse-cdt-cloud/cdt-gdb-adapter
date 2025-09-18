@@ -169,6 +169,8 @@ export interface TargetAttachRequestArguments extends RequestArguments {
     imageAndSymbols?: ImageAndSymbolArguments;
     // Optional commands to issue between loading image and resuming target
     preRunCommands?: string[];
+    // Uses auxiliary GDB connection for selected operations while target runs
+    auxiliaryGdb?: boolean;
 }
 
 export interface TargetLaunchRequestArguments

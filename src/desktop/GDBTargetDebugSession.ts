@@ -77,6 +77,12 @@ interface SessionInfo {
 
 type PromiseFunction = (...args: any[]) => Promise<any>;
 
+const AuxiliaryConnectCommands = [
+    'set mem inaccessible-by-default off',
+    'set stack-cache off',
+    'set remote interrupt-on-connect off',
+];
+
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
     protected gdbserverFactory?: IGDBServerFactory;
@@ -151,10 +157,34 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
+    protected createAuxBackendArgs(
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ): TargetAttachRequestArguments {
+        return {
+            ...args,
+            target: {
+                type: 'remote',
+                connectCommands: [
+                    ...AuxiliaryConnectCommands,
+                    `target remote ${args.target?.port ?? '2331'}`,
+                ],
+            },
+            // Clear fields only relevant to main connection
+            openGdbConsole: undefined,
+            initCommands: undefined,
+        };
+    }
+
     protected override async setupCommonLoggerAndBackends(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await super.setupCommonLoggerAndBackends(args);
+        if (args.auxiliaryGdb) {
+            await super.setupCommonLoggerAndBackends(
+                this.createAuxBackendArgs(args),
+                true
+            );
+        }
 
         this.gdbserverProcessManager =
             await this.gdbserverFactory?.createGDBServerManager(args);
@@ -542,6 +572,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Start GDB process
             this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
+            if (args.auxiliaryGdb) {
+                this.logGDBRemote(`spawn auxiliary GDB\n`);
+                await this.spawn(args, this.auxGdb);
+            }
             await this.setSessionState(SessionState.GDB_LAUNCHED);
 
             // Register exit-handler
@@ -571,6 +605,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             });
 
             await this.configureGdbAndLoadFiles(this.gdb, args);
+            if (this.auxGdb) {
+                await this.configureGdbAndLoadFiles(this.auxGdb, args);
+            }
 
             await this.setSessionState(SessionState.GDB_READY);
 
@@ -612,6 +649,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         'connected to target using provided connectCommands'
                     )
                 );
+            }
+
+            if (args.auxiliaryGdb && this.auxGdb) {
+                // Use connect commands to connect auxiliary GDB.
+                this.logGDBRemote('connect to auxiliary GDB');
+                const connectCommands: string[] = [
+                    ...AuxiliaryConnectCommands,
+                    `target remote ${targetString}`,
+                ];
+                await this.executeOrAbort(
+                    this.auxGdb.sendCommands.bind(this.auxGdb)
+                )(connectCommands);
+                this.sendEvent(new OutputEvent('connected to auxiliary GDB'));
             }
 
             await this.setSessionState(SessionState.CONNECTED);
@@ -709,7 +759,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.serialPort.close();
 
         // Only try clean GDB exit if process still up
-        if (this.gdb.isActive()) {
+        if (this.gdb?.isActive()) {
             try {
                 // Depending on disconnect scenario, we may lose
                 // GDB backend while sending commands for graceful
@@ -722,9 +772,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 ) {
                     // Need to pause first, then disconnect and exit.
                     await this.pauseIfNeeded(true);
+                    if (this.auxGdb?.isActive()) {
+                        await this.auxGdb.sendCommand('disconnect');
+                    }
                     await this.gdb.sendCommand('disconnect');
                 }
 
+                if (this.auxGdb?.isActive()) {
+                    await this.auxGdb.sendGDBExit();
+                }
                 await this.gdb.sendGDBExit();
                 this.sendEvent(new OutputEvent('gdb exited\n', 'server'));
             } catch {
