@@ -8,9 +8,9 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { Readable } from 'stream';
-import { logger } from '@vscode/debugadapter/lib/logger';
 import { IGDBBackend } from './types/gdb';
 import * as utf8 from 'utf8';
+import { NamedLogger } from './namedLogger';
 
 interface Command {
     command: string;
@@ -22,13 +22,19 @@ type CommandQueue = {
 };
 
 export class MIParser {
+    protected logger;
     protected line = '';
     protected pos = 0;
 
     protected commandQueue: CommandQueue = {};
     protected waitReady?: (value?: void | PromiseLike<void>) => void;
 
-    constructor(protected gdb: IGDBBackend) {}
+    constructor(
+        protected gdb: IGDBBackend,
+        protected name?: string
+    ) {
+        this.logger = new NamedLogger(name);
+    }
 
     public cancelQueue() {
         // Entries in the form of [key, callback]
@@ -171,7 +177,7 @@ export class MIParser {
         try {
             return utf8.decode(cstring);
         } catch (err) {
-            logger.error(
+            this.logger.error(
                 `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
             );
             return cstring;
@@ -329,7 +335,7 @@ export class MIParser {
                 const rest = this.restOfLine();
                 for (let i = 0; i < rest.length; i += 1000) {
                     const msg = i === 0 ? 'result' : '-cont-';
-                    logger.verbose(
+                    this.logger.verbose(
                         `GDB ${msg}: ${token} ${rest.substr(i, 1000)}`
                     );
                 }
@@ -347,9 +353,9 @@ export class MIParser {
                     // as error, if result class other than 'error' where this is genuinely unexpected.
                     const message = `GDB response with no command: ${token}`;
                     if (resultClass === 'error') {
-                        logger.verbose(message);
+                        this.logger.verbose(message);
                     } else {
-                        logger.error(message);
+                        this.logger.error(message);
                     }
                 }
                 this.gdb.emit('resultAsync', resultClass, resultData);
@@ -363,7 +369,7 @@ export class MIParser {
                 this.handleLogStream();
                 break;
             case '=': {
-                logger.verbose('GDB notify async: ' + this.restOfLine());
+                this.logger.verbose('GDB notify async: ' + this.restOfLine());
                 const notifyClass = this.handleString();
                 this.gdb.emit(
                     'notifyAsync',
@@ -373,13 +379,13 @@ export class MIParser {
                 break;
             }
             case '*': {
-                logger.verbose('GDB exec async: ' + this.restOfLine());
+                this.logger.verbose('GDB exec async: ' + this.restOfLine());
                 const execClass = this.handleString();
                 this.gdb.emit('execAsync', execClass, this.handleAsyncData());
                 break;
             }
             case '+': {
-                logger.verbose('GDB status async: ' + this.restOfLine());
+                this.logger.verbose('GDB status async: ' + this.restOfLine());
                 const statusClass = this.handleString();
                 this.gdb.emit(
                     'statusAsync',

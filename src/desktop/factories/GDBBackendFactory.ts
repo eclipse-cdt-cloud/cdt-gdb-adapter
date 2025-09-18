@@ -59,8 +59,9 @@ export class GDBBackendFactory implements IGDBBackendFactory {
     async createBackend(
         session: GDBDebugSessionBase,
         manager: IGDBProcessManager,
-        _args: LaunchRequestArguments | AttachRequestArguments
+        _args: LaunchRequestArguments | AttachRequestArguments,
+        name?: string
     ): Promise<IGDBBackend> {
-        return new GDBBackend(manager);
+        return new GDBBackend(manager, name);
     }
 }

@@ -9,7 +9,6 @@
  *********************************************************************/
 import * as events from 'events';
 import { Writable } from 'stream';
-import { logger } from '@vscode/debugadapter/lib/logger';
 import {
     AttachRequestArguments,
     LaunchRequestArguments,
@@ -27,11 +26,13 @@ import { IGDBBackend, IGDBProcessManager, IStdioProcess } from '../types/gdb';
 import { MIParser } from '../MIParser';
 import { compareVersions } from '../util/compareVersions';
 import { isProcessActive } from '../util/processes';
+import { NamedLogger } from '../namedLogger';
 
 type WriteCallback = (error: Error | null | undefined) => void;
 
 export class GDBBackend extends events.EventEmitter implements IGDBBackend {
-    protected parser = new MIParser(this);
+    protected parser;
+    protected logger;
     protected varMgr = new VarManager(this);
     protected out?: Writable;
     protected pendingOutCallbacks = new Set<WriteCallback>();
@@ -43,8 +44,13 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     protected asyncRequestedExplicitly = false;
     protected hardwareBreakpoint = false;
 
-    constructor(protected readonly processManager: IGDBProcessManager) {
+    constructor(
+        protected readonly processManager: IGDBProcessManager,
+        protected readonly name?: string
+    ) {
         super();
+        this.parser = new MIParser(this, name);
+        this.logger = new NamedLogger(name);
     }
 
     get varManager(): VarManager {
@@ -56,7 +62,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     ) {
         this.gdbVersion = await this.processManager.getVersion(requestArgs);
         this.proc = await this.processManager.start(requestArgs);
-        logger.verbose(`Spawned GDB (PID ${this.proc.getPID()})`);
+        this.logger.verbose(`Spawned GDB (PID ${this.proc.getPID()})`);
         if (!this.proc || this.proc.stdin == null || this.proc.stdout == null) {
             throw new Error('Spawned GDB does not have stdout or stdin');
         }
@@ -79,7 +85,8 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         if (this.proc.stderr) {
             this.proc.stderr.on('data', (chunk) => {
                 const newChunk = chunk.toString();
-                this.emit('consoleStreamOutput', newChunk, 'stderr');
+                const output = (this.name ? `[${this.name}] ` : '') + newChunk;
+                this.emit('consoleStreamOutput', output, 'stderr');
             });
         }
         this.asyncRequestedExplicitly = !!(
@@ -187,7 +194,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
             if (!this.proc) {
                 throw new Error('GDB is not running, nothing to interrupt');
             }
-            logger.verbose(`GDB signal: SIGINT to pid ${this.proc.getPID()}`);
+            this.logger.verbose(
+                `GDB signal: SIGINT to pid ${this.proc.getPID()}`
+            );
             this.proc.kill('SIGINT');
         }
     }
@@ -209,7 +218,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     public sendCommand<T>(command: string): Promise<T> {
         const token = this.nextToken();
-        logger.verbose(`GDB command: ${token} ${command}`);
+        this.logger.verbose(`GDB command: ${token} ${command}`);
         return new Promise<T>((resolve, reject) => {
             if (this.out) {
                 /* Set error to capture the stack where the request originated,
@@ -234,14 +243,14 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                             case 'running':
                             case 'connected':
                             case 'exit':
-                                logger.verbose(
+                                this.logger.verbose(
                                     `GDB command: ${token} ${command} completed with data`
                                 );
                                 resolve(resultData);
                                 break;
                             case 'error':
                                 failure.message = resultData.msg;
-                                logger.verbose(
+                                this.logger.verbose(
                                     `GDB command: ${token} ${command} failed with '${failure.message}'`
                                 );
                                 reject(failure);
@@ -250,14 +259,14 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                                 failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
                                     resultData
                                 )}`;
-                                logger.verbose(
+                                this.logger.verbose(
                                     `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
                                 );
                                 reject(failure);
                         }
                     }
                 );
-                logger.verbose(`GDB write command: ${token} ${command}`);
+                this.logger.verbose(`GDB write command: ${token} ${command}`);
                 // Add callback for this context to set of pending callbacks.
                 // Means to reject pending writes on pipe loss.
                 this.pendingOutCallbacks.add(writeCallback);
