@@ -2039,10 +2039,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ReadMemoryResponse,
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<void> {
+        const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
         try {
             if (args.count) {
                 const result = await mi.sendDataReadMemoryBytes(
-                    this.gdb,
+                    gdb,
                     args.memoryReference,
                     args.count,
                     args.offset
@@ -2071,6 +2072,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.WriteMemoryResponse,
         args: DebugProtocol.WriteMemoryArguments
     ) {
+        const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
+
         try {
             const { memoryReference, data } = args;
             const typeofAddress = typeof memoryReference;
@@ -2086,11 +2089,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             }
             const hexContent = base64ToHex(data);
-            await mi.sendDataWriteMemoryBytes(
-                this.gdb,
-                memoryReference,
-                hexContent
-            );
+            await mi.sendDataWriteMemoryBytes(gdb, memoryReference, hexContent);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
