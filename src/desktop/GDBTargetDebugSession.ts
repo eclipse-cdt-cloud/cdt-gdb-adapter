@@ -9,8 +9,8 @@
  *********************************************************************/
 
 import { GDBDebugSession } from './GDBDebugSession';
-import { logger, OutputEvent, TerminatedEvent } from '@vscode/debugadapter';
-import { LogLevel } from '@vscode/debugadapter/lib/logger';
+import { OutputEvent, TerminatedEvent } from '@vscode/debugadapter';
+import { logger, LogLevel } from '@vscode/debugadapter/lib/logger';
 import * as mi from '../mi';
 import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
