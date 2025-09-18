@@ -1718,6 +1718,26 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return isInstructionBp;
     }
 
+    private async getFrameContext(
+        frameRef?: FrameReference
+    ): Promise<
+        [
+            IGDBBackend /* GDB Backend*/,
+            FrameReference | undefined /* Frame Reference */,
+            number /* Frame Depth */,
+            boolean /* isAux */,
+        ]
+    > {
+        if (this.auxGdb && this.isRunning) {
+            return [this.auxGdb, undefined, 0, true];
+        }
+        const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
+            maxDepth: 100,
+        });
+        const depth = parseInt(stackDepth.depth, 10);
+        return [this.gdb, frameRef, depth, false];
+    }
+
     protected async evaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
@@ -1744,11 +1764,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             }
 
-            const frameRef = args.frameId
+            const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
-            if (!allowCliCommand && !frameRef) {
+            if (!allowCliCommand && !initialFrameRef) {
                 this.sendResponse(response);
                 return;
             }
@@ -1792,25 +1812,25 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return await this.evaluateRequestGdbCommand(
                     response,
                     args,
-                    frameRef
+                    initialFrameRef
                 );
             }
 
-            const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
-                maxDepth: 100,
-            });
-            const depth = parseInt(stackDepth.depth, 10);
-            let varobj = this.gdb.varManager.getVar(
+            const [gdb, frameRef, depth] =
+                await this.getFrameContext(initialFrameRef);
+
+            let varobj = gdb.varManager.getVar(
                 frameRef,
                 depth,
                 args.expression
             );
             if (!varobj) {
-                const varCreateResponse = await mi.sendVarCreate(this.gdb, {
+                const varCreateResponse = await mi.sendVarCreate(gdb, {
                     expression: args.expression,
                     frameRef,
+                    frame: frameRef ? 'current' : 'floating',
                 });
-                varobj = this.gdb.varManager.addVar(
+                varobj = gdb.varManager.addVar(
                     frameRef,
                     depth,
                     args.expression,
@@ -1819,7 +1839,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     varCreateResponse
                 );
             } else {
-                const vup = await mi.sendVarUpdate(this.gdb, {
+                const vup = await mi.sendVarUpdate(gdb, {
                     name: varobj.varname,
                 });
                 const update = vup.changelist[0];
@@ -1834,17 +1854,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             depth,
                             varobj.varname
                         );
-                        await mi.sendVarDelete(this.gdb, {
+                        await mi.sendVarDelete(gdb, {
                             varname: varobj.varname,
                         });
-                        const varCreateResponse = await mi.sendVarCreate(
-                            this.gdb,
-                            {
-                                expression: args.expression,
-                                frameRef,
-                            }
-                        );
-                        varobj = this.gdb.varManager.addVar(
+                        const varCreateResponse = await mi.sendVarCreate(gdb, {
+                            expression: args.expression,
+                            frameRef,
+                        });
+                        varobj = gdb.varManager.addVar(
                             frameRef,
                             depth,
                             args.expression,
@@ -1855,22 +1872,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
             }
-            if (varobj && args.frameId != undefined) {
+            if (varobj) {
+                const frameHandle = args.frameId ?? -1;
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
-                        ? await this.getChildElements(varobj, args.frameId)
+                        ? await this.getChildElements(varobj, frameHandle)
                         : varobj.value;
+                const variablesReference =
+                    parseInt(varobj.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                              type: 'object',
+                              frameHandle,
+                              varobjName: varobj.varname,
+                          })
+                        : 0;
                 response.body = {
                     result,
                     type: varobj.type,
-                    variablesReference:
-                        parseInt(varobj.numchild, 10) > 0
-                            ? this.variableHandles.create({
-                                  type: 'object',
-                                  frameHandle: args.frameId,
-                                  varobjName: varobj.varname,
-                              })
-                            : 0,
+                    variablesReference,
                 };
             }
 
@@ -2493,6 +2512,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        if (this.auxGdb && this.isRunning) {
+            // Don't allow register view when using an auxiliary GDB, core registers
+            // often can't be read while running.
+            throw new Error(
+                'Cannot handle variable frame requests while target is running'
+            );
+        }
+
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
@@ -2548,7 +2575,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         let value = varobj.value;
                         // if we have an array parent entry, we need to display the address.
                         if (arrayRegex.test(varobj.type)) {
-                            value = await this.getAddr(varobj);
+                            value = await this.getAddr(varobj, this.gdb);
                         }
                         variables.push({
                             name: varobj.expression,
@@ -2611,7 +2638,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let value = varobj.value;
                 // if we have an array parent entry, we need to display the address.
                 if (arrayRegex.test(varobj.type)) {
-                    value = await this.getAddr(varobj);
+                    value = await this.getAddr(varobj, this.gdb);
                 }
                 variables.push({
                     name: varobj.expression,
@@ -2636,37 +2663,36 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestObject(
         ref: ObjectVariableReference
     ): Promise<DebugProtocol.Variable[]> {
-        // initialize variables array and dereference the frame handle
+        // initialize variables array
         const variables: DebugProtocol.Variable[] = [];
-        const frameRef = this.frameHandles.get(ref.frameHandle);
-        if (!frameRef) {
+        // dereference the frame handle
+        const initialFrameRef = this.frameHandles.get(ref.frameHandle);
+        const [gdb, frameRef, depth, isAux] =
+            await this.getFrameContext(initialFrameRef);
+
+        if (!isAux && !frameRef) {
             return Promise.resolve(variables);
         }
 
-        // fetch stack depth to obtain frameId/threadId/depth tuple
-        const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
-            maxDepth: 100,
-        });
-        const depth = parseInt(stackDepth.depth, 10);
         // we need to keep track of children and the parent varname in GDB
         let children;
         let parentVarname = ref.varobjName;
 
         // if a varobj exists, use the varname stored there
-        const varobj = this.gdb.varManager.getVarByName(
+        const varobj = gdb.varManager.getVarByName(
             frameRef,
             depth,
             ref.varobjName
         );
         if (varobj) {
-            children = await mi.sendVarListChildren(this.gdb, {
+            children = await mi.sendVarListChildren(gdb, {
                 name: varobj.varname,
                 printValues: mi.MIVarPrintValues.all,
             });
             parentVarname = varobj.varname;
         } else {
             // otherwise use the parent name passed in the variable reference
-            children = await mi.sendVarListChildren(this.gdb, {
+            children = await mi.sendVarListChildren(gdb, {
                 name: ref.varobjName,
                 printValues: mi.MIVarPrintValues.all,
             });
@@ -2674,7 +2700,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Grab the full path of parent.
         const topLevelPathExpression =
             varobj?.expression ??
-            (await this.getFullPathExpression(parentVarname));
+            (await this.getFullPathExpression(parentVarname, gdb));
 
         // iterate through the children
         for (const child of children.children) {
@@ -2682,7 +2708,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const isClass = this.isChildOfClass(child);
             if (isClass) {
                 const name = `${parentVarname}.${child.exp}`;
-                const objChildren = await mi.sendVarListChildren(this.gdb, {
+                const objChildren = await mi.sendVarListChildren(gdb, {
                     name,
                     printValues: mi.MIVarPrintValues.all,
                 });
@@ -2745,9 +2771,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     /** Query GDB using varXX name to get complete variable name */
-    protected async getFullPathExpression(inputVarName: string) {
+    protected async getFullPathExpression(
+        inputVarName: string,
+        gdb: IGDBBackend
+    ) {
         const exprResponse = await mi.sendVarInfoPathExpression(
-            this.gdb,
+            gdb,
             inputVarName
         );
         // result from GDB looks like (parentName).field so remove ().
@@ -2761,6 +2790,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestRegister(
         ref: RegisterVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        if (this.auxGdb && this.isRunning) {
+            // Don't allow register view when using an auxiliary GDB, core registers
+            // often can't be read while running.
+            throw new Error('Cannot read registers while target is running');
+        }
+
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
@@ -2808,9 +2843,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return Promise.resolve(variables);
     }
 
-    protected async getAddr(varobj: VarObjType) {
+    protected async getAddr(varobj: VarObjType, gdb: IGDBBackend) {
         const addr = await mi.sendDataEvaluateExpression(
-            this.gdb,
+            gdb,
             `&(${varobj.expression})`
         );
         return addr.value ? addr.value : varobj.value;
