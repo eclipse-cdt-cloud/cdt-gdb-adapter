@@ -122,6 +122,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected static frozenRequestArguments?: { request?: string };
 
     protected gdb!: IGDBBackend;
+    protected auxGdb?: IGDBBackend;
+
     protected isAttach = false;
     // isRunning === true means there are no threads stopped.
     protected isRunning = false;
@@ -324,7 +326,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     protected async setupCommonLoggerAndBackends(
-        args: LaunchRequestArguments | AttachRequestArguments
+        args: LaunchRequestArguments | AttachRequestArguments,
+        auxBackend?: boolean
     ) {
         logger.setup(
             args.verbose ? Logger.LogLevel.Verbose : Logger.LogLevel.Warn,
@@ -332,22 +335,32 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         );
 
         const manager = await this.backendFactory.createGDBManager(this, args);
-        this.gdb = await this.backendFactory.createBackend(this, manager, args);
+        const gdb = await this.backendFactory.createBackend(
+            this,
+            manager,
+            args,
+            auxBackend ? 'AUX' : undefined
+        );
+        if (auxBackend) {
+            this.auxGdb = gdb;
+        } else {
+            this.gdb = gdb;
+        }
 
-        this.gdb.on('consoleStreamOutput', (output, category) => {
+        gdb.on('consoleStreamOutput', (output, category) => {
             const messageToPrint = this.switchOutputToError(output, category);
             this.sendEvent(
                 new OutputEvent(messageToPrint.output, messageToPrint.category)
             );
         });
 
-        this.gdb.on('execAsync', (resultClass, resultData) =>
+        gdb.on('execAsync', (resultClass, resultData) =>
             this.handleGDBAsync(resultClass, resultData)
         );
-        this.gdb.on('notifyAsync', (resultClass, resultData) =>
+        gdb.on('notifyAsync', (resultClass, resultData) =>
             this.handleGDBNotify(resultClass, resultData)
         );
-        this.gdb.on('resultAsync', (resultClass, resultData) =>
+        gdb.on('resultAsync', (resultClass, resultData) =>
             this.handleGDBResult(resultClass, resultData)
         );
     }
@@ -479,9 +492,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     protected async spawn(
-        args: LaunchRequestArguments | AttachRequestArguments
+        args: LaunchRequestArguments | AttachRequestArguments,
+        gdb: IGDBBackend = this.gdb
     ) {
-        return this.gdb?.spawn(args);
+        return gdb?.spawn(args);
     }
 
     /**
@@ -1669,17 +1683,26 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     //     this.sendResponse(response);
     // }
 
+    /**
+     * Evaluates a GDB command.
+     * @param response Response object.
+     * @param expression Command to be executed, expected without leading '>'.
+     * @param frameRef Frame reference. If undefined, then it refers to the global scope.
+     */
     protected async evaluateRequestGdbCommand(
         response: DebugProtocol.EvaluateResponse,
-        args: DebugProtocol.EvaluateArguments,
+        expression: string,
         frameRef: FrameReference | undefined
     ): Promise<void> {
-        if (args.expression[1] === '-') {
-            await this.gdb.sendCommand(args.expression.slice(1));
+        const trimmedExpression = expression.trim();
+        if (trimmedExpression.startsWith('-')) {
+            // GDB/MI command
+            await this.gdb.sendCommand(trimmedExpression);
         } else {
+            // GDB CLI command
             await mi.sendInterpreterExecConsole(this.gdb, {
                 frameRef,
-                command: args.expression.slice(1),
+                command: trimmedExpression,
             });
         }
         response.body = {
@@ -1704,6 +1727,27 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return isInstructionBp;
     }
 
+    private async getFrameContext(
+        frameRef?: FrameReference,
+        isAux?: boolean
+    ): Promise<
+        [
+            IGDBBackend /* GDB Backend*/,
+            FrameReference | undefined /* Frame Reference */,
+            number /* Frame Depth */,
+            boolean /* isAux */,
+        ]
+    > {
+        if (this.auxGdb && (isAux || (isAux === undefined && this.isRunning))) {
+            return [this.auxGdb, undefined, 0, true];
+        }
+        const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
+            maxDepth: 100,
+        });
+        const depth = parseInt(stackDepth.depth, 10);
+        return [this.gdb, frameRef, depth, false];
+    }
+
     protected async evaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
@@ -1721,25 +1765,33 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             variablesReference: 0,
         }; // default response
         try {
-            const allowCliCommand =
-                alwaysAllowCliCommand && args.expression.startsWith('>');
+            const expression = args.expression.trim();
+            const isCliCommand =
+                expression.startsWith('>') && args.context === 'repl';
+            const isAux = this.auxGdb && this.isRunning;
+            // Allow evaluation of expression without frame info when CLI commands are always allowed or
+            // when called with normal expression in auxiliary GDB mode.
+            const allowUndefinedFrame =
+                (isCliCommand && alwaysAllowCliCommand) ||
+                (!isCliCommand && isAux);
 
-            if (!allowCliCommand && args.frameId === undefined) {
+            if (!allowUndefinedFrame && args.frameId == undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
             }
 
-            const frameRef = args.frameId
+            const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
-            if (!allowCliCommand && !frameRef) {
+            if (!allowUndefinedFrame && !initialFrameRef) {
                 this.sendResponse(response);
                 return;
             }
 
-            if (args.expression.startsWith('>') && args.context === 'repl') {
+            if (isCliCommand) {
+                const expressionNoPrefix = expression.slice(1).trim();
                 const regexDisable = new RegExp(
                     '^\\s*(?:dis|disa|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
@@ -1750,8 +1802,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
                 );
                 if (
-                    args.expression.slice(1).search(regexDisable) != -1 ||
-                    args.expression.slice(1).search(regexEnable) != -1
+                    expressionNoPrefix.search(regexDisable) != -1 ||
+                    expressionNoPrefix.search(regexEnable) != -1
                 ) {
                     this.sendEvent(
                         new OutputEvent(
@@ -1760,9 +1812,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         )
                     );
                 }
-                const deleteRegexMatch = args.expression
-                    .slice(1)
-                    .match(regexDelete);
+                const deleteRegexMatch = expressionNoPrefix.match(regexDelete);
                 if (deleteRegexMatch) {
                     if (
                         await this.isInstructionBreakpoint(deleteRegexMatch[1])
@@ -1777,35 +1827,31 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 return await this.evaluateRequestGdbCommand(
                     response,
-                    args,
-                    frameRef
+                    expressionNoPrefix,
+                    initialFrameRef
                 );
             }
 
-            const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
-                maxDepth: 100,
-            });
-            const depth = parseInt(stackDepth.depth, 10);
-            let varobj = this.gdb.varManager.getVar(
-                frameRef,
-                depth,
-                args.expression
-            );
+            const [gdb, frameRef, depth] =
+                await this.getFrameContext(initialFrameRef);
+
+            let varobj = gdb.varManager.getVar(frameRef, depth, expression);
             if (!varobj) {
-                const varCreateResponse = await mi.sendVarCreate(this.gdb, {
-                    expression: args.expression,
+                const varCreateResponse = await mi.sendVarCreate(gdb, {
+                    expression,
                     frameRef,
+                    frame: frameRef ? 'current' : 'floating',
                 });
-                varobj = this.gdb.varManager.addVar(
+                varobj = gdb.varManager.addVar(
                     frameRef,
                     depth,
-                    args.expression,
+                    expression,
                     false,
                     false,
                     varCreateResponse
                 );
             } else {
-                const vup = await mi.sendVarUpdate(this.gdb, {
+                const vup = await mi.sendVarUpdate(gdb, {
                     name: varobj.varname,
                 });
                 const update = vup.changelist[0];
@@ -1820,20 +1866,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             depth,
                             varobj.varname
                         );
-                        await mi.sendVarDelete(this.gdb, {
+                        await mi.sendVarDelete(gdb, {
                             varname: varobj.varname,
                         });
-                        const varCreateResponse = await mi.sendVarCreate(
-                            this.gdb,
-                            {
-                                expression: args.expression,
-                                frameRef,
-                            }
-                        );
-                        varobj = this.gdb.varManager.addVar(
+                        const varCreateResponse = await mi.sendVarCreate(gdb, {
+                            expression,
+                            frameRef,
+                        });
+                        varobj = gdb.varManager.addVar(
                             frameRef,
                             depth,
-                            args.expression,
+                            expression,
                             false,
                             false,
                             varCreateResponse
@@ -1841,22 +1884,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
             }
-            if (varobj && args.frameId != undefined) {
+            if (varobj) {
+                const frameHandle = args.frameId ?? -1;
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
-                        ? await this.getChildElements(varobj, args.frameId)
+                        ? await this.getChildElements(varobj, frameHandle)
                         : varobj.value;
+                const variablesReference =
+                    parseInt(varobj.numchild, 10) > 0
+                        ? this.variableHandles.create({
+                              type: 'object',
+                              frameHandle,
+                              varobjName: varobj.varname,
+                          })
+                        : 0;
                 response.body = {
                     result,
                     type: varobj.type,
-                    variablesReference:
-                        parseInt(varobj.numchild, 10) > 0
-                            ? this.variableHandles.create({
-                                  type: 'object',
-                                  frameHandle: args.frameId,
-                                  varobjName: varobj.varname,
-                              })
-                            : 0,
+                    variablesReference,
                 };
             }
 
@@ -2025,10 +2070,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ReadMemoryResponse,
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<void> {
+        const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
         try {
             if (args.count) {
                 const result = await mi.sendDataReadMemoryBytes(
-                    this.gdb,
+                    gdb,
                     args.memoryReference,
                     args.count,
                     args.offset
@@ -2057,6 +2103,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.WriteMemoryResponse,
         args: DebugProtocol.WriteMemoryArguments
     ) {
+        const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
+
         try {
             const { memoryReference, data } = args;
             const typeofAddress = typeof memoryReference;
@@ -2072,11 +2120,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             }
             const hexContent = base64ToHex(data);
-            await mi.sendDataWriteMemoryBytes(
-                this.gdb,
-                memoryReference,
-                hexContent
-            );
+            await mi.sendDataWriteMemoryBytes(gdb, memoryReference, hexContent);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
@@ -2480,6 +2524,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        if (this.auxGdb && this.isRunning) {
+            // Don't allow register view when using an auxiliary GDB, core registers
+            // often can't be read while running.
+            throw new Error(
+                'Cannot handle variable frame requests while target is running'
+            );
+        }
+
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
@@ -2535,7 +2587,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         let value = varobj.value;
                         // if we have an array parent entry, we need to display the address.
                         if (arrayRegex.test(varobj.type)) {
-                            value = await this.getAddr(varobj);
+                            value = await this.getAddr(varobj, this.gdb);
                         }
                         variables.push({
                             name: varobj.expression,
@@ -2598,7 +2650,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let value = varobj.value;
                 // if we have an array parent entry, we need to display the address.
                 if (arrayRegex.test(varobj.type)) {
-                    value = await this.getAddr(varobj);
+                    value = await this.getAddr(varobj, this.gdb);
                 }
                 variables.push({
                     name: varobj.expression,
@@ -2623,37 +2675,36 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestObject(
         ref: ObjectVariableReference
     ): Promise<DebugProtocol.Variable[]> {
-        // initialize variables array and dereference the frame handle
+        // initialize variables array
         const variables: DebugProtocol.Variable[] = [];
-        const frameRef = this.frameHandles.get(ref.frameHandle);
-        if (!frameRef) {
+        // dereference the frame handle
+        const initialFrameRef = this.frameHandles.get(ref.frameHandle);
+        const [gdb, frameRef, depth, isAux] =
+            await this.getFrameContext(initialFrameRef);
+
+        if (!isAux && !frameRef) {
             return Promise.resolve(variables);
         }
 
-        // fetch stack depth to obtain frameId/threadId/depth tuple
-        const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
-            maxDepth: 100,
-        });
-        const depth = parseInt(stackDepth.depth, 10);
         // we need to keep track of children and the parent varname in GDB
         let children;
         let parentVarname = ref.varobjName;
 
         // if a varobj exists, use the varname stored there
-        const varobj = this.gdb.varManager.getVarByName(
+        const varobj = gdb.varManager.getVarByName(
             frameRef,
             depth,
             ref.varobjName
         );
         if (varobj) {
-            children = await mi.sendVarListChildren(this.gdb, {
+            children = await mi.sendVarListChildren(gdb, {
                 name: varobj.varname,
                 printValues: mi.MIVarPrintValues.all,
             });
             parentVarname = varobj.varname;
         } else {
             // otherwise use the parent name passed in the variable reference
-            children = await mi.sendVarListChildren(this.gdb, {
+            children = await mi.sendVarListChildren(gdb, {
                 name: ref.varobjName,
                 printValues: mi.MIVarPrintValues.all,
             });
@@ -2661,7 +2712,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Grab the full path of parent.
         const topLevelPathExpression =
             varobj?.expression ??
-            (await this.getFullPathExpression(parentVarname));
+            (await this.getFullPathExpression(parentVarname, gdb));
 
         // iterate through the children
         for (const child of children.children) {
@@ -2669,7 +2720,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const isClass = this.isChildOfClass(child);
             if (isClass) {
                 const name = `${parentVarname}.${child.exp}`;
-                const objChildren = await mi.sendVarListChildren(this.gdb, {
+                const objChildren = await mi.sendVarListChildren(gdb, {
                     name,
                     printValues: mi.MIVarPrintValues.all,
                 });
@@ -2732,9 +2783,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     /** Query GDB using varXX name to get complete variable name */
-    protected async getFullPathExpression(inputVarName: string) {
+    protected async getFullPathExpression(
+        inputVarName: string,
+        gdb: IGDBBackend
+    ) {
         const exprResponse = await mi.sendVarInfoPathExpression(
-            this.gdb,
+            gdb,
             inputVarName
         );
         // result from GDB looks like (parentName).field so remove ().
@@ -2748,6 +2802,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestRegister(
         ref: RegisterVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        if (this.auxGdb && this.isRunning) {
+            // Don't allow register view when using an auxiliary GDB, core registers
+            // often can't be read while running.
+            throw new Error('Cannot read registers while target is running');
+        }
+
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frameRef = this.frameHandles.get(ref.frameHandle);
@@ -2795,9 +2855,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return Promise.resolve(variables);
     }
 
-    protected async getAddr(varobj: VarObjType) {
+    protected async getAddr(varobj: VarObjType, gdb: IGDBBackend) {
         const addr = await mi.sendDataEvaluateExpression(
-            this.gdb,
+            gdb,
             `&(${varobj.expression})`
         );
         return addr.value ? addr.value : varobj.value;

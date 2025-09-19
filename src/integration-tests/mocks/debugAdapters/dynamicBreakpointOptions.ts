@@ -82,7 +82,8 @@ class DynamicBreakpointBackendFactory implements IGDBBackendFactory {
     async createBackend(
         _session: GDBDebugSessionBase,
         manager: IGDBProcessManager,
-        _args: LaunchRequestArguments | AttachRequestArguments
+        _args: LaunchRequestArguments | AttachRequestArguments,
+        _name?: string
     ): Promise<IGDBBackend> {
         return new DynamicBreakpointOptionsGDBBackend(manager);
     }
