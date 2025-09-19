@@ -1794,19 +1794,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
             const isAux = this.auxGdb && this.isRunning;
+            // Allow evaluation of expression without frame info when CLI commands are always allowed or
+            // when called with normal expression in auxiliary GDB mode.
+            const allowUndefinedFrame =
+                (isCliCommand && alwaysAllowCliCommand) ||
+                (!isCliCommand && isAux);
 
-            // Do not allow CLI commands if using auxiliary GDB for running program.
-            // Free CLI usage can lead to aux GDB state.
-            if (isCliCommand && isAux) {
-                throw new Error(
-                    'Cannot execute CLI commands with auxiliary GDB while program runs.'
-                );
-            }
-
-            const allowCliCommand = alwaysAllowCliCommand && isCliCommand;
-
-            // Only proceed for undefined frameId if allowed CLI command or using auxiliary GDB
-            if (!allowCliCommand && !isAux && args.frameId === undefined) {
+            if (!allowUndefinedFrame && args.frameId == undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
@@ -1816,8 +1810,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
-            // Only proceed for undefined frameRef if allowed CLI command or using auxiliary GDB
-            if (!allowCliCommand && !isAux && !initialFrameRef) {
+            if (!allowUndefinedFrame && !initialFrameRef) {
                 this.sendResponse(response);
                 return;
             }
