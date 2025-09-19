@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): missing thread names when attaching to targets that don’t stop on attach.
+
 ## 1.3.0
 
 - Implements [`#422`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/422): Initial support for data breakpoints.
