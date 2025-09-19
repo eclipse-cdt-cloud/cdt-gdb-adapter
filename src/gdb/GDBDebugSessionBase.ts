@@ -1708,17 +1708,26 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     //     this.sendResponse(response);
     // }
 
+    /**
+     * Evaluates a GDB command.
+     * @param response Response object.
+     * @param expression Command to be executed, expected without leading '>'.
+     * @param frameRef Frame reference. If undefined, then it refers to the global scope.
+     */
     protected async evaluateRequestGdbCommand(
         response: DebugProtocol.EvaluateResponse,
-        args: DebugProtocol.EvaluateArguments,
+        expression: string,
         frameRef: FrameReference | undefined
     ): Promise<void> {
-        if (args.expression[1] === '-') {
-            await this.gdb.sendCommand(args.expression.slice(1));
+        const trimmedExpression = expression.trim();
+        if (trimmedExpression.startsWith('-')) {
+            // GDB/MI command
+            await this.gdb.sendCommand(trimmedExpression);
         } else {
+            // GDB CLI command
             await mi.sendInterpreterExecConsole(this.gdb, {
                 frameRef,
-                command: args.expression.slice(1),
+                command: trimmedExpression,
             });
         }
         response.body = {
@@ -1781,8 +1790,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             variablesReference: 0,
         }; // default response
         try {
+            const expression = args.expression.trim();
             const isCliCommand =
-                args.expression.startsWith('>') && args.context === 'repl';
+                expression.startsWith('>') && args.context === 'repl';
             const isAux = this.auxGdb && this.isRunning;
 
             // Do not allow CLI commands if using auxiliary GDB for running program.
@@ -1813,6 +1823,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
 
             if (isCliCommand) {
+                const expressionNoPrefix = expression.slice(1).trim();
                 const regexDisable = new RegExp(
                     '^\\s*(?:dis|disa|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
@@ -1823,8 +1834,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
                 );
                 if (
-                    args.expression.slice(1).search(regexDisable) != -1 ||
-                    args.expression.slice(1).search(regexEnable) != -1
+                    expressionNoPrefix.search(regexDisable) != -1 ||
+                    expressionNoPrefix.search(regexEnable) != -1
                 ) {
                     this.sendEvent(
                         new OutputEvent(
@@ -1833,9 +1844,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         )
                     );
                 }
-                const deleteRegexMatch = args.expression
-                    .slice(1)
-                    .match(regexDelete);
+                const deleteRegexMatch = expressionNoPrefix.match(regexDelete);
                 if (deleteRegexMatch) {
                     if (
                         await this.isInstructionBreakpoint(deleteRegexMatch[1])
@@ -1850,7 +1859,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 return await this.evaluateRequestGdbCommand(
                     response,
-                    args,
+                    expressionNoPrefix,
                     initialFrameRef
                 );
             }
@@ -1858,21 +1867,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const [gdb, frameRef, depth] =
                 await this.getFrameContext(initialFrameRef);
 
-            let varobj = gdb.varManager.getVar(
-                frameRef,
-                depth,
-                args.expression
-            );
+            let varobj = gdb.varManager.getVar(frameRef, depth, expression);
             if (!varobj) {
                 const varCreateResponse = await mi.sendVarCreate(gdb, {
-                    expression: args.expression,
+                    expression,
                     frameRef,
                     frame: frameRef ? 'current' : 'floating',
                 });
                 varobj = gdb.varManager.addVar(
                     frameRef,
                     depth,
-                    args.expression,
+                    expression,
                     false,
                     false,
                     varCreateResponse
@@ -1897,13 +1902,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             varname: varobj.varname,
                         });
                         const varCreateResponse = await mi.sendVarCreate(gdb, {
-                            expression: args.expression,
+                            expression,
                             frameRef,
                         });
                         varobj = gdb.varManager.addVar(
                             frameRef,
                             depth,
-                            args.expression,
+                            expression,
                             false,
                             false,
                             varCreateResponse
