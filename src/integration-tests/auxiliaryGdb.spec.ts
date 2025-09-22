@@ -33,14 +33,10 @@ describe('auxiliary gdb', async () => {
     };
 
     beforeEach(async function () {
-        if (skipTest()) {
-            // Don't launch the session if it's unused, only wastes time
-            return;
-        }
         dc = await standardBeforeEach(auxiliaryGdbAdapter);
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
-                program: path.join(testProgramsDir, 'loopForever'),
+                program: path.join(testProgramsDir, 'loopforever'),
                 auxiliaryGdb: true,
             } as TargetLaunchRequestArguments)
         );
