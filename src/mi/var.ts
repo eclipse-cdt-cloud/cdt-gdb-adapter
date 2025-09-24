@@ -65,6 +65,11 @@ export interface MIVarAssignResponse {
     value: string;
 }
 
+export interface MIVarInfoResponse {
+    exp: string;
+    lang: string;
+}
+
 export interface MIVarPathInfoResponse {
     path_expr: string;
 }
@@ -188,6 +193,14 @@ export function sendVarEvaluateExpression(
     }
 ): Promise<MIVarEvalResponse> {
     const command = `-var-evaluate-expression ${params.varname}`;
+    return gdb.sendCommand(command);
+}
+
+export function sendVarInfoExpression(
+    gdb: IGDBBackend,
+    name: string
+): Promise<MIVarInfoResponse> {
+    const command = `-var-info-expression ${name}`;
     return gdb.sendCommand(command);
 }
 
