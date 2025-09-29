@@ -40,6 +40,16 @@ describe('auxiliary gdb', async function () {
     };
 
     const completeStartup = async function (): Promise<Scope> {
+        // Set a breakpoint at main to ensure target stops somewhere after
+        // configurationDoneRequest.
+        await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'main',
+                },
+            ],
+        });
+
         // Complete 'startup', to be reviewed when startup sequence is improved.
         // Note: we just care about being stopped, not the exact location.
         await Promise.all([
