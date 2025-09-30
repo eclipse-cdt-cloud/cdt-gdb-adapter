@@ -22,7 +22,7 @@ import { TargetLaunchRequestArguments } from '../types/session';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { expect } from 'chai';
 
-describe('lateAsyncErrorsRemote', async function () {
+describe('lateAsyncErrorsRemote', function () {
     let dc: CdtDebugClient;
     const program = path.join(testProgramsDir, 'loopforever');
     const src = path.join(testProgramsDir, 'loopforever.c');
