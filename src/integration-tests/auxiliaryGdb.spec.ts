@@ -66,7 +66,9 @@ describe('auxiliary gdb configuration', function () {
             expect(rejectError.message).to.startWith(expectedErrorMessage);
         } else {
             // Expecting launch to succeed
-            const launchResponse = await dc.launchRequest(launchArgs) as DebugProtocol.LaunchResponse;
+            const launchResponse = (await dc.launchRequest(
+                launchArgs
+            )) as DebugProtocol.LaunchResponse;
             expect(launchResponse.success).to.be.true;
         }
     });
