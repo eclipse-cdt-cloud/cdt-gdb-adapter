@@ -249,6 +249,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     /**
+     * Validate the launch/attach request arguments and throw if they contain
+     * an invalid combination.
+     * @param args the request arguments to validate.
+     */
+    protected validateRequestArguments(
+        _args: LaunchRequestArguments | AttachRequestArguments
+    ) {
+        // No validation for 'gdb' debugger type. Derived classes may override.
+        // Added to base class for consistency.
+    }
+
+    /**
      * Apply the initial custom reset arguments.
      * @param args the arguments from the user to apply custom reset arguments to.
      */
@@ -386,6 +398,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ) {
+        this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
 
         await this.spawn(args);

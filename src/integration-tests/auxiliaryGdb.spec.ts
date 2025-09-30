@@ -20,16 +20,59 @@ import {
     gdbNonStop,
     getScopes,
     Scope,
+    expectRejection,
 } from './utils';
 import { TargetLaunchRequestArguments } from '../types/session';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { hexToBase64 } from '../web';
+import * as chai from 'chai';
+import * as chaistring from 'chai-string';
+chai.use(chaistring);
 
 // This mock adapter creates a standard GDB backend and a stub auxiliary GDB backend
 const auxiliaryGdbAdapter =
     'integration-tests/mocks/debugAdapters/auxiliaryGdb.js';
 
-describe('auxiliary gdb', async function () {
+describe('auxiliary gdb configuration', function () {
+    const program = path.join(testProgramsDir, 'loopforever');
+    let dc: CdtDebugClient;
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach(auxiliaryGdbAdapter);
+    });
+
+    afterEach(async function () {
+        if (dc) {
+            await dc.stop();
+        }
+    });
+
+    it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
+        const expectToFail = gdbNonStop || gdbAsync === false;
+
+        const launchArgs = fillDefaults(this.test, {
+            program,
+            auxiliaryGdb: true,
+        } as TargetLaunchRequestArguments);
+
+        if (expectToFail) {
+            // Expecting launch to fail, check for correct error message
+            const expectedErrorMessage = gdbNonStop
+                ? 'Cannot use auxiliaryGdb mode with gdbNonStop mode'
+                : 'AuxiliaryGdb mode requires gdbAsync to be active';
+            const rejectError = await expectRejection(
+                dc.launchRequest(launchArgs)
+            );
+            expect(rejectError.message).to.startWith(expectedErrorMessage);
+        } else {
+            // Expecting launch to succeed
+            const launchResponse = await dc.launchRequest(launchArgs) as DebugProtocol.LaunchResponse;
+            expect(launchResponse.success).to.be.true;
+        }
+    });
+});
+
+describe('auxiliary gdb', function () {
     const program = path.join(testProgramsDir, 'loopforever');
     let dc: CdtDebugClient;
     let stdOutput: string[] = [];

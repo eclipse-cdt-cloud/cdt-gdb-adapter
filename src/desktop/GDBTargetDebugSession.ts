@@ -175,6 +175,29 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         };
     }
 
+    /**
+     * Validate the launch/attach request arguments and throw if they contain
+     * an invalid combination.
+     * @param args the request arguments to validate.
+     */
+    protected validateRequestArguments(
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ) {
+        if (args.auxiliaryGdb) {
+            // Limitations for auxiliary GDB mode
+            if (args.gdbNonStop) {
+                throw new Error(
+                    'Cannot use auxiliaryGdb mode with gdbNonStop mode'
+                );
+            }
+            if (args.gdbAsync === false) {
+                throw new Error(
+                    'AuxiliaryGdb mode requires gdbAsync to be active'
+                );
+            }
+        }
+    }
+
     protected override async setupCommonLoggerAndBackends(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
@@ -195,6 +218,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         request: 'launch' | 'attach',
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
+        this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
         this.initializeSessionArguments(args);
 
