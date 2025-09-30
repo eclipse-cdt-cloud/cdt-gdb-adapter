@@ -27,6 +27,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { hexToBase64 } from '../web';
 import * as chai from 'chai';
 import * as chaistring from 'chai-string';
+import { Runnable } from 'mocha';
 chai.use(chaistring);
 
 // This mock adapter creates a standard GDB backend and a stub auxiliary GDB backend
@@ -84,7 +85,17 @@ describe('auxiliary gdb', function () {
         return !isRemoteTest || !gdbAsync || gdbNonStop;
     };
 
-    const completeStartup = async function (): Promise<Scope> {
+    const completeStartup = async function (
+        testContext?: Runnable
+    ): Promise<Scope> {
+        // Call here instead of beforeEach so that test can be skipped without
+        // failing due to argument validation.
+        await dc.launchRequest(
+            fillDefaults(testContext, {
+                program,
+                auxiliaryGdb: true,
+            } as TargetLaunchRequestArguments)
+        );
         // Set a breakpoint at main to ensure target stops somewhere after
         // configurationDoneRequest.
         await dc.setFunctionBreakpointsRequest({
@@ -126,12 +137,6 @@ describe('auxiliary gdb', function () {
                 stdOutput.push(event.body.output);
             }
         });
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program,
-                auxiliaryGdb: true,
-            } as TargetLaunchRequestArguments)
-        );
     });
 
     afterEach(async function () {
@@ -145,6 +150,13 @@ describe('auxiliary gdb', function () {
         if (skipTest()) {
             this.skip();
         }
+        // Call launch to trigger auxiliary GDB connection creation.
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program,
+                auxiliaryGdb: true,
+            } as TargetLaunchRequestArguments)
+        );
         // Test if relevant output events came during 'beforeEach'
         expect(
             stdOutputContains('GDB Remote session: connect to auxiliary GDB')
@@ -162,7 +174,7 @@ describe('auxiliary gdb', function () {
         }
 
         // Complete startup sequence for well-defined state.
-        const scope = await completeStartup();
+        const scope = await completeStartup(this.test);
 
         // Clear stdOutput buffer and evaluate expression while target is paused
         stdOutput = [];
@@ -184,7 +196,7 @@ describe('auxiliary gdb', function () {
         }
 
         // Complete startup sequence for well-defined state.
-        const scope = await completeStartup();
+        const scope = await completeStartup(this.test);
 
         // Set target running
         await dc.continueRequest({ threadId: scope.thread.id });
@@ -228,7 +240,7 @@ describe('auxiliary gdb', function () {
         }
 
         // Complete startup sequence for well-defined state.
-        const scope = await completeStartup();
+        const scope = await completeStartup(this.test);
 
         // Get address of var1 while target is paused to have a sensible memory address
         const evalResponse = (await dc.evaluateRequest({
@@ -274,7 +286,7 @@ describe('auxiliary gdb', function () {
         }
 
         // Complete startup sequence for well-defined state.
-        const scope = await completeStartup();
+        const scope = await completeStartup(this.test);
 
         // Get address of var1 while target is paused to have a sensible memory address
         const evalResponse = (await dc.evaluateRequest({
