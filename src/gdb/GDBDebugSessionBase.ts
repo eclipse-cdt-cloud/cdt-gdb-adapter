@@ -1766,8 +1766,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     private async getFrameContext(
-        frameRef?: FrameReference,
-        isAux?: boolean
+        frameRef?: FrameReference
     ): Promise<
         [
             IGDBBackend /* GDB Backend*/,
@@ -1776,11 +1775,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             boolean /* isAux */,
         ]
     > {
-        if (this.auxGdb && (isAux || (isAux === undefined && this.isRunning))) {
+        if (this.auxGdb && this.isRunning) {
+            // Target is running and we have an auxiliary GDB connection,
+            // hence we don't have a stable stack to ask the depth for.
             return [this.auxGdb, undefined, 0, true];
         }
+        // Read stack depth from main GDB connection, in reality
+        // getFrameContext() is (or better should) be never called
+        // for a running target without auxiliary GDB connection.
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
+            threadId: frameRef?.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
         return [this.gdb, frameRef, depth, false];
@@ -2564,8 +2569,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {
         if (this.auxGdb && this.isRunning) {
-            // Don't allow register view when using an auxiliary GDB, core registers
-            // often can't be read while running.
+            // Don't allow (local) variables view when using an auxiliary GDB,
+            // (local) variables often can't be read while running.
             throw new Error(
                 'Cannot handle variable frame requests while target is running'
             );
