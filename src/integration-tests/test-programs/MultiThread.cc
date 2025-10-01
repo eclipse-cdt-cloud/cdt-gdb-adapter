@@ -14,6 +14,22 @@ struct PrintHelloArgs {
 	const char *name;
 };
 
+static void inner_method(int thread_id)
+{
+	int thread_id_plus_1 = thread_id + 1;
+	int thread_id_plus_2 = thread_id + 2;
+	printf("Thread %d in inner_method %d, %d\n", thread_id, thread_id_plus_1, thread_id_plus_2); /* LINE_THREAD_INNER */
+}
+static void recursive(int thread_id, int depth)
+{
+	if (depth == 0) {
+		inner_method(thread_id);
+	} else {
+		printf("Recursing thread %d\n", thread_id);
+		recursive(thread_id, depth - 1);
+	}
+}
+
 static ThreadRet THREAD_CALL_CONV PrintHello(void *void_arg)
 {
 	struct PrintHelloArgs *args = (struct PrintHelloArgs *) void_arg;
@@ -34,6 +50,7 @@ static ThreadRet THREAD_CALL_CONV PrintHello(void *void_arg)
 	ThreadBarrierWait(barrier_start);
 
 	printf("Thread %d in the middle\n", thread_id); /* LINE_THREAD_IN_HELLO */
+	recursive(thread_id, thread_id);
 
 	/* Make sure that the thread does not finish before the breakpoint in main hits. */
 	ThreadBarrierWait(barrier_finish);

@@ -38,6 +38,7 @@ describe('multithread', async function () {
     const lineTags = {
         LINE_MAIN_ALL_THREADS_STARTED: 0,
         LINE_THREAD_IN_HELLO: 0,
+        LINE_THREAD_INNER: 0,
     };
 
     before(function () {
@@ -280,6 +281,115 @@ describe('multithread', async function () {
                 threadId: thread.id,
                 allThreadsContinued: false,
             });
+        }
+    });
+
+    it('gets varible values at different frames for different threads', async function () {
+        if (!gdbNonStop) {
+            // This test is covering only gdb-non-stop on
+            this.skip();
+        }
+
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program,
+            })
+        );
+        await dc.setBreakpointsRequest({
+            source: {
+                path: source,
+            },
+            breakpoints: [
+                {
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                },
+                {
+                    line: lineTags['LINE_THREAD_INNER'],
+                },
+            ],
+        });
+
+        const waitForStop = dc.waitForEvent('stopped');
+        await dc.configurationDoneRequest();
+        await waitForStop;
+
+        // make sure that all the threads have stopped
+        // TODO instead of a sleep, wait until all threads have stopped
+        await new Promise((f) => setTimeout(f, 1000));
+        const threads = await dc.threadsRequest();
+        const runningThreads = threads.body.threads.filter(
+            (t) => (t as unknown as { running?: boolean }).running
+        );
+        expect(runningThreads).to.be.an('array').that.is.empty;
+        const nameToId = new Map(
+            threads.body.threads.map((thread) => [thread.name, thread.id])
+        );
+        // Make sure all 5 threads are there
+        expect(nameToId).to.include.keys(Object.keys(threadNames));
+        // and make sure that there is at least 6 threads.
+        // We don't care about the name of the "main" thread
+        expect(threads.body.threads).length.greaterThanOrEqual(6);
+
+        // check that each thread can be communicated with individually
+        for (const [name, idInProgram] of Object.entries(threadNames)) {
+            // There are multiple ids/indexes.
+            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // threadId is the id of the thread in DAP
+            const threadId = nameToId.get(name);
+            if (threadId === undefined) {
+                // unreachable because of expect above
+                fail('unreachable');
+            }
+
+            const stack = await dc.stackTraceRequest({ threadId });
+
+            // Iterate through stack frames:
+            // Stack frame 0 is the inner method
+            // Stack frames 1 to id + 1 are the recursive method
+            // Stack frame id + 2 is PrintHello
+            for (let i = 0; i < idInProgram + 3; i++) {
+                if (i == 0) {
+                    expect(stack.body.stackFrames[i].name).to.eq(
+                        'inner_method'
+                    );
+                } else if (i == idInProgram + 2) {
+                    expect(stack.body.stackFrames[i].name).to.eq('PrintHello');
+                } else {
+                    expect(stack.body.stackFrames[i].name).to.eq('recursive');
+                }
+
+                const scopes = await dc.scopesRequest({
+                    frameId: stack.body.stackFrames[i].id,
+                });
+                const vr = scopes.body.scopes[0].variablesReference;
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                const varnameToValue = new Map(
+                    vars.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                expect(varnameToValue.get('thread_id')).to.equal(
+                    idInProgram.toString()
+                );
+
+                if (i == 0) {
+                    expect(varnameToValue.get('thread_id_plus_1')).to.equal(
+                        (idInProgram + 1).toString()
+                    );
+                    expect(varnameToValue.get('thread_id_plus_2')).to.equal(
+                        (idInProgram + 2).toString()
+                    );
+                }
+
+                if (i > 0 && i < idInProgram + 2) {
+                    expect(varnameToValue.get('depth')).to.equal(
+                        (i - 1).toString()
+                    );
+                }
+            }
         }
     });
 });
