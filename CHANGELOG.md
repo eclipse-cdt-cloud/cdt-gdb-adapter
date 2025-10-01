@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Implements [`#442`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/442): Support auxiliary GDB connections to allow selected operations while CPU running.
 - Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): missing thread names when attaching to targets that don’t stop on attach.
 
 ## 1.3.0

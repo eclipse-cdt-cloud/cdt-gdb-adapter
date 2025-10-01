@@ -9,8 +9,8 @@
  *********************************************************************/
 
 import { GDBDebugSession } from './GDBDebugSession';
-import { logger, OutputEvent, TerminatedEvent } from '@vscode/debugadapter';
-import { LogLevel } from '@vscode/debugadapter/lib/logger';
+import { OutputEvent, TerminatedEvent } from '@vscode/debugadapter';
+import { logger, LogLevel } from '@vscode/debugadapter/lib/logger';
 import * as mi from '../mi';
 import * as os from 'os';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -22,6 +22,7 @@ import {
     UARTArguments,
 } from '../types/session';
 import {
+    IGDBBackend,
     IGDBBackendFactory,
     IGDBServerFactory,
     IGDBServerProcessManager,
@@ -75,6 +76,12 @@ interface SessionInfo {
 }
 
 type PromiseFunction = (...args: any[]) => Promise<any>;
+
+const AuxiliaryConnectCommands = [
+    'set mem inaccessible-by-default off',
+    'set stack-cache off',
+    'set remote interrupt-on-connect off',
+];
 
 export class GDBTargetDebugSession extends GDBDebugSession {
     protected gdbserver?: IStdioProcess;
@@ -150,10 +157,57 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
     }
 
+    protected createAuxBackendArgs(
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ): TargetAttachRequestArguments {
+        return {
+            ...args,
+            target: {
+                type: 'remote',
+                connectCommands: [
+                    ...AuxiliaryConnectCommands,
+                    `target remote ${args.target?.port ?? '2331'}`,
+                ],
+            },
+            // Clear fields only relevant to main connection
+            openGdbConsole: undefined,
+            initCommands: undefined,
+        };
+    }
+
+    /**
+     * Validate the launch/attach request arguments and throw if they contain
+     * an invalid combination.
+     * @param args the request arguments to validate.
+     */
+    protected validateRequestArguments(
+        args: TargetLaunchRequestArguments | TargetAttachRequestArguments
+    ) {
+        if (args.auxiliaryGdb) {
+            // Limitations for auxiliary GDB mode
+            if (args.gdbNonStop) {
+                throw new Error(
+                    'Cannot use auxiliaryGdb mode with gdbNonStop mode'
+                );
+            }
+            if (args.gdbAsync === false) {
+                throw new Error(
+                    'AuxiliaryGdb mode requires gdbAsync to be active'
+                );
+            }
+        }
+    }
+
     protected override async setupCommonLoggerAndBackends(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
         await super.setupCommonLoggerAndBackends(args);
+        if (args.auxiliaryGdb) {
+            await super.setupCommonLoggerAndBackends(
+                this.createAuxBackendArgs(args),
+                true
+            );
+        }
 
         this.gdbserverProcessManager =
             await this.gdbserverFactory?.createGDBServerManager(args);
@@ -164,6 +218,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         request: 'launch' | 'attach',
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
+        this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
         this.initializeSessionArguments(args);
 
@@ -500,6 +555,34 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         return returnPair;
     }
 
+    protected async configureGdbAndLoadFiles(
+        gdb: IGDBBackend,
+        args: TargetAttachRequestArguments
+    ): Promise<void> {
+        // Load files and configure GDB
+        if (args.program !== undefined && args.program !== '') {
+            await this.executeOrAbort(gdb.sendFileExecAndSymbols.bind(gdb))(
+                args.program
+            );
+        }
+        await this.executeOrAbort(gdb.sendEnablePrettyPrint.bind(gdb))();
+
+        if (args.imageAndSymbols) {
+            if (args.imageAndSymbols.symbolFileName) {
+                if (args.imageAndSymbols.symbolOffset) {
+                    await this.executeOrAbort(gdb.sendAddSymbolFile.bind(gdb))(
+                        args.imageAndSymbols.symbolFileName,
+                        args.imageAndSymbols.symbolOffset
+                    );
+                } else {
+                    await this.executeOrAbort(gdb.sendFileSymbolFile.bind(gdb))(
+                        args.imageAndSymbols.symbolFileName
+                    );
+                }
+            }
+        }
+    }
+
     protected async startGDBAndAttachToTarget(
         response: DebugProtocol.AttachResponse | DebugProtocol.LaunchResponse,
         args: TargetAttachRequestArguments
@@ -513,6 +596,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Start GDB process
             this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
+            if (args.auxiliaryGdb) {
+                this.logGDBRemote(`spawn auxiliary GDB\n`);
+                await this.spawn(args, this.auxGdb);
+            }
             await this.setSessionState(SessionState.GDB_LAUNCHED);
 
             // Register exit-handler
@@ -541,53 +628,27 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 await this.setExitSessionRequest(ExitSessionRequest.EXIT);
             });
 
-            // Load files and configure GDB
-            if (args.program !== undefined && args.program !== '') {
-                await this.executeOrAbort(
-                    this.gdb.sendFileExecAndSymbols.bind(this.gdb)
-                )(args.program);
-            }
-            await this.executeOrAbort(
-                this.gdb.sendEnablePrettyPrint.bind(this.gdb)
-            )();
-
-            if (args.imageAndSymbols) {
-                if (args.imageAndSymbols.symbolFileName) {
-                    if (args.imageAndSymbols.symbolOffset) {
-                        await this.executeOrAbort(
-                            this.gdb.sendAddSymbolFile.bind(this.gdb)
-                        )(
-                            args.imageAndSymbols.symbolFileName,
-                            args.imageAndSymbols.symbolOffset
-                        );
-                    } else {
-                        await this.executeOrAbort(
-                            this.gdb.sendFileSymbolFile.bind(this.gdb)
-                        )(args.imageAndSymbols.symbolFileName);
-                    }
-                }
+            await this.configureGdbAndLoadFiles(this.gdb, args);
+            if (this.auxGdb) {
+                await this.configureGdbAndLoadFiles(this.auxGdb, args);
             }
 
             await this.setSessionState(SessionState.GDB_READY);
+
+            const targetPort = target.port;
+            const targetHost = targetPort
+                ? (target.host ?? 'localhost')
+                : undefined;
+            const targetString = targetHost
+                ? `${targetHost}:${targetPort}`
+                : undefined;
 
             // Connect to remote server
             if (target.connectCommands === undefined) {
                 this.targetType =
                     target.type !== undefined ? target.type : 'remote';
-                let defaultTarget: string[];
-                if (target.port !== undefined) {
-                    defaultTarget = [
-                        target.host !== undefined
-                            ? `${target.host}:${target.port}`
-                            : `localhost:${target.port}`,
-                    ];
-                } else {
-                    defaultTarget = [];
-                }
-                const targetParameters =
-                    target.parameters !== undefined
-                        ? target.parameters
-                        : defaultTarget;
+                const defaultTarget = targetString ? [targetString] : [];
+                const targetParameters = target.parameters ?? defaultTarget;
                 await this.executeOrAbort(mi.sendTargetSelectRequest.bind(mi))(
                     this.gdb,
                     {
@@ -612,6 +673,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         'connected to target using provided connectCommands'
                     )
                 );
+            }
+
+            if (args.auxiliaryGdb && this.auxGdb) {
+                // Use connect commands to connect auxiliary GDB.
+                this.logGDBRemote('connect to auxiliary GDB');
+                const connectCommands: string[] = [
+                    ...AuxiliaryConnectCommands,
+                    `target remote ${targetString}`,
+                ];
+                await this.executeOrAbort(
+                    this.auxGdb.sendCommands.bind(this.auxGdb)
+                )(connectCommands);
+                this.sendEvent(new OutputEvent('connected to auxiliary GDB'));
             }
 
             await this.setSessionState(SessionState.CONNECTED);
@@ -709,7 +783,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             this.serialPort.close();
 
         // Only try clean GDB exit if process still up
-        if (this.gdb.isActive()) {
+        if (this.gdb?.isActive()) {
             try {
                 // Depending on disconnect scenario, we may lose
                 // GDB backend while sending commands for graceful
@@ -722,9 +796,15 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 ) {
                     // Need to pause first, then disconnect and exit.
                     await this.pauseIfNeeded(true);
+                    if (this.auxGdb?.isActive()) {
+                        await this.auxGdb.sendCommand('disconnect');
+                    }
                     await this.gdb.sendCommand('disconnect');
                 }
 
+                if (this.auxGdb?.isActive()) {
+                    await this.auxGdb.sendGDBExit();
+                }
                 await this.gdb.sendGDBExit();
                 this.sendEvent(new OutputEvent('gdb exited\n', 'server'));
             } catch {

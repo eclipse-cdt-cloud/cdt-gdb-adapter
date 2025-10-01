@@ -12,7 +12,7 @@ import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
 import { MIResponse, MIRegisterValueInfo } from './base';
 
-interface MIDataReadMemoryBytesResponse {
+export interface MIDataReadMemoryBytesResponse {
     memory: Array<{
         begin: string;
         end: string;

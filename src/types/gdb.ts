@@ -65,7 +65,8 @@ export interface IGDBBackendFactory {
     createBackend: (
         session: GDBDebugSessionBase,
         manager: IGDBProcessManager,
-        args: LaunchRequestArguments | AttachRequestArguments
+        args: LaunchRequestArguments | AttachRequestArguments,
+        name?: string
     ) => Promise<IGDBBackend>;
 }
 
