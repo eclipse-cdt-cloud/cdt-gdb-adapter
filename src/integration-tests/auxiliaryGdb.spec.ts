@@ -198,7 +198,9 @@ describe('auxiliary gdb', function () {
         );
         // Test if relevant output events came during 'beforeEach'
         expect(
-            stdOutputContains('GDB Remote session: connected auxiliary GDB to target')
+            stdOutputContains(
+                'GDB Remote session: connected auxiliary GDB to target'
+            )
         ).to.be.true;
         expect(
             stdOutputContains(
