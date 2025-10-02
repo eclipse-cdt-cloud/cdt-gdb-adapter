@@ -25,18 +25,19 @@ import {
 } from './utils';
 import { assert, expect } from 'chai';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import * as sinon from 'sinon';
-import { logger, LogLevel } from '@vscode/debugadapter/lib/logger';
+import * as chai from 'chai';
+import * as chaistring from 'chai-string';
+chai.use(chaistring);
 
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;
+    let stdOutput: string[] = [];
     const emptyProgram = path.join(testProgramsDir, 'empty');
     const WAIT_FOR_EVENT_TIMEOUT = 1000;
     // GDB Server seems to exit in different ways when forcefully shut down. Depending
     // on mode, timing, host OS, etc.
     // We only care about it ending, hence both exit or signalled end satisfy the tests.
     const GDBSERVER_ENDED_REGEXP_STR = 'gdbserver (exited|killed)';
-    let logSpy: sinon.SinonSpy;
 
     const getDefaults = (
         test?: Mocha.Runnable,
@@ -64,14 +65,23 @@ describe('launch remote unexpected session exit', function () {
         );
     };
 
+    const stdOutputContains = (text: string): boolean => {
+        return stdOutput.some((line) => line.startsWith(text));
+    };
+
     beforeEach(async function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
-        logSpy = sinon.spy(logger, 'log');
+        // Capture output events, spyOn doesn't work well with logger
+        dc.on('output', (event) => {
+            if (event.body.category === 'stdout') {
+                stdOutput.push(event.body.output);
+            }
+        });
     });
 
     afterEach(async function () {
         await dc.stop();
-        logSpy.restore();
+        stdOutput = [];
     });
 
     it("ends GDB server if GDB exits through CLI 'quit' command", async function () {
@@ -99,11 +109,10 @@ describe('launch remote unexpected session exit', function () {
         await Promise.all(pendingPromises);
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it('sends error response and terminates GDB server if incorrect GDB path', async function () {
@@ -129,11 +138,10 @@ describe('launch remote unexpected session exit', function () {
         await Promise.all(pendingPromises);
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it('sends error response and terminates GDB server if incorrect GDB CLI arg', async function () {
@@ -162,11 +170,10 @@ describe('launch remote unexpected session exit', function () {
         await outputPromise;
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: ' + 'GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it('sends error response if incorrect GDB server path', async function () {
@@ -197,12 +204,12 @@ describe('launch remote unexpected session exit', function () {
         // Wait for promises to resolve. No need for further checks, something would throw in error case.
         await outputPromise;
 
+        // Not expecting GDB session exit message, server should have errored out before that.
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.false;
     });
 
     it('sends error response if incorrect GDB server CLI arg', async function () {
@@ -231,11 +238,10 @@ describe('launch remote unexpected session exit', function () {
         await outputPromise;
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it("terminates GDB if GDB Server unexpectedly terminates (uses 'watchServerProcess'='true' instead of 'undefined')", async function () {
@@ -272,11 +278,10 @@ describe('launch remote unexpected session exit', function () {
         await Promise.all(waitForPromises);
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it("keeps GDB running if GDB Server terminates early and if 'watchServerProcess'='false'", async function () {
@@ -323,12 +328,12 @@ describe('launch remote unexpected session exit', function () {
         await waitForPromisesComplete;
         await expectRejection(Promise.all(waitForPromisesTimeout));
 
+        // In this case, the GDB session must not exit, hence check for not containing the exit message
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.false;
     });
 
     it('terminates GDB Server if GDB unexpectedly terminates', async function () {
@@ -362,11 +367,10 @@ describe('launch remote unexpected session exit', function () {
         await Promise.all(waitForPromises);
 
         expect(
-            logSpy.calledWith(
-                'GDB Remote session: ' + 'GDB server exited, exiting session',
-                LogLevel.Verbose
+            stdOutputContains(
+                'GDB Remote session: GDB server exited, exiting session'
             )
-        );
+        ).to.be.true;
     });
 
     it("ends GDB server if GDB exits through CLI 'quit' command using graceful shutdown", async function () {
