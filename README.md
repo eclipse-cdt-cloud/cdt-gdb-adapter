@@ -103,20 +103,21 @@ server in one debugged process and the test in another.
 ## Releasing
 
 ### Prepare a release with a Pull Request
+
 - Check if security scans require dependency updates in [package.json](./package.json).
   See [here](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/security/code-scanning).
 - Update [CHANGELOG.md](./CHANGELOG.md).
-  - Make sure it contains a section with the new version at the top of the file.  
-    If individual commits after the last release already added a new section,
-    then rename this section accordingly.
-  - Review the commit history since the last release and add any user facing changes which
-    haven't been added yet.
-    - Add references to issues/PRs where possible. Use the format of previous releases.  
-      Putting the displayed issue number in backticks is important to avoid that a web
-      frontend automatically adds links. For example if referencing an issue/PR outside
-      this repository which has the same number like an issue in the cdt-gdb-adapter repository.
-    - Prefix issues from the sibling project `cdt-gdb-vscode` with its name if a change was
-      made in cdt-gd-adapter to resolve it.
+    - Make sure it contains a section with the new version at the top of the file.  
+      If individual commits after the last release already added a new section,
+      then rename this section accordingly.
+    - Review the commit history since the last release and add any user facing changes which
+      haven't been added yet.
+        - Add references to issues/PRs where possible. Use the format of previous releases.  
+          Putting the displayed issue number in backticks is important to avoid that a web
+          frontend automatically adds links. For example if referencing an issue/PR outside
+          this repository which has the same number like an issue in the cdt-gdb-adapter repository.
+        - Prefix issues from the sibling project `cdt-gdb-vscode` with its name if a change was
+          made in cdt-gd-adapter to resolve it.
 - Update the `version` entry in [package.json](./package.json) to the new version.  
   If the release only introduces defect fixes without significant feature changes,
   then bump the third ("patch") version digit.  
@@ -125,7 +126,9 @@ server in one debugged process and the test in another.
   or significantly change existing behavior.
 
 ### Start the publishing
+
 After the PR has been reviewed and merged, go to the GitHub [releases page](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/releases):
+
 - Click `Draft a new release`.
 - Click the `Select Tag` dropdown and enter the new version in the form `vX.Y.Z`.
 - Click the `Generate release notes` button. This inserts a release name based on the
