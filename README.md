@@ -116,7 +116,7 @@ server in one debugged process and the test in another.
           Putting the displayed issue number in backticks is important to avoid that a web
           frontend automatically adds links. For example if referencing an issue/PR outside
           this repository which has the same number like an issue in the cdt-gdb-adapter repository.
-        - Prefix issues from the sibling project `cdt-gdb-vscode` with its name if a change was
+        - Prefix issues from the sibling project `cdt-gdb-vscode` with their name if a change was
           made in cdt-gd-adapter to resolve it.
 - Update the `version` entry in [package.json](./package.json) to the new version.  
   If the release only introduces defect fixes without significant feature changes,
