@@ -48,7 +48,10 @@ describe('auxiliary gdb configuration', function () {
         }
     });
 
-    const testConnect = async (launchArgs: TargetLaunchRequestArguments, expectToFail: boolean) => {
+    const testConnect = async (
+        launchArgs: TargetLaunchRequestArguments,
+        expectToFail: boolean
+    ) => {
         if (expectToFail) {
             // Expecting launch to fail, check for correct error message
             const expectedErrorMessage = gdbNonStop
@@ -85,15 +88,9 @@ describe('auxiliary gdb configuration', function () {
             program,
             auxiliaryGdb: true,
             target: {
-                parameters: [
-                    'localhost:3333'
-                ],
+                parameters: ['localhost:3333'],
                 serverPortRegExp: 'Listening on port',
-                serverParameters: [
-                    '--once',
-                    ':3333',
-                    program
-                ]
+                serverParameters: ['--once', ':3333', program],
             },
         } as TargetLaunchRequestArguments);
 
@@ -107,15 +104,9 @@ describe('auxiliary gdb configuration', function () {
             program,
             auxiliaryGdb: true,
             target: {
-                connectCommands: [
-                    '-target-select remote localhost:3333'
-                ],
+                connectCommands: ['-target-select remote localhost:3333'],
                 serverPortRegExp: 'Listening on port',
-                serverParameters: [
-                    '--once',
-                    ':3333',
-                    program
-                ]
+                serverParameters: ['--once', ':3333', program],
             },
         } as TargetLaunchRequestArguments);
 

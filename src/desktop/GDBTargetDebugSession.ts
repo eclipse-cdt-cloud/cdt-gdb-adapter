@@ -678,18 +678,20 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             if (args.auxiliaryGdb && this.auxGdb) {
                 this.logGDBRemote('connect auxiliary GDB to target');
                 // Use connect commands to connect auxiliary GDB.
-                const connectCommands: string[] = [
-                    ...AuxiliaryConnectCommands
-                ];
+                const connectCommands: string[] = [...AuxiliaryConnectCommands];
                 if (target.connectCommands) {
                     connectCommands.push(...target.connectCommands);
                 } else {
-                    connectCommands.push(`target ${targetType} ${targetParameters.join(' ')}`);
+                    connectCommands.push(
+                        `target ${targetType} ${targetParameters.join(' ')}`
+                    );
                 }
                 await this.executeOrAbort(
                     this.auxGdb.sendCommands.bind(this.auxGdb)
                 )(connectCommands);
-                this.sendEvent(new OutputEvent('connect auxiliary GDB to target'));
+                this.sendEvent(
+                    new OutputEvent('connect auxiliary GDB to target')
+                );
             }
 
             await this.setSessionState(SessionState.CONNECTED);
