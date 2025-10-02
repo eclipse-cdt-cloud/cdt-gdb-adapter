@@ -690,8 +690,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     this.auxGdb.sendCommands.bind(this.auxGdb)
                 )(connectCommands);
                 this.sendEvent(
-                    new OutputEvent('connect auxiliary GDB to target')
+                    new OutputEvent('connected auxiliary GDB to target')
                 );
+                this.logGDBRemote('connected auxiliary GDB to target');
             }
 
             await this.setSessionState(SessionState.CONNECTED);
