@@ -1785,7 +1785,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // for a running target without auxiliary GDB connection.
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
-            threadId: frameRef?.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
         return [this.gdb, frameRef, depth, false];
