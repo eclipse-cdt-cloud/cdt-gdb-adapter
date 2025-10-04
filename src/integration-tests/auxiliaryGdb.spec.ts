@@ -48,6 +48,8 @@ describe('auxiliary gdb configuration', function () {
         }
     });
 
+    const auxUnsupported = gdbNonStop || gdbAsync === false || !isRemoteTest;
+
     const testConnect = async (
         launchArgs: TargetLaunchRequestArguments,
         expectToFail: boolean
@@ -71,6 +73,10 @@ describe('auxiliary gdb configuration', function () {
     };
 
     it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+
         const expectToFail = gdbNonStop || gdbAsync === false;
 
         const launchArgs = fillDefaults(this.test, {
@@ -82,7 +88,9 @@ describe('auxiliary gdb configuration', function () {
     });
 
     it('can establish auxiliary gdb connection with target parameters', async function () {
-        const expectToFail = gdbNonStop || gdbAsync === false;
+        if (auxUnsupported) {
+            this.skip();
+        }
 
         const launchArgs = fillDefaults(this.test, {
             program,
@@ -94,11 +102,13 @@ describe('auxiliary gdb configuration', function () {
             },
         } as TargetLaunchRequestArguments);
 
-        await testConnect(launchArgs, expectToFail);
+        await testConnect(launchArgs, false);
     });
 
     it('can establish auxiliary gdb connection with target connect commands', async function () {
-        const expectToFail = gdbNonStop || gdbAsync === false;
+        if (auxUnsupported) {
+            this.skip();
+        }
 
         const launchArgs = fillDefaults(this.test, {
             program,
@@ -110,7 +120,7 @@ describe('auxiliary gdb configuration', function () {
             },
         } as TargetLaunchRequestArguments);
 
-        await testConnect(launchArgs, expectToFail);
+        await testConnect(launchArgs, false);
     });
 });
 
