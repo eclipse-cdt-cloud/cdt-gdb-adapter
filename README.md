@@ -115,9 +115,15 @@ server in one debugged process and the test in another.
         - Add references to issues/PRs where possible. Use the format of previous releases.  
           Putting the displayed issue number in backticks is important to avoid that a web
           frontend automatically adds links. For example if referencing an issue/PR outside
-          this repository which has the same number like an issue in the cdt-gdb-adapter repository.
+          this repository which has the same number like an issue in the`cdt-gdb-adapter`repository.
         - Prefix issues from the sibling project `cdt-gdb-vscode` with their name if a change was
           made in cdt-gd-adapter to resolve it.
+    - Look out for (internal) API changes that may impact downstream variants as part of the commit history
+      review. Such downstream variants may for example derive from classes like `GDBDebugSessionBase`.
+      Expectation is though that such changes are identified and added already during individual PR reviews.  
+      Sometimes, it can be difficult to spot such changes that can come with refactoring.
+      Consider to retrospectively update sections of previously released versions with API
+      changes to warn late adopters.
 - Update the `version` entry in [package.json](./package.json) to the new version.  
   If the release only introduces defect fixes without significant feature changes,
   then bump the third ("patch") version digit.  
@@ -140,8 +146,9 @@ After the PR has been reviewed and merged, go to the GitHub [releases page](http
   The tag push triggers a GitHub action which builds, tests and finally uploads release
   artifacts. It may take a few minutes for this and the release's asset list to complete.
 
-Note: If CI should fail, you can either try to retrigger the failing GitHub action.
-Alternatively, you can manually remove the release and (!) the tag and retry with the same
-version after fixing the issues.
+**Note**:
 
-Important: Making a CDT GDB Debug Adapter release requires you to be a [committer](https://www.eclipse.org/membership/become-a-member/committer/).
+- If CI should fail before the GitHub asset upload, you can try to rerun the failing GitHub action/jobs.
+- If more fixing is needed, you unfortunately may need to again bump the version number and repeat the entire process.
+
+**Important**: Making a CDT GDB Debug Adapter release requires you to be a [committer](https://www.eclipse.org/membership/become-a-member/committer/).
