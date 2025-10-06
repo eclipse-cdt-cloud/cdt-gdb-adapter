@@ -642,13 +642,13 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             const targetString = targetHost
                 ? `${targetHost}:${targetPort}`
                 : undefined;
+            const defaultTarget = targetString ? [targetString] : [];
+            const targetParameters = target.parameters ?? defaultTarget;
+            const targetType = target.type ?? 'remote';
 
             // Connect to remote server
             if (target.connectCommands === undefined) {
-                this.targetType =
-                    target.type !== undefined ? target.type : 'remote';
-                const defaultTarget = targetString ? [targetString] : [];
-                const targetParameters = target.parameters ?? defaultTarget;
+                this.targetType = targetType;
                 await this.executeOrAbort(mi.sendTargetSelectRequest.bind(mi))(
                     this.gdb,
                     {
@@ -676,16 +676,23 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             if (args.auxiliaryGdb && this.auxGdb) {
+                this.logGDBRemote('connect auxiliary GDB to target');
                 // Use connect commands to connect auxiliary GDB.
-                this.logGDBRemote('connect to auxiliary GDB');
-                const connectCommands: string[] = [
-                    ...AuxiliaryConnectCommands,
-                    `target remote ${targetString}`,
-                ];
+                const connectCommands: string[] = [...AuxiliaryConnectCommands];
+                if (target.connectCommands) {
+                    connectCommands.push(...target.connectCommands);
+                } else {
+                    connectCommands.push(
+                        `target ${targetType} ${targetParameters.join(' ')}`
+                    );
+                }
                 await this.executeOrAbort(
                     this.auxGdb.sendCommands.bind(this.auxGdb)
                 )(connectCommands);
-                this.sendEvent(new OutputEvent('connected to auxiliary GDB'));
+                this.sendEvent(
+                    new OutputEvent('connected auxiliary GDB to target')
+                );
+                this.logGDBRemote('connected auxiliary GDB to target');
             }
 
             await this.setSessionState(SessionState.CONNECTED);

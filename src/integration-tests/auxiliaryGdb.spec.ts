@@ -48,14 +48,12 @@ describe('auxiliary gdb configuration', function () {
         }
     });
 
-    it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
-        const expectToFail = gdbNonStop || gdbAsync === false;
+    const auxUnsupported = gdbNonStop || gdbAsync === false || !isRemoteTest;
 
-        const launchArgs = fillDefaults(this.test, {
-            program,
-            auxiliaryGdb: true,
-        } as TargetLaunchRequestArguments);
-
+    const testConnect = async (
+        launchArgs: TargetLaunchRequestArguments,
+        expectToFail: boolean
+    ) => {
         if (expectToFail) {
             // Expecting launch to fail, check for correct error message
             const expectedErrorMessage = gdbNonStop
@@ -72,6 +70,57 @@ describe('auxiliary gdb configuration', function () {
             )) as DebugProtocol.LaunchResponse;
             expect(launchResponse.success).to.be.true;
         }
+    };
+
+    it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+
+        const expectToFail = gdbNonStop || gdbAsync === false;
+
+        const launchArgs = fillDefaults(this.test, {
+            program,
+            auxiliaryGdb: true,
+        } as TargetLaunchRequestArguments);
+
+        await testConnect(launchArgs, expectToFail);
+    });
+
+    it('can establish auxiliary gdb connection with target parameters', async function () {
+        if (auxUnsupported) {
+            this.skip();
+        }
+
+        const launchArgs = fillDefaults(this.test, {
+            program,
+            auxiliaryGdb: true,
+            target: {
+                parameters: ['localhost:3333'],
+                serverPortRegExp: 'Listening on port',
+                serverParameters: ['--once', ':3333', program],
+            },
+        } as TargetLaunchRequestArguments);
+
+        await testConnect(launchArgs, false);
+    });
+
+    it('can establish auxiliary gdb connection with target connect commands', async function () {
+        if (auxUnsupported) {
+            this.skip();
+        }
+
+        const launchArgs = fillDefaults(this.test, {
+            program,
+            auxiliaryGdb: true,
+            target: {
+                connectCommands: ['-target-select remote localhost:3333'],
+                serverPortRegExp: 'Listening on port',
+                serverParameters: ['--once', ':3333', program],
+            },
+        } as TargetLaunchRequestArguments);
+
+        await testConnect(launchArgs, false);
     });
 });
 
@@ -159,7 +208,9 @@ describe('auxiliary gdb', function () {
         );
         // Test if relevant output events came during 'beforeEach'
         expect(
-            stdOutputContains('GDB Remote session: connect to auxiliary GDB')
+            stdOutputContains(
+                'GDB Remote session: connected auxiliary GDB to target'
+            )
         ).to.be.true;
         expect(
             stdOutputContains(
