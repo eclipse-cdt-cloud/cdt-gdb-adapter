@@ -1622,6 +1622,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 args.name.replace(/^\[(\d+)\]/, '$1');
             const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
+                threadId: frameRef.threadId,
             });
             const depth = parseInt(stackDepth.depth, 10);
             let varobj = this.gdb.varManager.getVar(
@@ -2590,6 +2591,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // stack depth necessary for differentiating between similarly named variables at different stack depths
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
+            threadId: frameRef.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
 
