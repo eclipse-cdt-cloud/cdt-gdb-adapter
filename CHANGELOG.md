@@ -1,9 +1,32 @@
 # Change Log
 
-## Unreleased
+## 1.4.0
 
 - Implements [`#442`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/442): Support auxiliary GDB connections to allow selected operations while CPU running.
-- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): missing thread names when attaching to targets that don’t stop on attach.
+- Completes [`#422`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/422): Support data breakpoints for complex data types.
+- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): Missing thread names when attaching to targets that don’t stop on attach.
+- Fixes [`#440`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/440): Automatically disable async mode in adapter if debug target does not support it.
+- Notable code changes:
+    - `IGDBBackendFactory`: Adds optional `name` argument to `createBackend` method.
+    - `IGDBBackend`: Adds `confirmAsyncMode` method.
+    - Introduces `NamedLogger` class which adds a prefix to log messages.
+        - Used in `MIParser` and `GDBBackend` to distinguish main from auxiliary GDB connections.
+        - Use `this.logger` in those classes instead of the global `logger` instance.
+    - `MIParser`: Adds optional `name` argument to constructor.
+    - `GDBBackend`:
+        - Adds optional `name` argument to constructor.
+        - Adds public `confirmAsyncMode` method.
+    - `GDBDebugSessionBase`:
+        - Adds optional, protected member variable `auxGdb`.
+        - Adds protected member variables: `isRemote`, `missingThreadNames`.
+        - Adds protected methods: `validateRequestArguments`, `warnAsyncDisabled`.
+        - Changes `args` argument to `expression` for protected `evaluateRequestGdbCommand` method.
+        - Adds `gdb` argument with default value to protected `spawn` method.
+        - Adds `gdb` argument to protected `getFullPathExpression` and `getAddr` methods.
+    - `GDBTargetDebugSession` (desktop and web):
+        - Overrides protected method `validateRequestArguments`.
+    - `VarManager`:
+        - Allow `frameRef` argument to public `getKey` method to be `undefined`.
 
 ## 1.3.0
 
