@@ -1,9 +1,24 @@
 # Change Log
 
-## Unreleased
+## 1.4.0
 
 - Implements [`#442`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/442): Support auxiliary GDB connections to allow selected operations while CPU running.
-- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): missing thread names when attaching to targets that don’t stop on attach.
+- Completes [`#422`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/422): Support data breakpoints for complex data types.
+- Fixes [`#439`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/439): Missing thread names when attaching to targets that don’t stop on attach.
+- Fixes [`#440`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/440): Automatically disable async mode in adapter if debug target does not support it.
+- Notable code changes:
+    - API changes:
+        - `GDBTargetDebugSession.startGDBAndAttachToTarget` and `GDBDebugSessionBase.attachOrLaunchRequest`
+          now call new protected methods `IGDBBackend.confirmAsyncMode`,`GDBDebugSessionBase.warnAsyncDisabled`, and
+          `GDBDebugSessionBase.validateRequestArguments` to validate launch/attach arguments.
+        - `GDBDebugSessionBase` has methods with changed signatures: `evaluateRequestGdbCommand`, `getFullPathExpression`, and
+          `getAddr`.
+    - New features:
+        - New `NamedLogger` class which adds a prefix to log messages. Used in `MIParser` and `GDBBackend`.
+        - Optional `name` argument for `IGDBBackendFactory.createBackend` that is passed through to `NamedLogger`
+          instances.
+        - New protected members on `GDBDebugSessionBase` that can be set/used by derived debug session classes:
+          `auxGdb`, `isRemote`, `missingThreadNames`.
 
 ## 1.3.0
 
