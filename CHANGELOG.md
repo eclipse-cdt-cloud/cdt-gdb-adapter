@@ -17,7 +17,7 @@
         - New `NamedLogger` class which adds a prefix to log messages. Used in `MIParser` and `GDBBackend`.
         - Optional `name` argument for `IGDBBackendFactory.createBackend` that is passed through to `NamedLogger`
           instances.
-        - New protected members on `GDBDebugSessionBase` that are expected to be set/used by derived debug session classes:
+        - New protected members on `GDBDebugSessionBase` that can be set/used by derived debug session classes:
           `auxGdb`, `isRemote`, `missingThreadNames`.
 
 ## 1.3.0
