@@ -188,25 +188,22 @@ describe('evaluate request global variables', function () {
     const varsGlobalsProgram = path.join(testProgramsDir, 'vars_globals');
     const varsGlobalsSrc = path.join(testProgramsDir, 'vars_globals.c');
     const lineTags = {
-        'INITIAL_STOP': 0,
-        'RETURN': 0,
+        INITIAL_STOP: 0,
     };
 
     before(function () {
         resolveLineTagLocations(varsGlobalsSrc, lineTags);
     });
 
-
-
     beforeEach(async function () {
         dc = await standardBeforeEach();
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
                 program: varsGlobalsProgram,
-            }),
+            })
         );
         await dc.setBreakpointsRequest({
-            source: { path: varsGlobalsSrc, },
+            source: { path: varsGlobalsSrc },
             breakpoints: [{ line: lineTags['INITIAL_STOP'] }],
         });
         await Promise.all([
@@ -258,11 +255,10 @@ describe('evaluate request global variables', function () {
             expect(variable.name).to.equal(`[${index}]`);
             expect(variable.evaluateName).to.equal(`s0.char_array[${index}]`);
             expect(variable.variablesReference).to.equal(0);
-            const charCode = index === arrayLength - 1 ? 0 : arrayContent.charCodeAt(index);
+            const charCode =
+                index === arrayLength - 1 ? 0 : arrayContent.charCodeAt(index);
             const charValue = `${charCode} '${charCode === 0 ? '\\000' : String.fromCharCode(charCode)}'`;
             expect(variable.value).to.equal(charValue);
         });
     });
-
 });
-

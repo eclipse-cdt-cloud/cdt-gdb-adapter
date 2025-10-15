@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`400`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/400): Evaluation of variables to support RTOS Views extension.
+
 ## 1.4.0
 
 - Implements [`#442`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/442): Support auxiliary GDB connections to allow selected operations while CPU running.
