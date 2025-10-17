@@ -2794,21 +2794,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let name = `${ref.varobjName}.${child.exp}`;
                 const varobjName = name;
                 const value = child.value ? child.value : child.type;
-                const isArrayParent = arrayRegex.test(child.type);
                 const isArrayChild =
-                    varobj !== undefined
-                        ? arrayRegex.test(varobj.type) &&
-                          arrayChildRegex.test(child.exp)
-                        : false;
+                    arrayChildRegex.test(child.exp) &&
+                    (!varobj || arrayRegex.test(varobj.type));
                 if (isArrayChild) {
                     // update the display name for array elements to have square brackets
                     name = `[${child.exp}]`;
                 }
                 const variableName = isArrayChild ? name : child.exp;
-                const evaluateName =
-                    isArrayParent || isArrayChild
-                        ? `${topLevelPathExpression}[${child.exp}]`
-                        : `${topLevelPathExpression}.${child.exp}`;
+                const evaluateName = isArrayChild
+                    ? `${topLevelPathExpression}[${child.exp}]`
+                    : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
                     evaluateName,

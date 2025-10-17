@@ -16,6 +16,7 @@ import {
     fillDefaults,
     getScopes,
     isRemoteTest,
+    resolveLineTagLocations,
     Scope,
     standardBeforeEach,
     testProgramsDir,
@@ -177,5 +178,158 @@ describe('evaluate request', function () {
         );
 
         expect(err.message).eq('Undefined MI command: a');
+    });
+});
+
+describe('evaluate request global variables', function () {
+    let dc: CdtDebugClient;
+    let scope: Scope;
+
+    const varsGlobalsProgram = path.join(testProgramsDir, 'vars_globals');
+    const varsGlobalsSrc = path.join(testProgramsDir, 'vars_globals.c');
+    const lineTags = {
+        INITIAL_STOP: 0,
+    };
+
+    before(function () {
+        resolveLineTagLocations(varsGlobalsSrc, lineTags);
+    });
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach();
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program: varsGlobalsProgram,
+            })
+        );
+        await dc.setBreakpointsRequest({
+            source: { path: varsGlobalsSrc },
+            breakpoints: [{ line: lineTags['INITIAL_STOP'] }],
+        });
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+        scope = await getScopes(dc);
+    });
+
+    afterEach(async function () {
+        await dc.stop();
+    });
+
+    it('evaluates a global struct variable and creates sensible evaluate names for members', async function () {
+        const arrayContent = 'char_array';
+        const arrayLength = arrayContent.length + 1; // +1 for '\0'
+        const resolvedExpression = await dc.evaluateRequest({
+            context: 'hover',
+            expression: 's0',
+            frameId: scope.frame.id,
+        });
+
+        expect(resolvedExpression.body.result).to.equal('{...}');
+
+        const children = await dc.variablesRequest({
+            variablesReference: resolvedExpression.body.variablesReference,
+        });
+        expect(children.body.variables).lengthOf(3);
+        const childrenContents = [
+            { name: 'a', hasChildren: false },
+            { name: 'b', hasChildren: false },
+            { name: 'char_array', hasChildren: true },
+        ];
+        children.body.variables.forEach((variable, index) => {
+            expect(variable.name).to.equal(childrenContents[index].name);
+            expect(variable.evaluateName).to.equal(
+                `s0.${childrenContents[index].name}`
+            );
+            if (childrenContents[index].hasChildren) {
+                expect(variable.variablesReference).not.to.equal(0);
+            } else {
+                expect(variable.variablesReference).to.equal(0);
+            }
+        });
+
+        const arrayChildren = await dc.variablesRequest({
+            variablesReference: children.body.variables[2].variablesReference,
+        });
+        expect(arrayChildren.body.variables).lengthOf(arrayLength);
+        arrayChildren.body.variables.forEach((variable, index) => {
+            expect(variable.name).to.equal(`[${index}]`);
+            expect(variable.evaluateName).to.equal(`s0.char_array[${index}]`);
+            expect(variable.variablesReference).to.equal(0);
+            const charCode =
+                index === arrayLength - 1 ? 0 : arrayContent.charCodeAt(index);
+            const charValue = `${charCode} '${charCode === 0 ? '\\000' : String.fromCharCode(charCode)}'`;
+            expect(variable.value).to.equal(charValue);
+        });
+    });
+
+    it('evaluates a pointer to a more complex struct variable and creates sensible evaluate names for members', async function () {
+        const resolvedExpression = await dc.evaluateRequest({
+            context: 'hover',
+            expression: 's1',
+            frameId: scope.frame.id,
+        });
+
+        expect(resolvedExpression.body.result).to.endWith('{...}');
+
+        const members = await dc.variablesRequest({
+            variablesReference: resolvedExpression.body.variablesReference,
+        });
+        expect(members.body.variables).lengthOf(4);
+        const memberContents = [
+            { name: 'm', hasChildren: false },
+            { name: 'n', hasChildren: false },
+            { name: 'child', hasChildren: true },
+            { name: 'children', hasChildren: true },
+        ];
+        members.body.variables.forEach((variable, index) => {
+            expect(variable.name).to.equal(memberContents[index].name);
+            expect(variable.evaluateName).to.equal(
+                `s1.${memberContents[index].name}`
+            );
+            if (memberContents[index].hasChildren) {
+                expect(variable.variablesReference).not.to.equal(0);
+            } else {
+                expect(variable.variablesReference).to.equal(0);
+            }
+        });
+
+        // Child
+        const child = await dc.variablesRequest({
+            variablesReference: members.body.variables[2].variablesReference,
+        });
+        expect(child.body.variables).lengthOf(2);
+        child.body.variables.forEach((variable, index) => {
+            const childName = index === 0 ? 'x' : 'y';
+            expect(variable.name).to.equal(childName);
+            expect(variable.evaluateName).to.equal(`s1.child.${childName}`);
+            expect(variable.variablesReference).to.equal(0);
+        });
+
+        // Children
+        const children = await dc.variablesRequest({
+            variablesReference: members.body.variables[3].variablesReference,
+        });
+        expect(children.body.variables).lengthOf(2);
+        children.body.variables.forEach(async (variable, index) => {
+            expect(variable.name).to.equal(`[${index}]`);
+            expect(variable.value).to.equal(`{...}`);
+            expect(variable.evaluateName).to.equal(`s1.children[${index}]`);
+            expect(variable.variablesReference).not.to.equal(0);
+            // Grand children
+            const grandChildren = await dc.variablesRequest({
+                variablesReference: variable.variablesReference,
+            });
+            expect(grandChildren.body.variables).lengthOf(2);
+            grandChildren.body.variables.forEach((gcVariable, gcIndex) => {
+                const childName = gcIndex === 0 ? 'x' : 'y';
+                expect(gcVariable.name).to.equal(childName);
+                expect(gcVariable.evaluateName).to.equal(
+                    `s1.children[${index}].${childName}`
+                );
+                expect(gcVariable.variablesReference).to.equal(0);
+            });
+        });
     });
 });
