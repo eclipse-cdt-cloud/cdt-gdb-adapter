@@ -239,7 +239,9 @@ describe('evaluate request global variables', function () {
         ];
         children.body.variables.forEach((variable, index) => {
             expect(variable.name).to.equal(childrenContents[index].name);
-            expect(variable.evaluateName).to.equal(`s0.${childrenContents[index].name}`);
+            expect(variable.evaluateName).to.equal(
+                `s0.${childrenContents[index].name}`
+            );
             if (childrenContents[index].hasChildren) {
                 expect(variable.variablesReference).not.to.equal(0);
             } else {
@@ -283,7 +285,9 @@ describe('evaluate request global variables', function () {
         ];
         members.body.variables.forEach((variable, index) => {
             expect(variable.name).to.equal(memberContents[index].name);
-            expect(variable.evaluateName).to.equal(`s1.${memberContents[index].name}`);
+            expect(variable.evaluateName).to.equal(
+                `s1.${memberContents[index].name}`
+            );
             if (memberContents[index].hasChildren) {
                 expect(variable.variablesReference).not.to.equal(0);
             } else {
