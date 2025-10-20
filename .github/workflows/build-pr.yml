@@ -56,9 +56,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+        # Install build tools and update PATH through GITHUB_PATH for next steps
       - name: Install GCC & GDB & other build essentials
         run: |
-          choco install mingw
+          choco install mingw --version=12.2.0
+          $chocoMingwBin = Join-Path $env:ChocolateyInstall 'lib\mingw\tools\install\mingw64\bin'
+          echo $chocoMingwBin >> $env:GITHUB_PATH
+      - name: Echo Tool Versions
+        run: |
           gdb --version
           gcc --version
           gdbserver --version
