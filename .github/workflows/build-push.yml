@@ -51,7 +51,7 @@ jobs:
         run: git diff --exit-code
   Build-on-Windows:
     name: Build & Test on Windows
-    runs-on: Windows-2022
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
