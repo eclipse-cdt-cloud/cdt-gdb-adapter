@@ -20,7 +20,7 @@ import {
 
 describe('custom reset', function () {
     let dc: CdtDebugClient;
-    const loopForeverProgram = path.join(testProgramsDir, 'loopForever');
+    const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
     const commands = ['print 42'];
     const expectedResult = '$1 = 42\n';
 
