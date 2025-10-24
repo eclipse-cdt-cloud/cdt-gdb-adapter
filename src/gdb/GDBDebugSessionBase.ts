@@ -282,16 +282,27 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     protected customResetRequest(response: DebugProtocol.Response) {
         if (this.customResetCommands) {
-            this.gdb
-                .sendCommands(this.customResetCommands)
-                .then(() => this.sendResponse(response))
-                .catch(() =>
+            this.pauseIfNeeded()
+                .then(() => {
+                    // Behavior after reset very much depends on the commands used.
+                    // So, hard to make assumptions when expected state is reached.
+                    // Hence, implement stop-after-reset behavior unless commands
+                    // set running. Achieved by decrementing pause count (no recursion
+                    // expected, this reset is not called as part of connection).
+                    if (this.pauseCount > 0) {
+                        this.pauseCount--;
+                    }
+                    this.gdb.sendCommands(this.customResetCommands).then(() => {
+                        this.sendResponse(response);
+                    });
+                })
+                .catch(() => {
                     this.sendErrorResponse(
                         response,
                         1,
                         'The custom reset command failed'
-                    )
-                );
+                    );
+                });
         }
     }
 

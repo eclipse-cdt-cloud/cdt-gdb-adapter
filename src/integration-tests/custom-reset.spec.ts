@@ -13,6 +13,7 @@ import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
+    gdbAsync,
     isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
@@ -20,7 +21,7 @@ import {
 
 describe('custom reset', function () {
     let dc: CdtDebugClient;
-    const emptyProgram = path.join(testProgramsDir, 'empty');
+    const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
     const commands = ['print 42'];
     const expectedResult = '$1 = 42\n';
 
@@ -28,7 +29,7 @@ describe('custom reset', function () {
         dc = await standardBeforeEach('debugTargetAdapter.js');
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
-                program: emptyProgram,
+                program: loopForeverProgram,
                 customResetCommands: commands,
             } as TargetLaunchRequestArguments)
         );
@@ -45,8 +46,36 @@ describe('custom reset', function () {
             this.skip();
         }
 
-        const event = dc.waitForOutputEvent('stdout', expectedResult);
-        await dc.customRequest('cdt-gdb-adapter/customReset');
-        await event;
+        await Promise.all([
+            dc.waitForOutputEvent('stdout', expectedResult),
+            dc.customRequest('cdt-gdb-adapter/customReset'),
+        ]);
+    });
+
+    it('stops the target if necessary before sending custom reset commands', async function () {
+        if (!isRemoteTest || !gdbAsync) {
+            // This test is pointless if async mode is off. It stops anyway.
+            this.skip();
+        }
+
+        await dc.setFunctionBreakpointsRequest({
+            breakpoints: [{ name: 'main' }],
+        });
+        const [stoppedEvent] = await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+        await dc.setFunctionBreakpointsRequest({ breakpoints: [] }); // remove function breakpoints
+
+        // Let the program run
+        await dc.continueRequest({ threadId: stoppedEvent.body.threadId });
+
+        await Promise.all([
+            dc.waitForOutputEvent('stdout', expectedResult), // wait stdout event
+            dc.customRequest('cdt-gdb-adapter/customReset'),
+        ]);
+
+        // Would throw if it wasn't stopped
+        await dc.stepInRequest({ threadId: stoppedEvent.body.threadId });
     });
 });
