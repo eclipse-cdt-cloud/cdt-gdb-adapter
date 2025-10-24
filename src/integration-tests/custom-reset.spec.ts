@@ -13,6 +13,7 @@ import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
+    gdbAsync,
     isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
@@ -51,10 +52,9 @@ describe('custom reset', function () {
         ]);
     });
 
-    it.only('stops the target if necessary before sending custom reset commands', async function () {
-        if (!isRemoteTest) {
-            // command is implemented in the remote adapter but not in the local adapter
-            // so skip this test if not running remote
+    it('stops the target if necessary before sending custom reset commands', async function () {
+        if (!isRemoteTest || !gdbAsync) {
+            // This test is pointless if async mode is off. It stops anyway.
             this.skip();
         }
 
@@ -69,8 +69,6 @@ describe('custom reset', function () {
 
         // Let the program run
         await dc.continueRequest({ threadId: stoppedEvent.body.threadId });
-        // TEMP: ensure this fails for all modes on Linux, can't test on Windows locally.
-        await dc.stepInRequest({ threadId: stoppedEvent.body.threadId });
 
         await Promise.all([
             dc.waitForOutputEvent('stdout', expectedResult), // wait stdout event
