@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`463`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/463): Cannot use custom reset while CPU is running.
+
 ## 1.4.1
 
 - Fixes [`400`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/400): Evaluation of variables to support RTOS Views extension.
