@@ -22,6 +22,11 @@ type CommandQueue = {
 };
 
 export class MIParser {
+    /**
+     * Configure whether MI Parser shall decode incoming strings as UTF-8.
+     * Default: true
+     */
+    protected _decodeUtf8 = true;
     protected logger;
     protected line = '';
     protected pos = 0;
@@ -34,6 +39,17 @@ export class MIParser {
         protected name?: string
     ) {
         this.logger = new NamedLogger(name);
+    }
+
+    public set decodeUtf8(value: boolean) {
+        this._decodeUtf8 = value;
+        this.logger.verbose(
+            `MIParser: ${this.decodeUtf8 ? 'Enable' : 'Disable'} UTF-8 decoding`
+        );
+    }
+
+    public get decodeUtf8(): boolean {
+        return this._decodeUtf8;
     }
 
     public cancelQueue() {
@@ -172,6 +188,11 @@ export class MIParser {
                 default:
                     cstring += c;
             }
+        }
+
+        // Return received string without decoding if turned off.
+        if (!this.decodeUtf8) {
+            return cstring;
         }
 
         try {

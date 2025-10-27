@@ -28,6 +28,10 @@ import { compareVersions } from '../util/compareVersions';
 import { isProcessActive } from '../util/processes';
 import { NamedLogger } from '../namedLogger';
 
+// Error as returned by GDB when calling 'set charset' without argument
+const CHARSETS_ERROR_REGEXP =
+    /Requires an argument. Valid arguments are (.+)\./;
+
 type WriteCallback = (error: Error | null | undefined) => void;
 
 export class GDBBackend extends events.EventEmitter implements IGDBBackend {
@@ -55,6 +59,49 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     get varManager(): VarManager {
         return this.varMgr;
+    }
+
+    /**
+     * Detect list of supported charsets by provoking error from GDB
+     * which returns the list.
+     */
+    private async getSupportedCharsets(): Promise<string[]> {
+        let charsetString: string | undefined;
+        try {
+            // Provoke error by missing argument
+            await this.sendGDBSet('charset');
+        } catch (error) {
+            const errMessage = (error as Error)?.message;
+            if (errMessage) {
+                const matches = CHARSETS_ERROR_REGEXP.exec(errMessage);
+                charsetString = matches ? matches[1] : undefined;
+            }
+        }
+        if (!charsetString) {
+            return [];
+        }
+        const charsets = charsetString
+            .split(',')
+            .map((charset) => charset.trim());
+        return charsets;
+    }
+
+    /**
+     * Detect if to apply UTF-8 decoding based on detecting available
+     * charsets in GDB.
+     *
+     * Return 'false' if only CP1252 (ASCII) and 'auto' like for some
+     * GDB variants for embedded on Windows.
+     * Note: Strictly speaking Windows-only, but keep this method OS
+     * agnostic to avoid potential trouble with web use-case.
+     */
+    private async shouldDecodeUTF8(): Promise<boolean> {
+        const supportedCharsets = await this.getSupportedCharsets();
+        return !(
+            supportedCharsets.length === 2 &&
+            supportedCharsets.includes('CP1252') &&
+            supportedCharsets.includes('auto')
+        );
     }
 
     public async spawn(
@@ -92,6 +139,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         this.asyncRequestedExplicitly = !!(
             requestArgs.gdbAsync || requestArgs.gdbNonStop
         );
+        if (!(await this.shouldDecodeUTF8())) {
+            this.parser.decodeUtf8 = false;
+        }
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
