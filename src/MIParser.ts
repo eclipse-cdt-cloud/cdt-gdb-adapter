@@ -9,7 +9,6 @@
  *********************************************************************/
 import { Readable } from 'stream';
 import { IGDBBackend } from './types/gdb';
-import * as utf8 from 'utf8';
 import { NamedLogger } from './namedLogger';
 
 interface Command {
@@ -144,12 +143,17 @@ export class MIParser {
 
         let cstring = '';
         let octal = '';
+        let octalSequence: number[] = [];
         mainloop: for (c = this.next(); c; c = this.next()) {
             if (octal) {
                 octal += c;
                 if (octal.length == 3) {
-                    cstring += String.fromCodePoint(parseInt(octal, 8));
+                    octalSequence.push(parseInt(octal, 8));
                     octal = '';
+                    if (this.peek() !== '\\') {
+                        cstring += String.fromCodePoint(...octalSequence);
+                        octalSequence = [];
+                    }
                 }
                 continue;
             }
@@ -190,19 +194,7 @@ export class MIParser {
             }
         }
 
-        // Return received string without decoding if turned off.
-        if (!this.decodeUtf8) {
-            return cstring;
-        }
-
-        try {
-            return utf8.decode(cstring);
-        } catch (err) {
-            this.logger.error(
-                `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
-            );
-            return cstring;
-        }
+        return cstring;
     }
 
     protected handleString() {
