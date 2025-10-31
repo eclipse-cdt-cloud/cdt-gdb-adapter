@@ -9,7 +9,6 @@
  *********************************************************************/
 import { Readable } from 'stream';
 import { IGDBBackend } from './types/gdb';
-import * as utf8 from 'utf8';
 import { NamedLogger } from './namedLogger';
 
 interface Command {
@@ -22,6 +21,11 @@ type CommandQueue = {
 };
 
 export class MIParser {
+    /**
+     * Configure whether MI Parser shall decode incoming strings as UTF-8.
+     * Default: true
+     */
+    protected _decodeUtf8 = true;
     protected logger;
     protected line = '';
     protected pos = 0;
@@ -34,6 +38,17 @@ export class MIParser {
         protected name?: string
     ) {
         this.logger = new NamedLogger(name);
+    }
+
+    public set decodeUtf8(value: boolean) {
+        this._decodeUtf8 = value;
+        this.logger.verbose(
+            `MIParser: ${this.decodeUtf8 ? 'Enable' : 'Disable'} UTF-8 decoding`
+        );
+    }
+
+    public get decodeUtf8(): boolean {
+        return this._decodeUtf8;
     }
 
     public cancelQueue() {
@@ -128,12 +143,17 @@ export class MIParser {
 
         let cstring = '';
         let octal = '';
+        let octalSequence: number[] = [];
         mainloop: for (c = this.next(); c; c = this.next()) {
             if (octal) {
                 octal += c;
                 if (octal.length == 3) {
-                    cstring += String.fromCodePoint(parseInt(octal, 8));
+                    octalSequence.push(parseInt(octal, 8));
                     octal = '';
+                    if (this.peek() !== '\\') {
+                        cstring += String.fromCodePoint(...octalSequence);
+                        octalSequence = [];
+                    }
                 }
                 continue;
             }
@@ -174,14 +194,7 @@ export class MIParser {
             }
         }
 
-        try {
-            return utf8.decode(cstring);
-        } catch (err) {
-            this.logger.error(
-                `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
-            );
-            return cstring;
-        }
+        return cstring;
     }
 
     protected handleString() {
