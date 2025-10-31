@@ -124,6 +124,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected gdb!: IGDBBackend;
     protected auxGdb?: IGDBBackend;
 
+    protected isBreakpointSent = false;
+    protected isDataBreakpointSent = false;
+    protected isFunctionBreakpointSent = false;
+    protected isInstructionBreakpointSent = false;
+
     protected isAttach = false;
     /**
      * True if GDB is using the "remote" or "extended-remote" target. In
@@ -717,6 +722,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetDataBreakpointsResponse,
         args: DebugProtocol.SetDataBreakpointsArguments
     ): Promise<void> {
+        // If this is the first time sending this breakpoint and there are no breakpoints to set,
+        // do not change state of the target by avoiding an unnecessary pause
+        if (!this.isDataBreakpointSent) {
+            if (args.breakpoints.length === 0) {
+                response.body = {
+                    breakpoints: [],
+                };
+                this.sendResponse(response);
+                return;
+            }
+            this.isDataBreakpointSent = true;
+        }
+
         await this.pauseIfNeeded();
         // Get existing GDB watchpoints
         let existingGDBWatchpointsList = await this.getWatchpointList();
@@ -799,6 +817,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetInstructionBreakpointsResponse,
         args: DebugProtocol.SetInstructionBreakpointsArguments
     ): Promise<void> {
+        // If this is the first time sending this breakpoint and there are no breakpoints to set,
+        // do not change state of the target by avoiding an unnecessary pause
+        if (!this.isInstructionBreakpointSent) {
+            if (args.breakpoints.length === 0) {
+                response.body = {
+                    breakpoints: [],
+                };
+                this.sendResponse(response);
+                return;
+            }
+            this.isInstructionBreakpointSent = true;
+        }
+
         await this.pauseIfNeeded();
         // Get a list of existing instruction breakpoints
         const existingInstBreakpointsList =
@@ -894,6 +925,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
+        // If this is the first time sending this breakpoint and there are no breakpoints to set,
+        // do not change state of the target by avoiding an unnecessary pause
+        if (!this.isBreakpointSent) {
+            if (
+                args.breakpoints !== undefined &&
+                args.breakpoints.length === 0
+            ) {
+                response.body = {
+                    breakpoints: [],
+                };
+                this.sendResponse(response);
+                return;
+            }
+            this.isBreakpointSent = true;
+        }
+
         await this.pauseIfNeeded();
 
         try {
@@ -1115,6 +1162,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
+        // If this is the first time sending this breakpoint and there are no breakpoints to set,
+        // do not change state of the target by avoiding an unnecessary pause
+        if (!this.isFunctionBreakpointSent) {
+            if (args.breakpoints.length === 0) {
+                response.body = {
+                    breakpoints: [],
+                };
+                this.sendResponse(response);
+                return;
+            }
+            this.isFunctionBreakpointSent = true;
+        }
+
         await this.pauseIfNeeded();
 
         try {

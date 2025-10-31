@@ -795,4 +795,38 @@ describe('breakpoints', async function () {
         });
         expect(response.body.breakpoints.length).to.eq(1);
     });
+
+    it('empty breakpoint request if no breakpoint exists', async () => {
+        const response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [],
+        });
+        expect(response.body.breakpoints.length).eq(0);
+    });
+
+    it('empty breakpoint request if a breakpoint exists', async () => {
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        const response = await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [],
+        });
+        expect(response.body.breakpoints.length).eq(0);
+    });
 });
