@@ -717,6 +717,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetDataBreakpointsResponse,
         args: DebugProtocol.SetDataBreakpointsArguments
     ): Promise<void> {
+        // If there is no breakpoint and configuring has not done yet,
+        // do nothing to not change the state of target
+        if (args.breakpoints.length === 0 && this.configuringState !== ConfiguringState.DONE) {
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
         // Get existing GDB watchpoints
         let existingGDBWatchpointsList = await this.getWatchpointList();
@@ -799,6 +809,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetInstructionBreakpointsResponse,
         args: DebugProtocol.SetInstructionBreakpointsArguments
     ): Promise<void> {
+        // If there is no breakpoint and configuring has not done yet,
+        // do nothing to not change the state of target
+        if (args.breakpoints.length === 0 && this.configuringState !== ConfiguringState.DONE) {
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
         // Get a list of existing instruction breakpoints
         const existingInstBreakpointsList =
@@ -894,6 +914,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
+        // If there is no breakpoint and configuring has not done yet,
+        // do nothing to not change the state of target
+        if (args.breakpoints !== undefined && args.breakpoints.length === 0 && this.configuringState !== ConfiguringState.DONE) {
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
 
         try {
@@ -1115,6 +1145,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
+        // If there is no breakpoint and configuring has not done yet,
+        // do nothing to not change the state of target
+        if (args.breakpoints.length === 0 && this.configuringState !== ConfiguringState.DONE) {
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
 
         try {
