@@ -41,8 +41,8 @@ describe('custom reset', function () {
 
     it('tests sending custom reset commands', async function () {
         if (!isRemoteTest) {
-            // command is implemented in the remote adapter but not in the local adapter
-            // so skip this test if not running remote
+            // Command is implemented in GDBDebugSessionBase but deliberately documented
+            // for gdbtarget (remote) adapter only. So skip this test if not running remote
             this.skip();
         }
 
@@ -54,7 +54,9 @@ describe('custom reset', function () {
 
     it('stops the target if necessary before sending custom reset commands', async function () {
         if (!isRemoteTest || !gdbAsync) {
-            // This test is pointless if async mode is off. It stops anyway.
+            // Command is implemented in GDBDebugSessionBase but deliberately documented
+            // for gdbtarget (remote) adapter only. So skip this test if not running remote.
+            // Skip if not gdbAsync, pauseIfNeeded will otherwise hang in when fetching `$_gthread`.
             this.skip();
         }
 
