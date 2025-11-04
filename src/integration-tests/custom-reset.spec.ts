@@ -28,6 +28,7 @@ const gdbtargetAdapter = 'debugTargetAdapter.js';
 const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
 const commands = ['print 42'];
 const expectedResult = '$1 = 42\n';
+const customResetCommandsUnsupported = gdbAsync === false || !isRemoteTest;
 
 describe('custom reset configuration', function () {
     let dc: CdtDebugClient;
@@ -41,8 +42,6 @@ describe('custom reset configuration', function () {
             await dc.stop();
         }
     });
-
-    const customResetCommandsUnsupported = gdbAsync === false || !isRemoteTest;
 
     const testConnect = async (
         launchArgs: TargetLaunchRequestArguments,
@@ -67,6 +66,7 @@ describe('custom reset configuration', function () {
 
     it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
         if (!isRemoteTest) {
+            // Only skip remote tests, gdbAsync validation tested here
             this.skip();
         }
 
@@ -97,7 +97,7 @@ describe('custom reset', function () {
     });
 
     it('tests sending custom reset commands', async function () {
-        if (!isRemoteTest) {
+        if (customResetCommandsUnsupported) {
             // Command is implemented in GDBDebugSessionBase but deliberately documented
             // for gdbtarget (remote) adapter only. So skip this test if not running remote
             this.skip();
@@ -110,7 +110,7 @@ describe('custom reset', function () {
     });
 
     it('stops the target if necessary before sending custom reset commands', async function () {
-        if (!isRemoteTest || !gdbAsync) {
+        if (customResetCommandsUnsupported) {
             // Command is implemented in GDBDebugSessionBase but deliberately documented
             // for gdbtarget (remote) adapter only. So skip this test if not running remote.
             // Skip if not gdbAsync, pauseIfNeeded will otherwise hang in when fetching `$_gthread`.
