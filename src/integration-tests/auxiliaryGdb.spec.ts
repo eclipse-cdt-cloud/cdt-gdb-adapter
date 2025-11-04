@@ -57,8 +57,8 @@ describe('auxiliary gdb configuration', function () {
         if (expectToFail) {
             // Expecting launch to fail, check for correct error message
             const expectedErrorMessage = gdbNonStop
-                ? 'Cannot use auxiliaryGdb mode with gdbNonStop mode'
-                : 'AuxiliaryGdb mode requires gdbAsync to be active';
+                ? "Cannot use setting 'auxiliaryGdb' with 'gdbNonStop' mode"
+                : "Setting 'auxiliaryGdb' mode requires 'gdbAsync' to be active";
             const rejectError = await expectRejection(
                 dc.launchRequest(launchArgs)
             );

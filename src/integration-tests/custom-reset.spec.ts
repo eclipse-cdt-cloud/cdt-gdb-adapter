@@ -12,21 +12,78 @@ import * as path from 'path';
 import { TargetLaunchRequestArguments } from '../types/session';
 import { CdtDebugClient } from './debugClient';
 import {
+    expectRejection,
     fillDefaults,
     gdbAsync,
     isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import { expect, use } from 'chai';
+import * as chaistring from 'chai-string';
+use(chaistring);
+
+const gdbtargetAdapter = 'debugTargetAdapter.js';
+const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
+const commands = ['print 42'];
+const expectedResult = '$1 = 42\n';
+
+describe('custom reset configuration', function () {
+    let dc: CdtDebugClient;
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach(gdbtargetAdapter);
+    });
+
+    afterEach(async function () {
+        if (dc) {
+            await dc.stop();
+        }
+    });
+
+    const customResetCommandsUnsupported = gdbAsync === false || !isRemoteTest;
+
+    const testConnect = async (
+        launchArgs: TargetLaunchRequestArguments,
+        expectToFail: boolean
+    ) => {
+        if (expectToFail) {
+            // Expecting launch to fail, check for correct error message
+            const expectedErrorMessage =
+                "Setting 'customResetCommands' requires 'gdbAsync' to be active";
+            const rejectError = await expectRejection(
+                dc.launchRequest(launchArgs)
+            );
+            expect(rejectError.message).to.startWith(expectedErrorMessage);
+        } else {
+            // Expecting launch to succeed
+            const launchResponse = (await dc.launchRequest(
+                launchArgs
+            )) as DebugProtocol.LaunchResponse;
+            expect(launchResponse.success).to.be.true;
+        }
+    };
+
+    it('correctly validates if auxiliary gdb mode can work with other settings', async function () {
+        if (!isRemoteTest) {
+            this.skip();
+        }
+
+        const launchArgs = fillDefaults(this.test, {
+            program: loopForeverProgram,
+            customResetCommands: commands,
+        } as TargetLaunchRequestArguments);
+
+        await testConnect(launchArgs, customResetCommandsUnsupported);
+    });
+});
 
 describe('custom reset', function () {
     let dc: CdtDebugClient;
-    const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
-    const commands = ['print 42'];
-    const expectedResult = '$1 = 42\n';
 
     beforeEach(async function () {
-        dc = await standardBeforeEach('debugTargetAdapter.js');
+        dc = await standardBeforeEach(gdbtargetAdapter);
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
                 program: loopForeverProgram,
