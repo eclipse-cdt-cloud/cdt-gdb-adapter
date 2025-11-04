@@ -20,6 +20,7 @@ import {
     testProgramsDir,
 } from './utils';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { Runnable } from 'mocha';
 import { expect, use } from 'chai';
 import * as chaistring from 'chai-string';
 use(chaistring);
@@ -84,17 +85,24 @@ describe('custom reset', function () {
 
     beforeEach(async function () {
         dc = await standardBeforeEach(gdbtargetAdapter);
-        await dc.launchRequest(
-            fillDefaults(this.currentTest, {
-                program: loopForeverProgram,
-                customResetCommands: commands,
-            } as TargetLaunchRequestArguments)
-        );
     });
 
     afterEach(async function () {
         await dc.stop();
     });
+
+    const completeStartup = async function (
+        testContext?: Runnable
+    ): Promise<void> {
+        // Call here instead of beforeEach so that test can be skipped without
+        // failing due to argument validation.
+        await dc.launchRequest(
+            fillDefaults(testContext, {
+                program: loopForeverProgram,
+                customResetCommands: commands,
+            } as TargetLaunchRequestArguments)
+        );
+    };
 
     it('tests sending custom reset commands', async function () {
         if (customResetCommandsUnsupported) {
@@ -102,6 +110,8 @@ describe('custom reset', function () {
             // for gdbtarget (remote) adapter only. So skip this test if not running remote
             this.skip();
         }
+
+        await completeStartup(this.test);
 
         await Promise.all([
             dc.waitForOutputEvent('stdout', expectedResult),
@@ -116,6 +126,8 @@ describe('custom reset', function () {
             // Skip if not gdbAsync, pauseIfNeeded will otherwise hang in when fetching `$_gthread`.
             this.skip();
         }
+
+        await completeStartup(this.test);
 
         await dc.setFunctionBreakpointsRequest({
             breakpoints: [{ name: 'main' }],
