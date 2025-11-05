@@ -28,9 +28,10 @@ import { compareVersions } from '../util/compareVersions';
 import { isProcessActive } from '../util/processes';
 import { NamedLogger } from '../namedLogger';
 
-// Error as returned by GDB when calling 'set charset' without argument
-const CHARSETS_ERROR_REGEXP =
-    /Requires an argument. Valid arguments are (.+)\./;
+// Expected console output for interpreter command 'show host-charset'
+// if setting is 'auto'.
+const HOST_CHARSET_REGEXP =
+    /The host character set is \"auto; currently (.+)\"./;
 
 type WriteCallback = (error: Error | null | undefined) => void;
 
@@ -62,46 +63,83 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
     }
 
     /**
-     * Detect list of supported charsets by provoking error from GDB
-     * which returns the list.
+     * Send interpreter command to show host charset and wait until/resolve when
+     * stdout contains expected line or timeout. Don't throw, but return undefined
+     * in case of error/timeout.
      */
-    private async getSupportedCharsets(): Promise<string[]> {
-        let charsetString: string | undefined;
-        try {
-            // Provoke error by missing argument
-            await this.sendGDBSet('charset');
-        } catch (error) {
-            const errMessage = (error as Error)?.message;
-            if (errMessage) {
-                const matches = CHARSETS_ERROR_REGEXP.exec(errMessage);
-                charsetString = matches ? matches[1] : undefined;
+    private async getAutoHostCharsetFromConsole(): Promise<string | undefined> {
+        return new Promise<string | undefined>(async (resolve) => {
+            let resolved = false;
+            let charset: string | undefined;
+
+            // Call when promise is read to resolve,
+            // cleans up lister and timeout and calls resolve.
+            const done = () => {
+                if (!resolved) {
+                    resolved = true;
+                    this.off('consoleStreamOutput', logListener);
+                    clearTimeout(timeout);
+                    resolve(charset);
+                }
+            };
+
+            // Temporary listener looking out for console output
+            const logListener = (output: string, category: string) => {
+                if (category !== 'stdout') {
+                    return; // Expected output only on stdout
+                }
+                const match = HOST_CHARSET_REGEXP.exec(output);
+                if (!match) {
+                    return; // No match, continue waiting
+                }
+                // Match, call it done even if no valid charset.
+                // Use lower case encoding name as defined used TextDecoder.
+                charset = match[1]?.toLowerCase();
+                done();
+            };
+
+            this.on('consoleStreamOutput', logListener);
+            // Timeout to avoid lockup if something's wrong or stdout is missing.
+            const timeout = setTimeout(() => {
+                this.logger.error(
+                    'Error detecting host character set from stdout: timeout'
+                );
+                done();
+            }, 500);
+
+            try {
+                await this.sendCommand(
+                    '-interpreter-exec console "show host-charset"'
+                );
+            } catch (error) {
+                // Command failed
+                this.logger.error(
+                    `Error detecting host character set from stdout: ${error}`
+                );
+                done();
             }
-        }
-        if (!charsetString) {
-            return [];
-        }
-        const charsets = charsetString
-            .split(',')
-            .map((charset) => charset.trim());
-        return charsets;
+        });
     }
 
     /**
-     * Detect if to apply UTF-8 decoding based on detecting available
-     * charsets in GDB.
-     *
-     * Return 'false' if only CP1252 (ASCII) and 'auto' like for some
-     * GDB variants for embedded on Windows.
-     * Note: Strictly speaking Windows-only, but keep this method OS
-     * agnostic to avoid potential trouble with web use-case.
+     * Get host character set encoding. Try MI -gdb-show first, then interpreter
+     * console if 'auto' as this is the only found way to get the actual encoding.
      */
-    private async shouldDecodeUTF8(): Promise<boolean> {
-        const supportedCharsets = await this.getSupportedCharsets();
-        return !(
-            supportedCharsets.length === 2 &&
-            supportedCharsets.includes('CP1252') &&
-            supportedCharsets.includes('auto')
-        );
+    private async getHostCharset(): Promise<string | undefined> {
+        try {
+            const charsetResponse = await this.sendGDBShow('host-charset');
+            // Use lower case as defined for later used TextDecoder
+            const charset = charsetResponse?.value?.toLowerCase();
+            if (charset !== 'auto') {
+                // undefined or value other than 'auto'
+                return charset;
+            }
+        } catch (error) {
+            this.logger.error(`Error getting GDB host-charset: ${error}`);
+            return undefined;
+        }
+        // 'auto' detected, get actual charset through interpreter console
+        return await this.getAutoHostCharsetFromConsole();
     }
 
     public async spawn(
@@ -139,9 +177,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         this.asyncRequestedExplicitly = !!(
             requestArgs.gdbAsync || requestArgs.gdbNonStop
         );
-        if (!(await this.shouldDecodeUTF8())) {
-            this.parser.decodeUtf8 = false;
-        }
+        this.parser.hostCharset = await this.getHostCharset();
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }

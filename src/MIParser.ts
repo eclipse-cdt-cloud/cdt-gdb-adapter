@@ -9,7 +9,6 @@
  *********************************************************************/
 import { Readable } from 'stream';
 import { IGDBBackend } from './types/gdb';
-import * as utf8 from 'utf8';
 import { NamedLogger } from './namedLogger';
 
 interface Command {
@@ -21,13 +20,22 @@ type CommandQueue = {
     [key: string]: Command;
 };
 
+const DEFAULT_CHARSET = 'utf-8';
+/**
+ * Fixups for non-whatwg charset encodings in GDB known to effectively being
+ * aliases for whatwg encodings.
+ */
+const FIXUPS_CHARSET = new Map<string, string>([['cp65001', 'utf-8']]);
+
 export class MIParser {
     /**
-     * Configure whether MI Parser shall decode incoming strings as UTF-8.
-     * Default: true
+     * Encoding for GDB/MI cstring characters outside standard ASCII range.
+     * Value has to match names known to TextDecoder API, see also
+     * whatwg encodings (https://encoding.spec.whatwg.org/).
+     * Defaults to 'utf-8' to match previous behavior.
      */
-    protected _decodeUtf8 = true;
-    protected logger;
+    protected _hostCharset = DEFAULT_CHARSET;
+    protected logger: NamedLogger;
     protected line = '';
     protected pos = 0;
 
@@ -41,15 +49,17 @@ export class MIParser {
         this.logger = new NamedLogger(name);
     }
 
-    public set decodeUtf8(value: boolean) {
-        this._decodeUtf8 = value;
+    public set hostCharset(value: string | undefined) {
+        // Empty string not included in map, returns undefined.
+        const fixup = FIXUPS_CHARSET.get(value ?? '');
+        this._hostCharset = fixup ?? value ?? DEFAULT_CHARSET;
         this.logger.verbose(
-            `MIParser: ${this.decodeUtf8 ? 'Enable' : 'Disable'} UTF-8 decoding`
+            `MIParser: Decoding GDB host character set as '${this._hostCharset}'`
         );
     }
 
-    public get decodeUtf8(): boolean {
-        return this._decodeUtf8;
+    public get hostCharset(): string | undefined {
+        return this._hostCharset;
     }
 
     public cancelQueue() {
@@ -136,6 +146,21 @@ export class MIParser {
         return token;
     }
 
+    protected convertCodePoints(codePoints: number[]): string {
+        const buffer = Buffer.from(codePoints);
+        try {
+            return new TextDecoder(this._hostCharset, { fatal: true }).decode(
+                buffer
+            );
+        } catch (err) {
+            this.logger.error(
+                `Failed to decode code points (${this._hostCharset}) '${codePoints}'. ${JSON.stringify(err)}`
+            );
+        }
+        // Return something even if garbage
+        return String.fromCodePoint(...codePoints);
+    }
+
     protected handleCString() {
         let c = this.next();
         if (!c || c !== '"') {
@@ -144,14 +169,21 @@ export class MIParser {
 
         let cstring = '';
         let octal = '';
+        let codePoints = [];
         mainloop: for (c = this.next(); c; c = this.next()) {
             if (octal) {
                 octal += c;
                 if (octal.length == 3) {
-                    cstring += String.fromCodePoint(parseInt(octal, 8));
+                    // Octal sequence complete, save code point
+                    codePoints.push(parseInt(octal, 8));
                     octal = '';
                 }
                 continue;
+            }
+            // End of octal sequence, convert accumulated code points
+            if (c !== '\\' && codePoints.length && octal.length % 3 === 0) {
+                cstring += this.convertCodePoints(codePoints);
+                codePoints = [];
             }
             switch (c) {
                 case '"':
@@ -159,6 +191,11 @@ export class MIParser {
                 case '\\':
                     c = this.next();
                     if (c) {
+                        // End of octal sequence, convert and add accumulated code points
+                        if (codePoints.length && (c < '0' || c > '7')) {
+                            cstring += this.convertCodePoints(codePoints);
+                            codePoints = [];
+                        }
                         switch (c) {
                             case 'n':
                                 cstring += '\n';
@@ -189,20 +226,12 @@ export class MIParser {
                     cstring += c;
             }
         }
-
-        // Return received string without decoding if turned off.
-        if (!this.decodeUtf8) {
-            return cstring;
+        // Remaining code points, convert and add accumulated code points
+        if (codePoints.length) {
+            cstring += this.convertCodePoints(codePoints);
+            codePoints = [];
         }
-
-        try {
-            return utf8.decode(cstring);
-        } catch (err) {
-            this.logger.error(
-                `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
-            );
-            return cstring;
-        }
+        return cstring;
     }
 
     protected handleString() {
