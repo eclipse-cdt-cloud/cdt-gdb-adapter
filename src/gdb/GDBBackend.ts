@@ -22,6 +22,7 @@ import {
     sendExecInterrupt,
 } from '../mi';
 import { VarManager } from '../varManager';
+import { SET_HOSTCHARSET_REGEXPS } from '../constants/gdb';
 import { IGDBBackend, IGDBProcessManager, IStdioProcess } from '../types/gdb';
 import { MIParser } from '../MIParser';
 import { compareVersions } from '../util/compareVersions';
@@ -142,6 +143,10 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         return await this.getAutoHostCharsetFromConsole();
     }
 
+    private async updateCStringDecoder(): Promise<void> {
+        this.parser.hostCharset = await this.getHostCharset();
+    }
+
     public async spawn(
         requestArgs: LaunchRequestArguments | AttachRequestArguments
     ) {
@@ -177,7 +182,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         this.asyncRequestedExplicitly = !!(
             requestArgs.gdbAsync || requestArgs.gdbNonStop
         );
-        this.parser.hostCharset = await this.getHostCharset();
+        await this.updateCStringDecoder();
         await this.setNonStopMode(requestArgs.gdbNonStop);
         await this.setAsyncMode(requestArgs.gdbAsync);
     }
@@ -302,10 +307,21 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         }
     }
 
-    public sendCommand<T>(command: string): Promise<T> {
+    /**
+     * Post-processes a GDB command.
+     * @param expression Command to be executed
+     */
+    private async postProcessCommand(expression: string): Promise<void> {
+        if (SET_HOSTCHARSET_REGEXPS.some((regex) => regex.test(expression))) {
+            // Update GDB charset info
+            await this.updateCStringDecoder();
+        }
+    }
+
+    public async sendCommand<T>(command: string): Promise<T> {
         const token = this.nextToken();
         this.logger.verbose(`GDB command: ${token} ${command}`);
-        return new Promise<T>((resolve, reject) => {
+        const result = await new Promise<T>((resolve, reject) => {
             if (this.out) {
                 /* Set error to capture the stack where the request originated,
                    not the stack of reading the stream and parsing the message.
@@ -361,6 +377,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                 reject(new Error('gdb is not running.'));
             }
         });
+        // Post-process command after successful execution
+        await this.postProcessCommand(command);
+        return result;
     }
 
     public sendEnablePrettyPrint() {
