@@ -291,4 +291,25 @@ describe('function breakpoints', async function () {
         await dc.configurationDoneRequest();
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
     });
+
+    it('empty function breakpoint request if no breakpoint exists', async () => {
+        const bpResp = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [],
+        });
+        expect(bpResp.body.breakpoints.length).eq(0);
+    });
+
+    it('empty function breakpoint request if a breakpoint exists', async () => {
+        await dc.setFunctionBreakpointsRequest({
+            breakpoints: [
+                {
+                    name: 'main',
+                },
+            ],
+        });
+        const bpResp = await dc.setFunctionBreakpointsRequest({
+            breakpoints: [],
+        });
+        expect(bpResp.body.breakpoints.length).eq(0);
+    });
 });
