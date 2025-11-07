@@ -100,7 +100,7 @@ describe('launch', function () {
         );
     });
 
-    it.only('works with a space in file names', async function () {
+    it('works with a space in file names', async function () {
         await dc.hitBreakpoint(
             fillDefaults(this.test, {
                 program: emptySpaceProgram,
@@ -112,7 +112,7 @@ describe('launch', function () {
         );
     });
 
-    it.only('works with unicode in file names', async function () {
+    it('works with unicode in file names', async function () {
         const isWindows = os.platform() === 'win32';
         if (!gdbNonStop && isWindows && isRemoteTest) {
             // on windows remote tests don't support the unicode in file name (except for non-stop which seems to)
