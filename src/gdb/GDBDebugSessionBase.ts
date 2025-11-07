@@ -659,41 +659,46 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      *   - No requireAsync, supposed to be removed from pauseIfNeeded in future.
      */
     protected async pauseIfRunning(): Promise<void> {
-        if (!this.isRunning) {
-            // All threads paused already
-            return;
-        }
-        // Get current thread ID
-        const currentThreadId = await this.gdb.queryCurrentThreadId();
-        if (this.gdb.isNonStopMode()) {
-            // this.isRunning means at least one thread is running. Check if current one.
-            const currentThread = this.threads.filter(
-                (thread) => thread.id === currentThreadId
-            );
-            if (currentThread.every((thread) => !thread.running)) {
-                // Current thread already paused
+        return new Promise<void>(async (resolve) => {
+            let doResolve = false;
+
+            let currentThreadId: number | undefined;
+            if (this.gdb.isNonStopMode()) {
+                // Get current thread ID
+                currentThreadId = await this.gdb.queryCurrentThreadId();
+                // Check if current thread is running.
+                const currentThread = this.threads.filter(
+                    (thread) => thread.id === currentThreadId
+                );
+                if (currentThread.every((thread) => !thread.running)) {
+                    // Current thread already paused, nothing left to do.
+                    doResolve = true;
+                }
+            } else {
+                if (!this.isRunning) {
+                    // Not running, nothing left to do.
+                    doResolve = true;
+                }
+            }
+            if (doResolve) {
+                resolve();
                 return;
             }
-        }
-        // Set up promise to await for completion of pause.
-        let resolveFunc;
-        const silentPausePromise = new Promise<void>((resolve) => {
-            resolveFunc = resolve;
+            // Push pause request to be handled silently when stop event arrives.
+            // threadId = undefined means all threads.
+            // Note: threadId usage matches continueIfNeeded() behavior.
+            this.silentPauseRequests.push({
+                threadId: currentThreadId,
+                resolveFunc: resolve,
+            });
+            // Send pause command
+            if (this.gdb.isNonStopMode()) {
+                this.gdb.pause(currentThreadId);
+            } else {
+                this.gdb.pause();
+            }
+            // The promise resolves when pushed resolveFunc gets called.
         });
-        // Push pause request to be handled silently when stop event arrives.
-        // threadId = undefined means all threads.
-        // Note: threadId usage matches continueIfNeeded() behavior.
-        this.silentPauseRequests.push({
-            threadId: this.gdb.isNonStopMode() ? currentThreadId : undefined,
-            resolveFunc,
-        });
-        // Send pause command
-        if (this.gdb.isNonStopMode()) {
-            this.gdb.pause(currentThreadId);
-        } else {
-            this.gdb.pause();
-        }
-        await silentPausePromise;
     }
 
     protected async dataBreakpointInfoRequest(
