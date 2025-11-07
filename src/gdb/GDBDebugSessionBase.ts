@@ -46,7 +46,7 @@ import { isWindowsPath } from '../util/isWindowsPath';
 import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
-import { RESUME_COMMANDS, SET_HOSTCHARSET_REGEXPS } from '../constants/gdb';
+import { RESUME_COMMANDS, SET_ALL_CHARSET_REGEXPS } from '../constants/gdb';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -1816,7 +1816,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // Only one GDB backend, no need to continue
             return;
         }
-        if (!SET_HOSTCHARSET_REGEXPS.some((regex) => regex.test(expression))) {
+        // All charset settings need to be kept in sync between main and auxiliary GDB
+        if (!SET_ALL_CHARSET_REGEXPS.some((regex) => regex.test(expression))) {
             return;
         }
         const receivingGdb = gdb === this.gdb ? this.auxGdb : this.gdb;

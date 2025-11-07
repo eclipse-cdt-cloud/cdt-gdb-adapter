@@ -313,7 +313,7 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
      */
     private async postProcessCommand(expression: string): Promise<void> {
         if (SET_HOSTCHARSET_REGEXPS.some((regex) => regex.test(expression))) {
-            // Update GDB charset info
+            // Update GDB host charset info
             await this.updateCStringDecoder();
         }
     }
