@@ -85,6 +85,12 @@ interface StreamOutput {
     category: string;
 }
 
+// Interface for a pending pause request, used with pauseIfRunning() logic
+interface PendingPauseRequest {
+    threadId: number | undefined; // All threads if undefined
+    resolveFunc?: (value: void | PromiseLike<void>) => void;
+}
+
 export function hexToBase64(hex: string): string {
     // The buffer will ignore incomplete bytes (unpaired digits), so we need to catch that early
     if (hex.length % 2 !== 0) {
@@ -153,18 +159,27 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected threads: ThreadWithStatus[] = [];
     protected missingThreadNames = false;
 
+    /**
+     * State variables for pauseIfNeeded/continueIfNeeded logic, mostly used for
+     * temporary pause to insert breakpoints while the target is running.
+     */
     // promise that resolves once the target stops so breakpoints can be inserted
     protected waitPausedPromise?: Promise<void>;
     // resolve function of waitPausedPromise while waiting, undefined otherwise
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
     // the thread id that we were waiting for
     protected waitPausedThreadId = 0;
-    // set to true if the target was interrupted where inteneded, and should
+    // set to true if the target was interrupted where intended, and should
     // therefore be resumed after breakpoints are inserted.
     protected waitPausedNeeded = false;
     // reference count of operations requiring pausing, to make sure only the
     // first of them pauses, and the last to complete resumes
     protected pauseCount = 0;
+
+    // Pending requests to pause a thread silently (without sending stopped event).
+    // At the moment only used with pauseIfRunning().
+    protected silentPauseRequests: PendingPauseRequest[] = [];
+
     // keeps track of where in the configuration phase (between initialize event
     // and configurationDone response) we are
     protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
@@ -282,16 +297,23 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      */
     protected customResetRequest(response: DebugProtocol.Response) {
         if (this.customResetCommands) {
-            this.gdb
-                .sendCommands(this.customResetCommands)
-                .then(() => this.sendResponse(response))
-                .catch(() =>
+            this.pauseIfRunning()
+                .then(() => {
+                    // Behavior after reset very much depends on the commands used.
+                    // So, hard to make assumptions when expected state is reached.
+                    // Hence, implement stop-after-reset behavior unless commands
+                    // set running.
+                    this.gdb.sendCommands(this.customResetCommands).then(() => {
+                        this.sendResponse(response);
+                    });
+                })
+                .catch(() => {
                     this.sendErrorResponse(
                         response,
                         1,
                         'The custom reset command failed'
-                    )
-                );
+                    );
+                });
         }
     }
 
@@ -626,6 +648,43 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             }
         }
+    }
+
+    /**
+     * Pause thread if running and suppress stopped event.
+     * In contrast to pauseIfNeeded(), there is no expectation to resume after a debugger operation.
+     *
+     * Notes:
+     *   - NOT to be called during configuration phase.
+     *   - No requireAsync, supposed to be removed from pauseIfNeeded in future.
+     */
+    protected async pauseIfRunning(): Promise<void> {
+        // Check if running before actual wait promise
+        if (!this.isRunning) {
+            // At least one thread is already stopped, good enough
+            // to execute custom reset commands.
+            return;
+        }
+        return new Promise<void>(async (resolve) => {
+            // Get current thread ID in non-stop mode
+            const currentThreadId = this.gdb.isNonStopMode()
+                ? await this.gdb.queryCurrentThreadId()
+                : undefined;
+            // Push pause request to be handled silently when stop event arrives.
+            // threadId = undefined means all threads.
+            // Note: threadId usage matches continueIfNeeded() behavior.
+            this.silentPauseRequests.push({
+                threadId: currentThreadId,
+                resolveFunc: resolve,
+            });
+            if (this.gdb.isNonStopMode()) {
+                // Send pause command to any thread (use current)
+                this.gdb.pause(currentThreadId);
+            } else {
+                this.gdb.pause();
+            }
+            // The promise resolves when pushed resolveFunc gets called.
+        });
     }
 
     protected async dataBreakpointInfoRequest(
@@ -2402,6 +2461,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return this.sendContinuedEvent(getThreadId(result));
     }
 
+    private handleSilentPauseRequests(threadId?: number): boolean {
+        // Resolve requests with exact threadId match.
+        // Note: Expecting request with threadId=undefined gets satisfied
+        // by handling a stopped event for allThreads. If this doesn't hold,
+        // below conditions should be changed to resolve all threads, i.e.
+        // also those with a defined threadId.
+        const requestsToResolve = this.silentPauseRequests.filter(
+            (request) => request.threadId === threadId
+        );
+        this.silentPauseRequests = this.silentPauseRequests.filter(
+            (request) => request.threadId !== threadId
+        );
+        requestsToResolve.forEach((request) => {
+            request.resolveFunc?.();
+        });
+        return requestsToResolve.length > 0;
+    }
+
     protected handleGDBAsync(resultClass: string, resultData: any) {
         const updateIsRunning = () => {
             this.isRunning = this.threads.length ? true : false;
@@ -2441,24 +2518,32 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             thread.lastRunToken = undefined;
                         }
                     }
-                    if (
-                        this.waitPaused &&
-                        resultData.reason === 'signal-received' &&
-                        (this.waitPausedThreadId === id ||
-                            this.waitPausedThreadId === -1)
-                    ) {
-                        suppressHandleGDBStopped = true;
+                    if (resultData.reason === 'signal-received') {
+                        if (
+                            this.waitPaused &&
+                            (this.waitPausedThreadId === id ||
+                                this.waitPausedThreadId === -1)
+                        ) {
+                            suppressHandleGDBStopped = true;
+                        }
+                        // Handle separately to avoid short-circuiting effects
+                        if (this.handleSilentPauseRequests(id)) {
+                            suppressHandleGDBStopped = true;
+                        }
                     }
                 } else {
                     for (const thread of this.threads) {
                         thread.running = false;
                         thread.lastRunToken = undefined;
                     }
-                    if (
-                        this.waitPaused &&
-                        resultData.reason === 'signal-received'
-                    ) {
-                        suppressHandleGDBStopped = true;
+                    if (resultData.reason === 'signal-received') {
+                        if (this.waitPaused) {
+                            suppressHandleGDBStopped = true;
+                        }
+                        // Handle separately to avoid short-circuiting effects
+                        if (this.handleSilentPauseRequests()) {
+                            suppressHandleGDBStopped = true;
+                        }
                     }
                 }
 

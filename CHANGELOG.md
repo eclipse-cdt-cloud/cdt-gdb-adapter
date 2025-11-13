@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixes [`463`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/463): Cannot use custom reset while CPU is running.
 - Fixes [`465`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/465): UTF-8 'Failed to decode cstring' errors for GDB with CP1252 support only.
 
 ## 1.4.1

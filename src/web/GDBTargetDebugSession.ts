@@ -147,14 +147,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             // Limitations for auxiliary GDB mode
             if (args.gdbNonStop) {
                 throw new Error(
-                    'Cannot use auxiliaryGdb mode with gdbNonStop mode'
+                    "Cannot use setting 'auxiliaryGdb' with 'gdbNonStop' mode"
                 );
             }
             if (args.gdbAsync === false) {
                 throw new Error(
-                    'AuxiliaryGdb mode requires gdbAsync to be active'
+                    "Setting 'auxiliaryGdb' mode requires 'gdbAsync' to be active"
                 );
             }
+        }
+        if (args.customResetCommands?.length && args.gdbAsync === false) {
+            throw new Error(
+                "Setting 'customResetCommands' requires 'gdbAsync' to be active"
+            );
         }
     }
 
