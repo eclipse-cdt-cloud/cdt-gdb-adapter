@@ -659,31 +659,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      *   - No requireAsync, supposed to be removed from pauseIfNeeded in future.
      */
     protected async pauseIfRunning(): Promise<void> {
+        // Check if running before actual wait promise
+        if (!this.isRunning) {
+            // At least one thread is already stopped, good enough
+            // to execute custom reset commands.
+            return;
+        }
         return new Promise<void>(async (resolve) => {
-            let doResolve = false;
-
-            let currentThreadId: number | undefined;
-            if (this.gdb.isNonStopMode()) {
-                // Get current thread ID
-                currentThreadId = await this.gdb.queryCurrentThreadId();
-                // Check if current thread is running.
-                const currentThread = this.threads.filter(
-                    (thread) => thread.id === currentThreadId
-                );
-                if (currentThread.every((thread) => !thread.running)) {
-                    // Current thread already paused, nothing left to do.
-                    doResolve = true;
-                }
-            } else {
-                if (!this.isRunning) {
-                    // Not running, nothing left to do.
-                    doResolve = true;
-                }
-            }
-            if (doResolve) {
-                resolve();
-                return;
-            }
+            // Get current thread ID in non-stop mode
+            const currentThreadId = this.gdb.isNonStopMode()
+                ? await this.gdb.queryCurrentThreadId()
+                : undefined;
             // Push pause request to be handled silently when stop event arrives.
             // threadId = undefined means all threads.
             // Note: threadId usage matches continueIfNeeded() behavior.
@@ -691,8 +677,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 threadId: currentThreadId,
                 resolveFunc: resolve,
             });
-            // Send pause command
             if (this.gdb.isNonStopMode()) {
+                // Send pause command to any thread (use current)
                 this.gdb.pause(currentThreadId);
             } else {
                 this.gdb.pause();
