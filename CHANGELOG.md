@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`465`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/465): UTF-8 'Failed to decode cstring' errors for GDB with CP1252 support only.
+
 ## 1.4.1
 
 - Fixes [`400`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/400): Evaluation of variables to support RTOS Views extension.
