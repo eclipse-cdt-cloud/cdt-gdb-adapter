@@ -146,19 +146,19 @@ export class MIParser {
         return token;
     }
 
-    protected convertCodePoints(codePoints: number[]): string {
-        const buffer = Buffer.from(codePoints);
+    protected decodeCStringBytes(encodedBytes: number[]): string {
+        const buffer = Buffer.from(encodedBytes);
         try {
             return new TextDecoder(this._hostCharset, { fatal: true }).decode(
                 buffer
             );
         } catch (err) {
             this.logger.error(
-                `Failed to decode code points (${this._hostCharset}) '${codePoints}'. ${JSON.stringify(err)}`
+                `Failed to decode code points (${this._hostCharset}) '${encodedBytes}'. ${JSON.stringify(err)}`
             );
         }
         // Return something even if garbage
-        return String.fromCodePoint(...codePoints);
+        return String.fromCodePoint(...encodedBytes);
     }
 
     protected handleCString() {
@@ -169,21 +169,21 @@ export class MIParser {
 
         let cstring = '';
         let octal = '';
-        let codePoints = [];
+        let encodedBytes = [];
         mainloop: for (c = this.next(); c; c = this.next()) {
             if (octal) {
                 octal += c;
                 if (octal.length == 3) {
                     // Octal sequence complete, save code point
-                    codePoints.push(parseInt(octal, 8));
+                    encodedBytes.push(parseInt(octal, 8));
                     octal = '';
                 }
                 continue;
             }
             // End of octal sequence, convert accumulated code points
-            if (c !== '\\' && codePoints.length && octal.length % 3 === 0) {
-                cstring += this.convertCodePoints(codePoints);
-                codePoints = [];
+            if (c !== '\\' && encodedBytes.length) {
+                cstring += this.decodeCStringBytes(encodedBytes);
+                encodedBytes = [];
             }
             switch (c) {
                 case '"':
@@ -192,9 +192,9 @@ export class MIParser {
                     c = this.next();
                     if (c) {
                         // End of octal sequence, convert and add accumulated code points
-                        if (codePoints.length && (c < '0' || c > '7')) {
-                            cstring += this.convertCodePoints(codePoints);
-                            codePoints = [];
+                        if (encodedBytes.length && (c < '0' || c > '7')) {
+                            cstring += this.decodeCStringBytes(encodedBytes);
+                            encodedBytes = [];
                         }
                         switch (c) {
                             case 'n':
@@ -227,9 +227,9 @@ export class MIParser {
             }
         }
         // Remaining code points, convert and add accumulated code points
-        if (codePoints.length) {
-            cstring += this.convertCodePoints(codePoints);
-            codePoints = [];
+        if (encodedBytes.length) {
+            cstring += this.decodeCStringBytes(encodedBytes);
+            encodedBytes = [];
         }
         return cstring;
     }
