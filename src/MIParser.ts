@@ -9,7 +9,6 @@
  *********************************************************************/
 import { Readable } from 'stream';
 import { IGDBBackend } from './types/gdb';
-import * as utf8 from 'utf8';
 import { NamedLogger } from './namedLogger';
 
 interface Command {
@@ -21,8 +20,22 @@ type CommandQueue = {
     [key: string]: Command;
 };
 
+const DEFAULT_CHARSET = 'utf-8';
+/**
+ * Fixups for non-whatwg charset encodings in GDB known to effectively being
+ * aliases for whatwg encodings.
+ */
+const FIXUPS_CHARSET = new Map<string, string>([['cp65001', 'utf-8']]);
+
 export class MIParser {
-    protected logger;
+    /**
+     * Encoding for GDB/MI cstring characters outside standard ASCII range.
+     * Value has to match names known to TextDecoder API, see also
+     * whatwg encodings (https://encoding.spec.whatwg.org/).
+     * Defaults to 'utf-8' to match previous behavior.
+     */
+    protected _hostCharset = DEFAULT_CHARSET;
+    protected logger: NamedLogger;
     protected line = '';
     protected pos = 0;
 
@@ -34,6 +47,19 @@ export class MIParser {
         protected name?: string
     ) {
         this.logger = new NamedLogger(name);
+    }
+
+    public set hostCharset(value: string | undefined) {
+        // Empty string not included in map, returns undefined.
+        const fixup = FIXUPS_CHARSET.get(value ?? '');
+        this._hostCharset = fixup ?? value ?? DEFAULT_CHARSET;
+        this.logger.verbose(
+            `MIParser: Decoding GDB host character set as '${this._hostCharset}'`
+        );
+    }
+
+    public get hostCharset(): string | undefined {
+        return this._hostCharset;
     }
 
     public cancelQueue() {
@@ -120,6 +146,21 @@ export class MIParser {
         return token;
     }
 
+    protected decodeCStringBytes(encodedBytes: number[]): string {
+        const buffer = Buffer.from(encodedBytes);
+        try {
+            return new TextDecoder(this._hostCharset, { fatal: true }).decode(
+                buffer
+            );
+        } catch (err) {
+            this.logger.error(
+                `Failed to decode code points (${this._hostCharset}) '${encodedBytes}'. ${JSON.stringify(err)}`
+            );
+        }
+        // Return something even if garbage
+        return String.fromCodePoint(...encodedBytes);
+    }
+
     protected handleCString() {
         let c = this.next();
         if (!c || c !== '"') {
@@ -128,14 +169,21 @@ export class MIParser {
 
         let cstring = '';
         let octal = '';
+        let encodedBytes = [];
         mainloop: for (c = this.next(); c; c = this.next()) {
             if (octal) {
                 octal += c;
                 if (octal.length == 3) {
-                    cstring += String.fromCodePoint(parseInt(octal, 8));
+                    // Octal sequence complete, save code point
+                    encodedBytes.push(parseInt(octal, 8));
                     octal = '';
                 }
                 continue;
+            }
+            // End of octal sequence, convert accumulated code points
+            if (c !== '\\' && encodedBytes.length) {
+                cstring += this.decodeCStringBytes(encodedBytes);
+                encodedBytes = [];
             }
             switch (c) {
                 case '"':
@@ -143,6 +191,11 @@ export class MIParser {
                 case '\\':
                     c = this.next();
                     if (c) {
+                        // End of octal sequence, convert and add accumulated code points
+                        if (encodedBytes.length && (c < '0' || c > '7')) {
+                            cstring += this.decodeCStringBytes(encodedBytes);
+                            encodedBytes = [];
+                        }
                         switch (c) {
                             case 'n':
                                 cstring += '\n';
@@ -173,15 +226,12 @@ export class MIParser {
                     cstring += c;
             }
         }
-
-        try {
-            return utf8.decode(cstring);
-        } catch (err) {
-            this.logger.error(
-                `Failed to decode cstring '${cstring}'. ${JSON.stringify(err)}`
-            );
-            return cstring;
+        // Remaining code points, convert and add accumulated code points
+        if (encodedBytes.length) {
+            cstring += this.decodeCStringBytes(encodedBytes);
+            encodedBytes = [];
         }
+        return cstring;
     }
 
     protected handleString() {

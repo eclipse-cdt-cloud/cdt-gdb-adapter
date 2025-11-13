@@ -113,13 +113,18 @@ describe('launch', function () {
     });
 
     it('works with unicode in file names', async function () {
-        if (!gdbNonStop && os.platform() === 'win32' && isRemoteTest) {
+        const isWindows = os.platform() === 'win32';
+        if (!gdbNonStop && isWindows && isRemoteTest) {
             // on windows remote tests don't support the unicode in file name (except for non-stop which seems to)
             this.skip();
         }
+        const args = { program: unicodeProgram } as LaunchRequestArguments;
+        if (isWindows) {
+            args['initCommands'] = ['set charset UTF-8'];
+        }
         await dc.hitBreakpoint(
             fillDefaults(this.test, {
-                program: unicodeProgram,
+                ...args,
             } as LaunchRequestArguments),
             {
                 path: unicodeSrc,

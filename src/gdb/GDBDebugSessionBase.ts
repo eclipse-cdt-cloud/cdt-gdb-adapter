@@ -46,7 +46,7 @@ import { isWindowsPath } from '../util/isWindowsPath';
 import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
-import { RESUME_COMMANDS } from '../constants/gdb';
+import { RESUME_COMMANDS, SET_ALL_CHARSET_REGEXPS } from '../constants/gdb';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -1783,6 +1783,56 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // }
 
     /**
+     * Send command to backend.
+     * @param expression Command to be executed
+     */
+    protected async sendCommandToGdb(
+        gdb: IGDBBackend,
+        expression: string,
+        frameRef: FrameReference | undefined
+    ): Promise<void> {
+        if (expression.startsWith('-')) {
+            // GDB/MI command
+            await gdb.sendCommand(expression);
+        } else {
+            // GDB CLI command
+            await mi.sendInterpreterExecConsole(gdb, {
+                frameRef,
+                command: expression,
+            });
+        }
+    }
+
+    /**
+     * Send command to other backends.
+     * @param expression Command to be executed
+     */
+    protected async sendCommandToOtherGdbs(
+        gdb: IGDBBackend,
+        expression: string,
+        frameRef: FrameReference | undefined
+    ): Promise<void> {
+        if (!this.auxGdb) {
+            // Only one GDB backend, no need to continue
+            return;
+        }
+        // All charset settings need to be kept in sync between main and auxiliary GDB
+        if (!SET_ALL_CHARSET_REGEXPS.some((regex) => regex.test(expression))) {
+            return;
+        }
+        const receivingGdb = gdb === this.gdb ? this.auxGdb : this.gdb;
+        try {
+            // Send command to other backend
+            await this.sendCommandToGdb(receivingGdb, expression, frameRef);
+        } catch (error) {
+            // Don't fail the original command if post-processing fails
+            this.logger.error(
+                `Failed to send command to other backend: ${error}`
+            );
+        }
+    }
+
+    /**
      * Evaluates a GDB command.
      * @param response Response object.
      * @param expression Command to be executed, expected without leading '>'.
@@ -1794,20 +1844,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         frameRef: FrameReference | undefined
     ): Promise<void> {
         const trimmedExpression = expression.trim();
-        if (trimmedExpression.startsWith('-')) {
-            // GDB/MI command
-            await this.gdb.sendCommand(trimmedExpression);
-        } else {
-            // GDB CLI command
-            await mi.sendInterpreterExecConsole(this.gdb, {
-                frameRef,
-                command: trimmedExpression,
-            });
-        }
+        await this.sendCommandToGdb(this.gdb, trimmedExpression, frameRef);
         response.body = {
             result: '\r',
             variablesReference: 0,
         };
+        await this.sendCommandToOtherGdbs(
+            this.gdb,
+            trimmedExpression,
+            frameRef
+        );
         this.sendResponse(response);
         return;
     }

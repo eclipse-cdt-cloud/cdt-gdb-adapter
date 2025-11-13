@@ -48,3 +48,15 @@ export const RESUME_COMMANDS = [
     'until',
     'u',
 ];
+
+export const SET_HOSTCHARSET_REGEXPS = [
+    /-gdb-set\s+(host-charset|charset)\s+.*/,
+    /-interpreter-exec\s+console\s+"set\s+(host-charset|charset)\s+.*/,
+    /set\s+(host-charset|charset)\s+.*/,
+];
+
+export const SET_ALL_CHARSET_REGEXPS = [
+    /-gdb-set\s+(charset|host-charset|target-charset|target-wide-charset)\s+.*/,
+    /-interpreter-exec\s+console\s+"set\s+(charset|host-charset|target-charset|target-wide-charset)\s+.*/,
+    /set\s+(charset|host-charset|target-charset|target-wide-charset)\s+.*/,
+];
