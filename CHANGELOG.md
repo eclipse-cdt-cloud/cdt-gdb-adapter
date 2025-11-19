@@ -1,13 +1,19 @@
 # Change Log
 
-## Unreleased
+## 1.5.0
 
-- Fixes [`463`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/463): Cannot use custom reset while CPU is running.
-- Fixes [`465`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/465): UTF-8 'Failed to decode cstring' errors for GDB with CP1252 support only.
+- Fixes [`#463`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/463): Cannot use custom reset while CPU is running.
+- Fixes [`#465`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/465): UTF-8 'Failed to decode cstring' errors for GDB with CP1252 support only.
+- Fixes [`#467`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/467): Skip pausing target at startup if request has no breakpoints
+- Notable code changes:
+    - New Features:
+        - Adds `MIParser.hostCharset` getter/setter methods to configure host character set for decode of non-ASCII characters in c-strings.
+        - Adds `sendCommandToGdb` and `sendCommandToOtherGdbs` to `GDBDebugSessionBase` to refactor GDB CLI command processing, and to synchronize use of selected GDB CLI commands between main and auxiliary GDB.
+        - Adds `GDBDebugSessionBase.pauseIfRunning` to pause a running target without expectation of a subsequent continue operation.
 
 ## 1.4.1
 
-- Fixes [`400`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/400): Evaluation of variables to support RTOS Views extension.
+- Fixes [`#400`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/400): Evaluation of variables to support RTOS Views extension.
 
 ## 1.4.0
 
