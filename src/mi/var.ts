@@ -175,9 +175,17 @@ export function sendVarAssign(
     params: {
         varname: string;
         expression: string;
+        frameRef?: FrameReference;
     }
 ): Promise<MIVarAssignResponse> {
-    const command = `-var-assign ${params.varname} ${params.expression}`;
+    let command = '-var-assign';
+    if (params.frameRef?.threadId !== undefined) {
+        command += ` --thread ${params.frameRef.threadId}`;
+    }
+    if (params.frameRef?.frameId !== undefined) {
+        command += ` --frame ${params.frameRef.frameId}`;
+    }
+    command += ` ${params.varname} ${params.expression}`;
     return gdb.sendCommand(command);
 }
 

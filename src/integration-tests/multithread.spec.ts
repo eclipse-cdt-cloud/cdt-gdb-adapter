@@ -392,4 +392,131 @@ describe('multithread', async function () {
             }
         }
     });
+
+    it('gets and sets register values at different frames for different threads', async function () {
+        if (!gdbNonStop) {
+            // This test is covering only gdb-non-stop on
+            this.skip();
+        }
+
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program,
+            })
+        );
+        await dc.setBreakpointsRequest({
+            source: {
+                path: source,
+            },
+            breakpoints: [
+                {
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                },
+                {
+                    line: lineTags['LINE_THREAD_INNER'],
+                },
+            ],
+        });
+
+        const waitForStop = dc.waitForEvent('stopped');
+        await dc.configurationDoneRequest();
+        await waitForStop;
+
+        // make sure that all the threads have stopped
+        // TODO instead of a sleep, wait until all threads have stopped
+        await new Promise((f) => setTimeout(f, 1000));
+        const threads = await dc.threadsRequest();
+        const runningThreads = threads.body.threads.filter(
+            (t) => (t as unknown as { running?: boolean }).running
+        );
+        expect(runningThreads).to.be.an('array').that.is.empty;
+        const nameToId = new Map(
+            threads.body.threads.map((thread) => [thread.name, thread.id])
+        );
+
+        // check that each thread can be communicated with individually
+        for (const [name, idInProgram] of Object.entries(threadNames)) {
+            // There are multiple ids/indexes.
+            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // threadId is the id of the thread in DAP
+            const threadId = nameToId.get(name);
+            if (threadId === undefined) {
+                // unreachable because of expect above
+                fail('unreachable');
+            }
+
+            const stack = await dc.stackTraceRequest({ threadId });
+
+            // Iterate through stack frames:
+            // Stack frame 0 is the inner method
+            // Stack frames 1 to id + 1 are the recursive method
+            // Stack frame id + 2 is PrintHello
+            for (let i = 0; i < idInProgram + 3; i++) {
+                if (i == 0) {
+                    expect(stack.body.stackFrames[i].name).to.eq(
+                        'inner_method'
+                    );
+                } else if (i == idInProgram + 2) {
+                    expect(stack.body.stackFrames[i].name).to.eq('PrintHello');
+                } else {
+                    expect(stack.body.stackFrames[i].name).to.eq('recursive');
+                }
+
+                const scopes = await dc.scopesRequest({
+                    frameId: stack.body.stackFrames[i].id,
+                });
+                const vr = scopes.body.scopes[1].variablesReference;
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+
+                const regPC = vars.body.variables.find(
+                    (v) => v.name === 'pc' || v.name === 'rip'
+                );
+                expect(regPC).to.exist;
+                const reg0 = vars.body.variables[0];
+
+                const setRegPC = await dc.setVariableRequest({
+                    name: regPC!.name,
+                    value: '0x200',
+                    variablesReference: vr,
+                });
+                expect(setRegPC.body.value).to.equal('0x200');
+
+                const setReg0 = await dc.setVariableRequest({
+                    name: reg0.name,
+                    value: '0x55555',
+                    variablesReference: vr,
+                });
+                expect(setReg0.body.value).to.equal('0x55555');
+
+                const vars1 = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                expect(vars1.body.variables.length).to.equal(
+                    vars.body.variables.length
+                );
+
+                const varnameToValue1 = new Map(
+                    vars1.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                expect(varnameToValue1.get(regPC!.name)).to.equal('0x200');
+                expect(varnameToValue1.get(reg0.name)).to.equal('0x55555');
+
+                await dc.setVariableRequest({
+                    name: regPC!.name,
+                    value: regPC!.value,
+                    variablesReference: vr,
+                });
+                await dc.setVariableRequest({
+                    name: reg0.name,
+                    value: reg0.value,
+                    variablesReference: vr,
+                });
+            }
+        }
+    });
 });
