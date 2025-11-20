@@ -1771,12 +1771,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 assign = await mi.sendVarAssign(this.gdb, {
                     varname: varobj.varname,
                     expression: args.value,
+                    frameRef: frameRef,
                 });
             } else {
                 try {
                     assign = await mi.sendVarAssign(this.gdb, {
                         varname,
                         expression: args.value,
+                        frameRef: frameRef,
                     });
                 } catch (err) {
                     if (parentVarname === '') {
@@ -1801,6 +1803,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                 assign = await mi.sendVarAssign(this.gdb, {
                                     varname: grandchildVarname,
                                     expression: args.value,
+                                    frameRef: frameRef,
                                 });
                                 break;
                             } catch {
