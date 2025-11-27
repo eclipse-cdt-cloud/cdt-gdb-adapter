@@ -7,6 +7,7 @@ evaluate
 mem
 vars
 vars_env
+var_globals
 segv
 loopforever
 MultiThread
