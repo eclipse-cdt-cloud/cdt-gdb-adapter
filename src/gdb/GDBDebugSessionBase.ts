@@ -47,6 +47,7 @@ import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
 import { RESUME_COMMANDS, SET_ALL_CHARSET_REGEXPS } from '../constants/gdb';
+import { GDBThreadRunning } from './errors';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -199,6 +200,28 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
+    }
+
+    /**
+     * Checks if an error would bring extra value to the user and if it
+     * should be reported in the debug adapter protocol response.
+     * @param error The error to check.
+     * @return true if the error should be reported as a debug adapter protocol
+     * error response, false otherwise.
+     */
+    protected shouldReportError(error: unknown): boolean {
+        // Always report objects that are not instance of Error or of
+        // a class derived from it.
+        if (!(error instanceof Error)) {
+            return true;
+        }
+        // GDBError occurrences for the main GDB backend.
+        if (error instanceof GDBThreadRunning && error.backend === '') {
+            if (this.gdb.getAsyncMode() && this.isRunning) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -1450,10 +1473,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }
@@ -1516,10 +1545,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }
@@ -1711,10 +1746,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             this.sendResponse(response);
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }
@@ -2218,10 +2259,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }
@@ -2300,10 +2347,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
             this.sendErrorResponse(
                 response,
                 1,
-                err instanceof Error ? err.message : String(err)
+                errorMessage
             );
         }
     }

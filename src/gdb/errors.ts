@@ -27,6 +27,13 @@ export class GDBError extends GDBBackendError {
     }
 }
 
+export class GDBThreadRunning extends GDBBackendError {
+    constructor(error: Error, backend = '') {
+        super(error, 'GDBThreadRunning', backend);
+        Object.setPrototypeOf(this, new.target.prototype);
+    }
+}
+
 export class GDBUnknownResponse extends GDBBackendError {
     constructor(error: Error, backend = '') {
         super(error, 'GDBUnknownResponse', backend);
