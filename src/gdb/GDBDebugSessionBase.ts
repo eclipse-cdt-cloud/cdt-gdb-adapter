@@ -2816,16 +2816,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array
+        const variables: DebugProtocol.Variable[] = [];
+
         if (this.auxGdb && this.isRunning) {
-            // Don't allow (local) variables view when using an auxiliary GDB,
-            // (local) variables often can't be read while running.
-            throw new Error(
-                'Cannot handle variable frame requests while target is running'
-            );
+            // Only requests for local variables should arrive here. But you normally
+            // can't read them while running. Hence don't even try but return an empty
+            // array. Next update while stopped will get through again.
+            this.logger.verbose('Skipping variable frame request while target is running');
+            return Promise.resolve(variables);
         }
 
-        // initialize variables array and dereference the frame handle
-        const variables: DebugProtocol.Variable[] = [];
+        // dereference the frame handle
         const frameRef = this.frameHandles.get(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);
@@ -3091,14 +3093,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestRegister(
         ref: RegisterVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array
+        const variables: DebugProtocol.Variable[] = [];
+
         if (this.auxGdb && this.isRunning) {
-            // Don't allow register view when using an auxiliary GDB, core registers
-            // often can't be read while running.
-            throw new Error('Cannot read registers while target is running');
+            // Only requests for CPU register reads should arrive here. But for many
+            // architectures you cannot read them while running. Hence don't even try
+            // but return an empty array. Next update while stopped will get through again.
+            this.logger.verbose('Skipping CPU register read while target is running');
+            return Promise.resolve(variables);
         }
 
-        // initialize variables array and dereference the frame handle
-        const variables: DebugProtocol.Variable[] = [];
+        // dereference the frame handle
         const frameRef = this.frameHandles.get(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);
