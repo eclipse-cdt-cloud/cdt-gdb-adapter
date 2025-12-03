@@ -24,6 +24,7 @@ import {
     IStdioProcess,
 } from '../types/gdb';
 import { isProcessActive } from '../util/processes';
+import { GDBCommandCancelled } from '../gdb/errors';
 
 // State of the Remote Target Debug Session
 enum SessionState {
@@ -133,6 +134,27 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 this.sessionInfo.state >= SessionState.SESSION_READY;
             await this.doDisconnectRequest(shouldSendTerminateEvent);
         }
+    }
+
+    /**
+     * Checks if an error would bring extra value to the user and if it
+     * should be reported in the debug adapter protocol response.
+     * Note: Call base class implementation last and after any explicit
+     * return of value 'true'.
+     * @param error The error to check.
+     * @return true if the error should be reported as a debug adapter protocol
+     * error response, false otherwise.
+     */
+    protected shouldReportError(error: unknown): boolean {
+        // GDBCommandCancelled occurrences for any GDB backend.
+        if (
+            error instanceof GDBCommandCancelled &&
+            this.sessionInfo.state >= SessionState.EXITING
+        ) {
+            // Exiting session, cancelling commands is expected for a graceful shutdown.
+            return false;
+        }
+        return super.shouldReportError(error);
     }
 
     /**

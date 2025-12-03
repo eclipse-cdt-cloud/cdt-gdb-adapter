@@ -340,7 +340,11 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                     // Reject command on pipe error, only way to recover from potential
                     // race condition between command in flight and GDB (forced) shutdown.
                     if (error) {
-                        reject(new GDBPipeError(error, this.name));
+                        const gdbError =
+                            error.message === MIParser.CMD_QUEUE_CANCELLED
+                                ? new GDBCommandCancelled(error, this.name)
+                                : new GDBPipeError(error, this.name);
+                        reject(gdbError);
                     }
                 };
                 this.parser.queueCommand(

@@ -205,16 +205,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Checks if an error would bring extra value to the user and if it
      * should be reported in the debug adapter protocol response.
+     * Note: Derived classes can override. They should call this base
+     * implementation last.
      * @param error The error to check.
      * @return true if the error should be reported as a debug adapter protocol
      * error response, false otherwise.
      */
     protected shouldReportError(error: unknown): boolean {
-        // Always report objects that are not instance of Error or of
-        // a class derived from it.
-        if (!(error instanceof Error)) {
-            return true;
-        }
         // GDBError occurrences for the main GDB backend.
         if (error instanceof GDBThreadRunning && error.backend === '') {
             if (this.gdb.getAsyncMode() && this.isRunning) {
@@ -1473,17 +1470,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
                 return;
             }
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -1545,17 +1539,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
                 return;
             }
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -1746,17 +1737,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             this.sendResponse(response);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
                 return;
             }
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -2259,17 +2247,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
                 return;
             }
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -2347,17 +2332,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
                 return;
             }
-            this.sendErrorResponse(
-                response,
-                1,
-                errorMessage
-            );
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -2823,7 +2805,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // Only requests for local variables should arrive here. But you normally
             // can't read them while running. Hence don't even try but return an empty
             // array. Next update while stopped will get through again.
-            this.logger.verbose('Skipping variable frame request while target is running');
+            this.logger.verbose(
+                'Skipping variable frame request while target is running'
+            );
             return Promise.resolve(variables);
         }
 
@@ -3100,7 +3084,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // Only requests for CPU register reads should arrive here. But for many
             // architectures you cannot read them while running. Hence don't even try
             // but return an empty array. Next update while stopped will get through again.
-            this.logger.verbose('Skipping CPU register read while target is running');
+            this.logger.verbose(
+                'Skipping CPU register read while target is running'
+            );
             return Promise.resolve(variables);
         }
 

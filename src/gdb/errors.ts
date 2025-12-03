@@ -41,6 +41,13 @@ export class GDBUnknownResponse extends GDBBackendError {
     }
 }
 
+export class GDBCommandCancelled extends GDBBackendError {
+    constructor(error: Error, backend = '') {
+        super(error, 'GDBCommandCancelled', backend);
+        Object.setPrototypeOf(this, new.target.prototype);
+    }
+}
+
 export class GDBPipeError extends GDBBackendError {
     constructor(error: Error, backend = '') {
         super(error, 'GDBPipeError', backend);
