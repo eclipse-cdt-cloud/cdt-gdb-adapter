@@ -368,8 +368,10 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                                 );
                                 // Handle messages that contain info that thread is running
                                 // Note: Move to separate function if more cases need to be handled
-                                const threadRunningRegexp = /Selected thread is running/i; 
-                                const gdbThreadRunning = threadRunningRegexp.test(failure.message);
+                                const threadRunningRegexp =
+                                    /Selected thread is running/i;
+                                const gdbThreadRunning =
+                                    threadRunningRegexp.test(failure.message);
                                 const gdbError = gdbThreadRunning
                                     ? new GDBThreadRunning(failure, this.name)
                                     : new GDBError(failure, this.name);

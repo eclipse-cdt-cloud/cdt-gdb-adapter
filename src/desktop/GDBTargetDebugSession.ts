@@ -797,7 +797,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         return new Promise((resolve, reject) => {
             if (!this.gdbserver || !isProcessActive(this.gdbserver)) {
                 const skipReason = this.launchGdbServer
-                    ? `'attach' connection`
+                    ? `'launch' connection`
                     : 'already down';
                 this.logGDBRemote(`skip stopping GDB server, ${skipReason}`);
                 resolve(false);
