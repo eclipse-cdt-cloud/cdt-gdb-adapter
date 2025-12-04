@@ -97,6 +97,19 @@ describe('evaluate request', function () {
         await event;
     });
 
+    it('should send a warning when the "commands" command is sent', async function () {
+        const event = dc.waitForOutputEvent(
+            'stdout',
+            'warning: "commands" command cannot be sent via the CLI in the debugger console'
+        );
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> commands',
+            frameId: scope.frame.id,
+        });
+        await event;
+    });
+
     it('should send a warning when evaluating a delete instruction breakpoint command is sent', async function () {
         // set instruction breakpoint
         await dc.setInstructionBreakpointsRequest({
