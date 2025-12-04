@@ -333,35 +333,38 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * Implement the custom reset request.
      */
     protected customResetRequest(response: DebugProtocol.Response) {
-        if (this.customResetCommands) {
-            // Check if debug adapter is in a state to proceed with the request.
-            // Skip request without an error if not, it very likely means the
-            // session is about to end.
-            if (!this.canRequestProceed()) {
-                this.logger.verbose(
-                    'Debug adapter cannot process custom reset request, skipping it.'
-                );
-                this.sendResponse(response);
-                return;
-            }
-            this.pauseIfRunning()
-                .then(() => {
-                    // Behavior after reset very much depends on the commands used.
-                    // So, hard to make assumptions when expected state is reached.
-                    // Hence, implement stop-after-reset behavior unless commands
-                    // set running.
-                    this.gdb.sendCommands(this.customResetCommands).then(() => {
-                        this.sendResponse(response);
-                    });
-                })
-                .catch(() => {
-                    this.sendErrorResponse(
-                        response,
-                        1,
-                        'The custom reset command failed'
-                    );
-                });
+        if (!this.customResetCommands) {
+            // Nothing to do, but we must respond!
+            this.sendResponse(response);
+            return;
         }
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process custom reset request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+        this.pauseIfRunning()
+            .then(() => {
+                // Behavior after reset very much depends on the commands used.
+                // So, hard to make assumptions when expected state is reached.
+                // Hence, implement stop-after-reset behavior unless commands
+                // set running.
+                this.gdb.sendCommands(this.customResetCommands).then(() => {
+                    this.sendResponse(response);
+                });
+            })
+            .catch(() => {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'The custom reset command failed'
+                );
+            });
     }
 
     protected getBreakpointModes(): DebugProtocol.BreakpointMode[] | undefined {
