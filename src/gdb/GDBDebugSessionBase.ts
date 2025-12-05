@@ -2045,6 +2045,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             'stdout'
                         )
                     );
+                    response.body = {
+                        result: '',
+                        variablesReference: 0,
+                    };
+                    this.sendResponse(response);
                     // Avoid sending the command to GDB
                     return;
                 }

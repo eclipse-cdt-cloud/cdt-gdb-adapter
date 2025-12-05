@@ -21,6 +21,9 @@ import {
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
+import * as chai from 'chai';
+import * as chaistring from 'chai-string';
+chai.use(chaistring);
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
