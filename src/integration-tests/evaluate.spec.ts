@@ -103,7 +103,7 @@ describe('evaluate request', function () {
     it('should send a warning when the "commands" command is sent', async function () {
         const event = dc.waitForOutputEvent(
             'stdout',
-            'warning: "commands" command is not supported via GDB/MI interface'
+            'warning: commands command is not supported via GDB/MI interface'
         );
         await dc.evaluateRequest({
             context: 'repl',
