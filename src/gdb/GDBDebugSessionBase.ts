@@ -2041,7 +2041,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (expressionNoPrefix.search(regexCommands) != -1) {
                     this.sendEvent(
                         new OutputEvent(
-                            'warning: "commands" command cannot be sent via the CLI in the debugger console',
+                            'warning: "commands" command is not supported via GDB/MI interface',
                             'stdout'
                         )
                     );
