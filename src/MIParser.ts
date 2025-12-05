@@ -28,6 +28,8 @@ const DEFAULT_CHARSET = 'utf-8';
 const FIXUPS_CHARSET = new Map<string, string>([['cp65001', 'utf-8']]);
 
 export class MIParser {
+    public static readonly CMD_QUEUE_CANCELLED =
+        'MIParser command queue cancelled';
     /**
      * Encoding for GDB/MI cstring characters outside standard ASCII range.
      * Value has to match names known to TextDecoder API, see also
@@ -68,7 +70,7 @@ export class MIParser {
         entries.forEach((entry) => {
             // Call callback with error to reject command promise
             entry[1].callback('error', {
-                msg: 'MI parser command queue cancelled',
+                msg: MIParser.CMD_QUEUE_CANCELLED,
             });
             // Delete command by key
             delete this.commandQueue[entry[0]];
