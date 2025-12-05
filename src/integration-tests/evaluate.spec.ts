@@ -21,6 +21,9 @@ import {
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
+import * as chai from 'chai';
+import * as chaistring from 'chai-string';
+chai.use(chaistring);
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
@@ -92,6 +95,19 @@ describe('evaluate request', function () {
         await dc.evaluateRequest({
             context: 'repl',
             expression: '> enable',
+            frameId: scope.frame.id,
+        });
+        await event;
+    });
+
+    it('should send a warning when the commands command is sent', async function () {
+        const event = dc.waitForOutputEvent(
+            'stdout',
+            'warning: commands command is not supported via GDB/MI interface'
+        );
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> commands',
             frameId: scope.frame.id,
         });
         await event;
