@@ -494,6 +494,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
         await this.gdb.sendEnablePrettyPrint();
 
+        await this.gdb.sendCommands(args.preConnectCommands);
+
         if (request === 'attach') {
             this.isAttach = true;
             const attachArgs = args as AttachRequestArguments;

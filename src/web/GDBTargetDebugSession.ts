@@ -484,6 +484,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
             await this.setSessionState(SessionState.GDB_READY);
 
+            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                args.preConnectCommands
+            );
+
             // Connect to remote server
             if (target.connectCommands === undefined) {
                 this.targetType =

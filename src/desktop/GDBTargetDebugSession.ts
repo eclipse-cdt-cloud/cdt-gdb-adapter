@@ -172,6 +172,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             },
             // Clear fields only relevant to main connection
             openGdbConsole: undefined,
+            preConnectCommands: undefined,
             initCommands: undefined,
         };
     }
@@ -675,6 +676,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
 
             await this.setSessionState(SessionState.GDB_READY);
+
+            await this.executeOrAbort(this.gdb.sendCommands.bind(this.gdb))(
+                args.preConnectCommands
+            );
 
             const targetPort = target.port;
             const targetHost = targetPort
