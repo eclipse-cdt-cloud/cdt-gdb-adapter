@@ -25,10 +25,7 @@ import {
 import { TargetLaunchRequestArguments } from '../types/session';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { hexToBase64 } from '../web';
-import * as chai from 'chai';
-import * as chaistring from 'chai-string';
 import { Runnable } from 'mocha';
-chai.use(chaistring);
 
 // This mock adapter creates a standard GDB backend and a stub auxiliary GDB backend
 const auxiliaryGdbAdapter =

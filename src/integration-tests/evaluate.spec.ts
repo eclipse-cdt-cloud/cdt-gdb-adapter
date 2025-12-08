@@ -8,7 +8,6 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { expect } from 'chai';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -21,6 +20,7 @@ import {
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
+import { expect } from 'chai';
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
@@ -92,6 +92,19 @@ describe('evaluate request', function () {
         await dc.evaluateRequest({
             context: 'repl',
             expression: '> enable',
+            frameId: scope.frame.id,
+        });
+        await event;
+    });
+
+    it('should send a warning when the commands command is sent', async function () {
+        const event = dc.waitForOutputEvent(
+            'stdout',
+            'warning: "commands" command is not supported via GDB/MI interface'
+        );
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> commands',
             frameId: scope.frame.id,
         });
         await event;

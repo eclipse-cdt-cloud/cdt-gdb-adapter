@@ -21,9 +21,6 @@ import {
     verifyRegister,
     fillDefaults,
 } from './utils';
-import * as chai from 'chai';
-import * as chaistring from 'chai-string';
-chai.use(chaistring);
 
 describe('Variables Test Suite', function () {
     let dc: CdtDebugClient;

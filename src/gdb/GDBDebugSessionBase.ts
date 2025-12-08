@@ -2258,14 +2258,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             if (isCliCommand) {
                 const expressionNoPrefix = expression.slice(1).trim();
+                const regexCommands = new RegExp(
+                    '^\\s*(?:comm|comma|comman|command|commands)\\s*.*$'
+                );
                 const regexDisable = new RegExp(
-                    '^\\s*(?:dis|disa|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                    '^\\s*(?:dis|disa|disab|disabl|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
                 const regexEnable = new RegExp(
-                    '^\\s*(?:en|enable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
+                    '^\\s*(?:en|ena|enab|enabl|enable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
                 const regexDelete = new RegExp(
-                    '^\\s*(?:d|del|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
+                    '^\\s*(?:d|de|del|dele|delet|delete)\\s+(?:breakpoints\\s+)?(\\d+)?\\s*$'
                 );
                 if (
                     expressionNoPrefix.search(regexDisable) != -1 ||
@@ -2290,6 +2293,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             )
                         );
                     }
+                }
+                if (expressionNoPrefix.search(regexCommands) != -1) {
+                    this.sendEvent(
+                        new OutputEvent(
+                            'warning: "commands" command is not supported via GDB/MI interface',
+                            'stdout'
+                        )
+                    );
+                    response.body = {
+                        result: '',
+                        variablesReference: 0,
+                    };
+                    this.sendResponse(response);
+                    // Avoid sending the command to GDB
+                    return;
                 }
                 return await this.evaluateRequestGdbCommand(
                     response,
