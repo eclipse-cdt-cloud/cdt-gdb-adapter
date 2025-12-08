@@ -47,6 +47,7 @@ import { sendResponseWithTimeout } from '../util/sendResponseWithTimeout';
 import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
 import { RESUME_COMMANDS, SET_ALL_CHARSET_REGEXPS } from '../constants/gdb';
+import { GDBThreadRunning } from './errors';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -202,6 +203,42 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     /**
+     * Checks if debug adapter is connected and ready to process debug requests
+     * driven by user interaction or other extensions.
+     *
+     * Note: The base class implementation is not restrictive and lets pass all
+     * requests. This is technical debt caused by taking a shortcut when adding
+     * session state management only for GDBTargetDebugSession. Yet, request
+     * handlers in GDBDebugSessionBase have to be treated by this, too.
+     * This has to be rectified in future in a separate PR.
+     * @return true if standard debug operation requests can be processed, false
+     * otherwise.
+     */
+    protected canRequestProceed(): boolean {
+        // Always true for 'gdb' type until session state gets moved here.
+        return true;
+    }
+
+    /**
+     * Checks if an error would bring extra value to the user and if it
+     * should be reported in the debug adapter protocol response.
+     * Note: Derived classes can override. They should call this base
+     * implementation last.
+     * @param error The error to check.
+     * @return true if the error should be reported as a debug adapter protocol
+     * error response, false otherwise.
+     */
+    protected shouldReportError(error: unknown): boolean {
+        // GDBError occurrences for the main GDB backend.
+        if (error instanceof GDBThreadRunning && error.backend === '') {
+            if (this.gdb.getAsyncMode() && this.isRunning) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Apply the initial and frozen launch/attach request arguments.
      * @param request the default request type to return if request type is not frozen
      * @param args the arguments from the user to apply initial and frozen arguments to.
@@ -296,25 +333,38 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * Implement the custom reset request.
      */
     protected customResetRequest(response: DebugProtocol.Response) {
-        if (this.customResetCommands) {
-            this.pauseIfRunning()
-                .then(() => {
-                    // Behavior after reset very much depends on the commands used.
-                    // So, hard to make assumptions when expected state is reached.
-                    // Hence, implement stop-after-reset behavior unless commands
-                    // set running.
-                    this.gdb.sendCommands(this.customResetCommands).then(() => {
-                        this.sendResponse(response);
-                    });
-                })
-                .catch(() => {
-                    this.sendErrorResponse(
-                        response,
-                        1,
-                        'The custom reset command failed'
-                    );
-                });
+        if (!this.customResetCommands) {
+            // Nothing to do, but we must respond!
+            this.sendResponse(response);
+            return;
         }
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process custom reset request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+        this.pauseIfRunning()
+            .then(() => {
+                // Behavior after reset very much depends on the commands used.
+                // So, hard to make assumptions when expected state is reached.
+                // Hence, implement stop-after-reset behavior unless commands
+                // set running.
+                this.gdb.sendCommands(this.customResetCommands).then(() => {
+                    this.sendResponse(response);
+                });
+            })
+            .catch(() => {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'The custom reset command failed'
+                );
+            });
     }
 
     protected getBreakpointModes(): DebugProtocol.BreakpointMode[] | undefined {
@@ -693,6 +743,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): Promise<void> {
         // The args.name is the expression to watch
         let varExpression = args.name;
+
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process data breakpoint info request, skipping it.'
+            );
+            response.body = {
+                dataId: null,
+                description: `No data breakpoint for ${varExpression}`,
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         // If the expression is an address, then directly allow data breakpoint setting
         if (args.asAddress && args.bytes) {
             // Make sure the address is in hex format, if not convert it to hex
@@ -794,6 +860,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.isDataBreakpointSent = true;
         }
 
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process data breakpoints request, skipping it.'
+            );
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
         // Get existing GDB watchpoints
         let existingGDBWatchpointsList = await this.getWatchpointList();
@@ -887,6 +967,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return;
             }
             this.isInstructionBreakpointSent = true;
+        }
+
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process instruction breakpoints request, skipping it.'
+            );
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
         }
 
         await this.pauseIfNeeded();
@@ -998,6 +1092,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return;
             }
             this.isBreakpointSent = true;
+        }
+
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process breakpoints request, skipping it.'
+            );
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
         }
 
         await this.pauseIfNeeded();
@@ -1234,6 +1342,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.isFunctionBreakpointSent = true;
         }
 
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process function breakpoints request, skipping it.'
+            );
+            response.body = {
+                breakpoints: [],
+            };
+            this.sendResponse(response);
+            return;
+        }
+
         await this.pauseIfNeeded();
 
         try {
@@ -1418,6 +1540,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async threadsRequest(
         response: DebugProtocol.ThreadsResponse
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process threads request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             // The -thread-info command is always allowed in non-stop mode or on
             // local targets in async all-stop mode. In sync all-stop mode or
@@ -1450,11 +1583,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -1462,6 +1598,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.StackTraceResponse,
         args: DebugProtocol.StackTraceArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process stack trace request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             const threadId = args.threadId;
             const depthResult = await mi.sendStackInfoDepth(this.gdb, {
@@ -1516,11 +1663,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -1528,6 +1678,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process next request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         return sendResponseWithTimeout({
             execute: async () => {
                 await (args.granularity === 'instruction'
@@ -1557,6 +1718,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.StepInResponse,
         args: DebugProtocol.StepInArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process step in request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         return sendResponseWithTimeout({
             execute: async () => {
                 await (args.granularity === 'instruction'
@@ -1586,6 +1758,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.StepOutResponse,
         args: DebugProtocol.StepOutArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process step out request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         return sendResponseWithTimeout({
             execute: async () => {
                 await mi.sendExecFinish(this.gdb, {
@@ -1616,6 +1799,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ContinueResponse,
         args: DebugProtocol.ContinueArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process continue request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             await mi.sendExecContinue(this.gdb, args.threadId);
             let isAllThreadsContinued;
@@ -1641,6 +1835,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.PauseResponse,
         args: DebugProtocol.PauseArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process pause request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             this.gdb.pause(args.threadId);
             this.sendResponse(response);
@@ -1657,6 +1862,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ScopesResponse,
         args: DebugProtocol.ScopesArguments
     ): void {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process scopes request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         const frameVarRef: FrameVariableReference = {
             type: 'frame',
             frameHandle: args.frameId,
@@ -1693,6 +1909,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body = {
             variables,
         };
+
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process variables request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             const ref = this.variableHandles.get(args.variablesReference);
             if (!ref) {
@@ -1711,11 +1939,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -1723,6 +1954,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetVariableResponse,
         args: DebugProtocol.SetVariableArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process set variable request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             const ref = this.variableHandles.get(args.variablesReference);
             if (!ref) {
@@ -1976,6 +2218,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             result: 'Error: could not evaluate expression',
             variablesReference: 0,
         }; // default response
+
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process evaluate request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             const expression = args.expression.trim();
             const isCliCommand =
@@ -2182,6 +2436,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * Implement the cdt-gdb-adapter/Memory request.
      */
     protected async memoryRequest(response: MemoryResponse, args: any) {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process memory request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             if (typeof args.address !== 'string') {
                 throw new Error(
@@ -2218,11 +2483,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -2230,6 +2498,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.DisassembleResponse,
         args: CDTDisassembleArguments
     ) {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process disassemble request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         try {
             if (!args.memoryReference) {
                 throw new Error('Target memory reference is not specified!');
@@ -2282,6 +2561,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.ReadMemoryResponse,
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<void> {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process read memory request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
         try {
             if (args.count) {
@@ -2300,11 +2590,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (!this.shouldReportError(err)) {
+                this.logger.verbose(errorMessage);
+                this.sendResponse(response);
+                return;
+            }
+            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
@@ -2315,6 +2608,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.WriteMemoryResponse,
         args: DebugProtocol.WriteMemoryArguments
     ) {
+        // Check if debug adapter is in a state to proceed with the request.
+        // Skip request without an error if not, it very likely means the
+        // session is about to end.
+        if (!this.canRequestProceed()) {
+            this.logger.verbose(
+                'Debug adapter cannot process write memory request, skipping it.'
+            );
+            this.sendResponse(response);
+            return;
+        }
+
         const gdb = this.auxGdb && this.isRunning ? this.auxGdb : this.gdb;
 
         try {
@@ -2763,16 +3067,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestFrame(
         ref: FrameVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array
+        const variables: DebugProtocol.Variable[] = [];
+
         if (this.auxGdb && this.isRunning) {
-            // Don't allow (local) variables view when using an auxiliary GDB,
-            // (local) variables often can't be read while running.
-            throw new Error(
-                'Cannot handle variable frame requests while target is running'
+            // Only requests for local variables should arrive here. But you normally
+            // can't read them while running. Hence don't even try but return an empty
+            // array. Next update while stopped will get through again.
+            this.logger.verbose(
+                'Skipping variable frame request while target is running'
             );
+            return Promise.resolve(variables);
         }
 
-        // initialize variables array and dereference the frame handle
-        const variables: DebugProtocol.Variable[] = [];
+        // dereference the frame handle
         const frameRef = this.frameHandles.get(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);
@@ -3038,14 +3346,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestRegister(
         ref: RegisterVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        // initialize variables array
+        const variables: DebugProtocol.Variable[] = [];
+
         if (this.auxGdb && this.isRunning) {
-            // Don't allow register view when using an auxiliary GDB, core registers
-            // often can't be read while running.
-            throw new Error('Cannot read registers while target is running');
+            // Only requests for CPU register reads should arrive here. But for many
+            // architectures you cannot read them while running. Hence don't even try
+            // but return an empty array. Next update while stopped will get through again.
+            this.logger.verbose(
+                'Skipping CPU register read while target is running'
+            );
+            return Promise.resolve(variables);
         }
 
-        // initialize variables array and dereference the frame handle
-        const variables: DebugProtocol.Variable[] = [];
+        // dereference the frame handle
         const frameRef = this.frameHandles.get(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);

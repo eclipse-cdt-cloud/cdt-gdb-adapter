@@ -15,7 +15,12 @@ import {
     TargetLaunchArguments,
 } from '../types/session';
 import { CdtDebugClient } from './debugClient';
-import { fillDefaults, standardBeforeEach, testProgramsDir } from './utils';
+import {
+    fillDefaults,
+    gdbAsync,
+    standardBeforeEach,
+    testProgramsDir,
+} from './utils';
 import { expect } from 'chai';
 import * as os from 'os';
 
@@ -174,5 +179,109 @@ describe('launch remote', function () {
         });
         expect(ret.body.result).to.include('\r');
         expect(ret.command).to.include('evaluate');
+    });
+
+    it('returns empty responses for selected requests after disconnect from remote', async function () {
+        const args = {
+            program: loopForeverProgram,
+            target: {
+                type: 'remote',
+            } as TargetLaunchArguments,
+        } as TargetLaunchRequestArguments;
+
+        if (gdbAsync) {
+            // Arguments which require gdbAsync support
+            Object.assign(args, { customResetCommands: ['help'] });
+        }
+
+        // Launch
+        await dc.launchRequest(fillDefaults(this.test, args));
+
+        // Disconnect
+        await dc.disconnectRequest();
+
+        // Capture output events, spyOn doesn't work well with logger
+        const stdOutput: string[] = [];
+        dc.on('output', (event) => {
+            if (event.body.category === 'stdout') {
+                stdOutput.push(event.body.output);
+            }
+        });
+        const expectedLogOutput = [
+            'Debug adapter cannot process memory request, skipping it.',
+            'Debug adapter cannot process data breakpoint info request, skipping it.',
+            'Debug adapter cannot process data breakpoints request, skipping it.',
+            'Debug adapter cannot process instruction breakpoints request, skipping it.',
+            'Debug adapter cannot process breakpoints request, skipping it.',
+            'Debug adapter cannot process function breakpoints request, skipping it.',
+            'Debug adapter cannot process threads request, skipping it.',
+            'Debug adapter cannot process stack trace request, skipping it.',
+            'Debug adapter cannot process next request, skipping it.',
+            'Debug adapter cannot process step in request, skipping it.',
+            'Debug adapter cannot process step out request, skipping it.',
+            'Debug adapter cannot process continue request, skipping it.',
+            'Debug adapter cannot process pause request, skipping it.',
+            'Debug adapter cannot process scopes request, skipping it.',
+            'Debug adapter cannot process variables request, skipping it.',
+            'Debug adapter cannot process set variable request, skipping it.',
+            'Debug adapter cannot process evaluate request, skipping it.',
+            'Debug adapter cannot process disassemble request, skipping it.',
+            'Debug adapter cannot process read memory request, skipping it.',
+            'Debug adapter cannot process write memory request, skipping it.',
+        ];
+        //Following requests get bounced and return "empty" responses instead of throwing errors
+        const requestPromises = [
+            dc.customRequest('cdt-gdb-adapter/Memory', {}),
+            dc.dataBreakpointInfoRequest({ name: 'foo' }),
+            dc.setDataBreakpointsRequest({
+                breakpoints: [{ dataId: 'foo' }],
+            }),
+            dc.setInstructionBreakpointsRequest({
+                breakpoints: [{ instructionReference: '0x0' }],
+            }),
+            dc.setBreakpointsRequest({
+                source: {},
+                breakpoints: [{ line: 1 }],
+            }),
+            dc.setFunctionBreakpointsRequest({
+                breakpoints: [{ name: 'func' }],
+            }),
+            dc.threadsRequest(),
+            dc.stackTraceRequest({ threadId: 0 }),
+            dc.nextRequest({ threadId: 0 }),
+            dc.stepInRequest({ threadId: 0 }),
+            dc.stepOutRequest({ threadId: 0 }),
+            dc.continueRequest({ threadId: 0 }),
+            dc.pauseRequest({ threadId: 0 }),
+            dc.scopesRequest({ frameId: 0 }),
+            dc.variablesRequest({ variablesReference: 0 }),
+            dc.setVariableRequest({
+                variablesReference: 0,
+                name: 'var',
+                value: 'value',
+            }),
+            dc.evaluateRequest({ expression: 'var' }),
+            dc.disassembleRequest({
+                memoryReference: '0x0',
+                instructionCount: 1,
+            }),
+            dc.readMemoryRequest({ memoryReference: '0x0', count: 1 }),
+            dc.writeMemoryRequest({ memoryReference: '0x0', data: '00' }),
+        ];
+        if (gdbAsync) {
+            // Requests which require gdbAsync support
+            expectedLogOutput.push(
+                'Debug adapter cannot process custom reset request, skipping it.'
+            );
+            requestPromises.push(
+                dc.customRequest('cdt-gdb-adapter/customReset')
+            );
+        }
+        await Promise.all(requestPromises);
+        expect(
+            expectedLogOutput.every((log) =>
+                stdOutput.some((std) => std.startsWith(log))
+            )
+        ).to.be.true;
     });
 });

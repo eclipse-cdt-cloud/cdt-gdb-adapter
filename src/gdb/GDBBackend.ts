@@ -28,6 +28,13 @@ import { MIParser } from '../MIParser';
 import { compareVersions } from '../util/compareVersions';
 import { isProcessActive } from '../util/processes';
 import { NamedLogger } from '../namedLogger';
+import {
+    GDBPipeError,
+    GDBError,
+    GDBUnknownResponse,
+    GDBCommandCancelled,
+    GDBThreadRunning,
+} from './errors';
 
 // Expected console output for interpreter command 'show host-charset'
 // if setting is 'auto'.
@@ -333,7 +340,11 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                     // Reject command on pipe error, only way to recover from potential
                     // race condition between command in flight and GDB (forced) shutdown.
                     if (error) {
-                        reject(error);
+                        const gdbError =
+                            error.message === MIParser.CMD_QUEUE_CANCELLED
+                                ? new GDBCommandCancelled(error, this.name)
+                                : new GDBPipeError(error, this.name);
+                        reject(gdbError);
                     }
                 };
                 this.parser.queueCommand(
@@ -355,7 +366,16 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                                 this.logger.verbose(
                                     `GDB command: ${token} ${command} failed with '${failure.message}'`
                                 );
-                                reject(failure);
+                                // Handle messages that contain info that thread is running
+                                // Note: Move to separate function if more cases need to be handled
+                                const threadRunningRegexp =
+                                    /Selected thread is running/i;
+                                const gdbThreadRunning =
+                                    threadRunningRegexp.test(failure.message);
+                                const gdbError = gdbThreadRunning
+                                    ? new GDBThreadRunning(failure, this.name)
+                                    : new GDBError(failure, this.name);
+                                reject(gdbError);
                                 break;
                             default:
                                 failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
@@ -364,7 +384,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                                 this.logger.verbose(
                                     `GDB command: ${token} ${command} failed with unknown response '${failure.message}'`
                                 );
-                                reject(failure);
+                                reject(
+                                    new GDBUnknownResponse(failure, this.name)
+                                );
                         }
                     }
                 );
