@@ -1,4 +1,8 @@
 {
   "//": "This timeout should match what is in CdtDebugClient constructor",
-  "timeout": "5000"
+  "timeout": "5000",
+  "require": [
+    "ts-node/register",
+    "src/integration-tests/test/setup.ts"
+  ]
 }

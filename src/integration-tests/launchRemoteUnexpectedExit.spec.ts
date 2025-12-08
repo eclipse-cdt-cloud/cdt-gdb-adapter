@@ -25,9 +25,6 @@ import {
 } from './utils';
 import { assert, expect } from 'chai';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import * as chai from 'chai';
-import * as chaistring from 'chai-string';
-chai.use(chaistring);
 
 describe('launch remote unexpected session exit', function () {
     let dc: CdtDebugClient;

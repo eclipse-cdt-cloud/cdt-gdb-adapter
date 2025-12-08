@@ -8,7 +8,6 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 
-import { expect } from 'chai';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -21,9 +20,7 @@ import {
     standardBeforeEach,
     testProgramsDir,
 } from './utils';
-import * as chai from 'chai';
-import * as chaistring from 'chai-string';
-chai.use(chaistring);
+import { expect } from 'chai';
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
