@@ -204,4 +204,46 @@ describe('attach remote', function () {
         // we are testing is whether afterEach() can still disconnect after
         // having killed the gdbserver.
     });
+
+    it('executes preConnectCommands before target connection and initCommands', async function () {
+        // Capture all stdout output
+        const stdOutput: string[] = [];
+        dc.on('output', (event) => {
+            if (event.body.category === 'stdout') {
+                stdOutput.push(event.body.output);
+            }
+        });
+
+        // Use unique markers to verify execution order
+        const preMarker = 'pre?test?marker';
+        const initMarker = 'init?test?marker';
+
+        const attachArgs = fillDefaults(this.test, {
+            program: program,
+            openGdbConsole: false,
+            preConnectCommands: ['echo pre\\?test\\?marker\\n'],
+            initCommands: ['echo init\\?test\\?marker\\n'],
+            target: {
+                type: 'remote',
+                parameters: [`localhost:${port}`],
+            } as TargetAttachArguments,
+        } as TargetAttachRequestArguments);
+
+        await dc.attachHitBreakpoint(attachArgs, { line: 25, path: src });
+
+        // Verify both commands produced output
+        const allOutput = stdOutput.join('');
+        expect(allOutput).to.include(preMarker);
+        expect(allOutput).to.include(initMarker);
+
+        // Verify order: preConnectCommands should appear before initCommands in the output
+        const preConnectPos = allOutput.indexOf(preMarker);
+        const initPos = allOutput.indexOf(initMarker);
+        expect(preConnectPos).to.be.greaterThan(-1);
+        expect(initPos).to.be.greaterThan(-1);
+        expect(preConnectPos).to.be.lessThan(
+            initPos,
+            'preConnectCommands should execute before initCommands'
+        );
+    });
 });
