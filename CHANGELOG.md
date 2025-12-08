@@ -1,5 +1,18 @@
 # Change Log
 
+## 1.6.0
+
+- Fixes [`#421`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/421): Using "commands" command for breakpoints locks up debugger.
+- Fixes [`#469`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/469): Issue with setting Program Counter ($PC$) register on Windows via GDB 12.1 using -var-assign.
+- Fixes [`#473`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/473): Confusing error pop-ups without additional user value in some corner cases.
+- chore [`#474`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/474): Patch yarn.lock to resolve to newer glob v10.5.0.
+- Notable code changes:
+    - New features:
+        - Adds `frameRef` argument to `sendVarCreate`.
+        - Adds `GDBBackend` specific error classes.
+        - New protected methods on `GDBDebugSessionBase` that can be used to check if requests can proceed and if errors shall be reported:
+          `canRequestProceed`, `shouldReportError`.
+
 ## 1.5.0
 
 - Fixes [`#463`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/463): Cannot use custom reset while CPU is running.
