@@ -2004,7 +2004,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             if (isCliCommand) {
                 const expressionNoPrefix = expression.slice(1).trim();
-                const regexCommands = new RegExp('^\\s*(?:comm|comma|comman|command|commands)\\s*.*$');
+                const regexCommands = new RegExp(
+                    '^\\s*(?:comm|comma|comman|command|commands)\\s*.*$'
+                );
                 const regexDisable = new RegExp(
                     '^\\s*(?:dis|disa|disab|disabl|disable)\\s*(?:(?:breakpoint|count|delete|once)\\d*)?\\s*\\d*\\s*$'
                 );
