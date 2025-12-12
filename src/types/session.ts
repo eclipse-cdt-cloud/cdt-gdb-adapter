@@ -23,6 +23,8 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     verbose?: boolean;
     logFile?: string;
     openGdbConsole?: boolean;
+    // Optional commands to issue before initCommands and before any target connection
+    preConnectCommands?: string[];
     initCommands?: string[];
     hardwareBreakpoint?: boolean;
     customResetCommands?: string[];
