@@ -28,7 +28,9 @@ jobs:
       - name: Build
         run: yarn
       - name: Verify code formatting is valid
-        run: yarn format-check
+        run: |
+          yarn format-check
+          yarn lint
       - name: Build Test Programs
         run: make -C src/integration-tests/test-programs
       - name: Test
