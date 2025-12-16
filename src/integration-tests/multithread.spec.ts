@@ -473,11 +473,12 @@ describe('multithread', async function () {
                 const regPC = vars.body.variables.find(
                     (v) => v.name === 'pc' || v.name === 'rip'
                 );
-                expect(regPC).to.exist;
+                // assert instead of expect to make tsc happy so we don't need forbidden non-null assertions below
+                assert(regPC !== undefined, 'expected regPC to exist');
                 const reg0 = vars.body.variables[0];
 
                 const setRegPC = await dc.setVariableRequest({
-                    name: regPC!.name,
+                    name: regPC.name,
                     value: '0x200',
                     variablesReference: vr,
                 });
@@ -503,12 +504,12 @@ describe('multithread', async function () {
                         variable.value,
                     ])
                 );
-                expect(varnameToValue1.get(regPC!.name)).to.equal('0x200');
+                expect(varnameToValue1.get(regPC.name)).to.equal('0x200');
                 expect(varnameToValue1.get(reg0.name)).to.equal('0x55555');
 
                 await dc.setVariableRequest({
-                    name: regPC!.name,
-                    value: regPC!.value,
+                    name: regPC.name,
+                    value: regPC.value,
                     variablesReference: vr,
                 });
                 await dc.setVariableRequest({
