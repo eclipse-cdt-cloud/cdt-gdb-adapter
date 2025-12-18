@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`#432`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/432): Fix initCommands behavior.
+
 ## 1.6.0
 
 - Fixes [`#421`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/421): Using "commands" command for breakpoints locks up debugger.
