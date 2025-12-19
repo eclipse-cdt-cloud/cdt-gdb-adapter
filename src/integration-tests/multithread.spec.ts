@@ -155,13 +155,14 @@ describe('multithread', async function () {
                 expect(varnameToValue.get('name')).to.contain(name);
             }
             {
-                // Make sure we can get variables for frame 0,
-                // the contents of those variables don't actually matter
-                // as the thread will probably be stopped in a library
-                // somewhere waiting for a semaphore
-                // This is a test for #235
+                // Depending on which frame the top of the stack is,
+                // make sure we are getting the expected variables for that
+                // frame.
+                // This is a test for https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/235
+                const topOfStackId = stack.body.stackFrames[0].id;
+                const topOfStackName = stack.body.stackFrames[0].name;
                 const scopes = await dc.scopesRequest({
-                    frameId: stack.body.stackFrames[0].id,
+                    frameId: topOfStackId,
                 });
                 const vr = scopes.body.scopes[0].variablesReference;
 
@@ -174,12 +175,36 @@ describe('multithread', async function () {
                         variable.value,
                     ])
                 );
-                // Make sure we aren't getting the HelloWorld frame's variables.
-                // The calling method (in glibc or similar) may end up with a local
-                // variable called thread_id, if so, update this heuristic
-                // We could be stopped PrintHello, so we don't perform the check
-                // if that is the case
-                if (stack.body.stackFrames[0].id !== printHelloFrameId) {
+
+                // Check that thread_id is the correct value and that one other
+                // local variable in the method exists.
+                // We don't check local variable values because it may not be
+                // correct yet, for example if the program stopped before assigning
+                // the value to thread_id_plus_1 testing it against thread_id + 1
+                // would lead to rare, but intermittent, test failures.
+                if (topOfStackName === 'inner_method') {
+                    expect(varnameToValue.get('thread_id')).to.equal(
+                        idInProgram.toString()
+                    );
+                    expect(varnameToValue.get('thread_id_plus_1')).to.not.be
+                        .undefined;
+                } else if (topOfStackName === 'recursive') {
+                    expect(varnameToValue.get('thread_id')).to.equal(
+                        idInProgram.toString()
+                    );
+                    expect(varnameToValue.get('depth')).to.not.be.undefined;
+                } else if (topOfStackName === 'PrintHello') {
+                    expect(varnameToValue.get('thread_id')).to.equal(
+                        idInProgram.toString()
+                    );
+                    expect(varnameToValue.get('void_arg')).to.not.be.undefined;
+                } else {
+                    // The top of the stack is probably (and normally) not
+                    // in our code, but rather in the various semaphore code
+                    // therefore make sure our "thread_id" is not visible
+                    // It could happen that the sempahore (or related code) ends
+                    // up with a local called "thread_id" in the future - if so,
+                    // this will fail and needs to be updated
                     expect(varnameToValue.get('thread_id')).to.be.undefined;
                 }
             }
