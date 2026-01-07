@@ -4,6 +4,7 @@
 
 - Fixes [`#432`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/432): Fix initCommands behavior.
 - Fixes [`#483`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/483): `detach` request still occasionally getting stuck on exited program.
+- Implements [`#482`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/482): Add option to control when thread info is retrieved.
 
 ## 1.6.0
 

@@ -160,6 +160,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected threads: ThreadWithStatus[] = [];
     protected missingThreadNames = false;
 
+    protected updateThreadInfo: 'missing' | 'when-requested' | 'never' =
+        'missing';
+
     /**
      * State variables for pauseIfNeeded/continueIfNeeded logic, mostly used for
      * temporary pause to insert breakpoints while the target is running.
@@ -313,10 +316,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * @param args the request arguments to validate.
      */
     protected validateRequestArguments(
-        _args: LaunchRequestArguments | AttachRequestArguments
+        args: LaunchRequestArguments | AttachRequestArguments
     ) {
-        // No validation for 'gdb' debugger type. Derived classes may override.
-        // Added to base class for consistency.
+        if (
+            args.updateThreadInfo !== undefined &&
+            args.updateThreadInfo !== 'missing' &&
+            args.updateThreadInfo !== 'when-requested' &&
+            args.updateThreadInfo !== 'never'
+        ) {
+            throw new Error(
+                `Invalid value for 'updateThreadInfo': '${args.updateThreadInfo}'. ` +
+                    "Valid values are: 'missing', 'when-requested', or 'never'."
+            );
+        }
     }
 
     /**
@@ -329,6 +341,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.customResetCommands = args.customResetCommands;
         this.steppingResponseTimeout =
             args.steppingResponseTimeout ?? DEFAULT_STEPPING_RESPONSE_TIMEOUT;
+        this.updateThreadInfo = args.updateThreadInfo ?? 'missing';
     }
 
     /**
@@ -479,6 +492,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ) {
         this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
+        this.initializeSessionArguments(args);
 
         await this.spawn(args);
         if (request == 'launch') {
@@ -1595,16 +1609,26 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // seem to indicate it should also always be allowed in async
             // all-stop mode (irrespective of remote or local), but the source
             // code (remote.c remote_target::putpkt_binary) says otherwise.
-            // The effect in situations excluded by this logic is that missing
-            // thread names are not filled in until the client issues this
-            // request at a time when the target is stopped.
+            // The updateThreadInfo setting controls when thread info is retrieved:
+            // - 'never': Thread info is never retrieved, no thread names will be displayed
+            // - 'missing' (default): Thread info is retrieved when target is stopped
+            //   or when thread names are missing and retrieval is allowed while running
+            // - 'when-requested': Thread info is retrieved every time the client requests
+            //   it, as far as possible (when stopped or when allowed while running)
             const threadInfoAllowedWhenRunning =
                 (!this.isRemote && this.gdb.getAsyncMode()) ||
                 this.gdb.isNonStopMode();
-            if (
-                !this.isRunning ||
-                (this.missingThreadNames && threadInfoAllowedWhenRunning)
-            ) {
+            let shouldUpdateThreadInfo = false;
+            if (this.updateThreadInfo === 'when-requested') {
+                shouldUpdateThreadInfo =
+                    !this.isRunning || threadInfoAllowedWhenRunning;
+            } else if (this.updateThreadInfo === 'missing') {
+                shouldUpdateThreadInfo =
+                    !this.isRunning ||
+                    (this.missingThreadNames && threadInfoAllowedWhenRunning);
+            }
+            // If updateThreadInfo === 'never', shouldUpdateThreadInfo remains false
+            if (shouldUpdateThreadInfo) {
                 const result = await mi.sendThreadInfoRequest(this.gdb, {});
                 this.threads = result.threads
                     .map((thread) => this.convertThread(thread))
