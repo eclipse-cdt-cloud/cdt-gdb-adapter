@@ -168,6 +168,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected waitPausedPromise?: Promise<void>;
     // resolve function of waitPausedPromise while waiting, undefined otherwise
     protected waitPaused?: (value?: void | PromiseLike<void>) => void;
+    // timer for polling for process exit or disconnect during waiting
+    protected waitPausedPollTimer?: NodeJS.Timeout;
     // the thread id that we were waiting for
     protected waitPausedThreadId = 0;
     // set to true if the target was interrupted where intended, and should
@@ -648,25 +650,49 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 } else {
                     this.waitPausedThreadId = 0;
                 }
-                let currentThreadId = -1;
-                if (this.gdb.getAsyncMode()) {
-                    currentThreadId = await this.gdb.queryCurrentThreadId();
-                    if (currentThreadId === 0) {
-                        // GDB has no threads. We can try pausing the current
-                        // thread for good measure, which will be a no-op unless
-                        // any threads appear by then, but don't wait for a stop
-                        // notification, as none will likely ever come.
-                        currentThreadId = -1;
-                        this.waitPaused?.();
-                    }
-                }
                 if (this.gdb.isNonStopMode()) {
                     if (this.waitPausedThreadId === 0) {
-                        this.waitPausedThreadId = currentThreadId;
+                        this.waitPausedThreadId =
+                            await this.gdb.queryCurrentThreadId();
+                        if (this.waitPausedThreadId === 0) {
+                            // GDB has no threads. We can try pausing the
+                            // current thread for good measure, which will be a
+                            // no-op unless any threads appear by then, but
+                            // don't wait for a stop notification, as none will
+                            // likely ever come.
+                            this.waitPausedThreadId = -1;
+                            this.waitPausedDone();
+                        }
                     }
                     this.gdb.pause(this.waitPausedThreadId);
                 } else {
                     this.gdb.pause();
+                }
+
+                // While waiting, occasionally check whether GDB still has any
+                // threads, because if not, a stop notification will never
+                // come. We cannot rely on notifications for that, as GDB does
+                // not seem to send any thread exit notifications when the
+                // remote server exits. In the normal case, this usually causes
+                // no overhead, as the stop notification arrives soon and the
+                // timeout is canceled before it fires for the first time.
+                if (
+                    this.gdb.getAsyncMode() &&
+                    this.waitPausedPollTimer === undefined
+                ) {
+                    const poll = async () => {
+                        if (this.waitPaused) {
+                            if ((await this.gdb.queryCurrentThreadId()) <= 0) {
+                                this.waitPausedDone();
+                            } else {
+                                this.waitPausedPollTimer = setTimeout(
+                                    poll,
+                                    2000
+                                );
+                            }
+                        }
+                    };
+                    this.waitPausedPollTimer = setTimeout(poll, 1000);
                 }
             }
         }
@@ -675,6 +701,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // result class, which indicates that the call to `GDBBackend::pause`
         // is actually finished.
         await this.waitPausedPromise;
+    }
+
+    protected waitPausedDone(): void {
+        clearTimeout(this.waitPausedPollTimer);
+        this.waitPausedPollTimer = undefined;
+        this.waitPaused?.();
+        this.waitPaused = undefined;
     }
 
     protected async continueIfNeeded(): Promise<void> {
@@ -2881,8 +2914,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         // target after inserting the breakpoints
                         this.waitPausedNeeded = false;
                     }
-                    this.waitPaused();
-                    this.waitPaused = undefined;
+                    this.waitPausedDone();
                 }
 
                 const wasRunning = this.isRunning;
