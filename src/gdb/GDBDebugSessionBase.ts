@@ -2610,8 +2610,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         } catch (err) {
+            const addrInHex = Number(args.memoryReference).toString(16);
             const errorMessage =
-                err instanceof Error ? err.message : String(err);
+                err instanceof Error ? err.message + ` (at address 0x${addrInHex})` : String(err) + ` (at address 0x${addrInHex})`;
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
