@@ -179,6 +179,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
     protected validateRequestArguments(
         args: TargetLaunchRequestArguments | TargetAttachRequestArguments
     ) {
+        super.validateRequestArguments(args);
         if (args.auxiliaryGdb) {
             // Limitations for auxiliary GDB mode
             if (args.gdbNonStop) {
