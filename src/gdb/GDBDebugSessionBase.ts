@@ -764,11 +764,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // to execute custom reset commands.
             return;
         }
-        return new Promise<void>(async (resolve) => {
-            // Get current thread ID in non-stop mode
-            const currentThreadId = this.gdb.isNonStopMode()
-                ? await this.gdb.queryCurrentThreadId()
-                : undefined;
+
+        // Get current thread ID in non-stop mode
+        const currentThreadId = this.gdb.isNonStopMode()
+            ? await this.gdb.queryCurrentThreadId()
+            : undefined;
+
+        const pausePromise = new Promise<void>((resolve) => {
             // Push pause request to be handled silently when stop event arrives.
             // threadId = undefined means all threads.
             // Note: threadId usage matches continueIfNeeded() behavior.
@@ -776,14 +778,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 threadId: currentThreadId,
                 resolveFunc: resolve,
             });
-            if (this.gdb.isNonStopMode()) {
-                // Send pause command to any thread (use current)
-                this.gdb.pause(currentThreadId);
-            } else {
-                this.gdb.pause();
-            }
-            // The promise resolves when pushed resolveFunc gets called.
         });
+
+        if (this.gdb.isNonStopMode()) {
+            // Send pause command to any thread (use current)
+            this.gdb.pause(currentThreadId);
+        } else {
+            this.gdb.pause();
+        }
+
+        // The promise resolves when pushed resolveFunc gets called.
+        return pausePromise;
     }
 
     protected async dataBreakpointInfoRequest(
