@@ -77,6 +77,8 @@ export default [
       '@typescript-eslint/no-unused-expressions': 'off',
       // ... and turn on the chai-friendly version
       'chai-friendly/no-unused-expressions': 'error',
+      // Disallow using an async function as a Promise executor
+      'no-async-promise-executor': 'error',
     },
   },
 ];

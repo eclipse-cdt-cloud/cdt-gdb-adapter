@@ -327,127 +327,133 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                 ? target.serverDisconnectTimeout
                 : 1000;
 
-        // Wait until gdbserver is started and ready to receive connections.
-        await new Promise<void>(async (resolve, reject) => {
-            if (!this.gdbserverProcessManager) {
-                throw new Error(
-                    'GDBServer process manager is not initialised!'
-                );
-            }
-            this.gdbserver = await this.gdbserverProcessManager.start(args);
-            this.logGDBRemote(
-                `Spawned GDB Server (PID ${this.gdbserver.getPID()})`
-            );
-            await this.setSessionState(SessionState.GDBSERVER_LAUNCHED);
+        // Initialize and start GDB server
+        if (!this.gdbserverProcessManager) {
+            throw new Error('GDBServer process manager is not initialised!');
+        }
+        this.gdbserver = await this.gdbserverProcessManager.start(args);
+        this.logGDBRemote(
+            `Spawned GDB Server (PID ${this.gdbserver.getPID()})`
+        );
+        await this.setSessionState(SessionState.GDBSERVER_LAUNCHED);
 
-            let gdbserverStartupResolved = false; // GDB Server ready for connection
-            let accumulatedStdout = '';
-            let accumulatedStderr = '';
-            let checkTargetPort = (_data: any) => {
-                // do nothing by default
-            };
-            if (target.port && target.serverParameters) {
-                setTimeout(
-                    () => {
-                        gdbserverStartupResolved = true;
-                        resolve();
-                    },
-                    target.serverStartupDelay !== undefined
-                        ? target.serverStartupDelay
-                        : 0
-                );
-            } else {
-                const timeoutForFindingPort = setTimeout(() => {
-                    reject(
-                        'Error: Cannot connect, port number not specified or regex is incorrect'
-                    );
-                }, target.portDetectionTimeout ?? 10000);
-                checkTargetPort = (data: any) => {
-                    const regex = new RegExp(
-                        target.serverPortRegExp
-                            ? target.serverPortRegExp
-                            : 'Listening on port ([0-9]+)\r?\n'
-                    );
-                    const m = regex.exec(data);
-                    if (m !== null) {
-                        clearTimeout(timeoutForFindingPort);
-                        target.port = m[1];
-                        checkTargetPort = (_data: any) => {
-                            // do nothing now that we have our port
-                        };
-                        setTimeout(
-                            () => {
-                                gdbserverStartupResolved = true;
-                                resolve();
-                            },
-                            target.serverStartupDelay !== undefined
-                                ? target.serverStartupDelay
-                                : 0
-                        );
-                    }
-                };
-            }
-            await this.setSessionState(SessionState.GDBSERVER_READY);
-            if (this.gdbserver.stdout) {
-                this.gdbserver.stdout.on('data', (data) => {
-                    const out = data.toString();
-                    if (!gdbserverStartupResolved) {
-                        accumulatedStdout += out;
-                    }
-                    this.sendEvent(new OutputEvent(out, 'server'));
-                    checkTargetPort(accumulatedStdout);
-                });
-            } else {
-                throw new Error('Missing stdout in spawned gdbserver');
-            }
-
-            if (this.gdbserver.stderr) {
-                this.gdbserver.stderr.on('data', (data) => {
-                    const err = data.toString();
-                    if (!gdbserverStartupResolved) {
-                        accumulatedStderr += err;
-                    }
-                    this.sendEvent(new OutputEvent(err, 'server'));
-                    checkTargetPort(accumulatedStderr);
-                });
-            } else {
-                throw new Error('Missing stderr in spawned gdbserver');
-            }
-
-            this.gdbserver.on('exit', async (code, signal) => {
-                const exitmsg =
-                    code === null
-                        ? `gdbserver killed by signal ${signal}\n`
-                        : `gdbserver exited with code ${code}\n`;
-                this.sendEvent(new OutputEvent(exitmsg, 'server'));
-                if (!gdbserverStartupResolved) {
-                    this.logGDBRemote('GDB server exited before ready');
-                    gdbserverStartupResolved = true;
-                    reject(new Error(exitmsg + '\n' + accumulatedStderr));
-                }
-                if (
-                    this.sessionInfo.state < SessionState.EXITING &&
-                    !this.sessionInfo.disconnectError &&
-                    code !== 0
-                ) {
-                    this.sessionInfo.disconnectError =
-                        'GDB server exited unexpectedly, see Debug Console for more info';
-                }
-                if (this.watchGdbServer) {
-                    this.logGDBRemote('GDB server exited, exiting session');
-                    await this.setExitSessionRequest(ExitSessionRequest.EXIT);
-                }
-            });
-
-            this.gdbserver.on('error', (err) => {
-                const errmsg = `gdbserver has hit error ${err}\n`;
-                this.sendEvent(new OutputEvent(errmsg, 'server'));
-                if (!gdbserverStartupResolved) {
-                    gdbserverStartupResolved = true;
-                    reject(new Error(errmsg + '\n' + accumulatedStderr));
-                }
-            });
+        let resolveStartup: () => void;
+        let rejectStartup: (reason: any) => void;
+        const startupPromise = new Promise<void>((resolve, reject) => {
+            resolveStartup = resolve;
+            rejectStartup = reject;
         });
+
+        let gdbserverStartupResolved = false; // GDB Server ready for connection
+        let accumulatedStdout = '';
+        let accumulatedStderr = '';
+        let checkTargetPort = (_data: any) => {
+            // do nothing by default
+        };
+        if (target.port && target.serverParameters) {
+            setTimeout(
+                () => {
+                    gdbserverStartupResolved = true;
+                    resolveStartup();
+                },
+                target.serverStartupDelay !== undefined
+                    ? target.serverStartupDelay
+                    : 0
+            );
+        } else {
+            const timeoutForFindingPort = setTimeout(() => {
+                rejectStartup(
+                    'Error: Cannot connect, port number not specified or regex is incorrect'
+                );
+            }, target.portDetectionTimeout ?? 10000);
+            checkTargetPort = (data: any) => {
+                const regex = new RegExp(
+                    target.serverPortRegExp
+                        ? target.serverPortRegExp
+                        : 'Listening on port ([0-9]+)\r?\n'
+                );
+                const m = regex.exec(data);
+                if (m !== null) {
+                    clearTimeout(timeoutForFindingPort);
+                    target.port = m[1];
+                    checkTargetPort = (_data: any) => {
+                        // do nothing now that we have our port
+                    };
+                    setTimeout(
+                        () => {
+                            gdbserverStartupResolved = true;
+                            resolveStartup();
+                        },
+                        target.serverStartupDelay !== undefined
+                            ? target.serverStartupDelay
+                            : 0
+                    );
+                }
+            };
+        }
+        await this.setSessionState(SessionState.GDBSERVER_READY);
+        if (this.gdbserver.stdout) {
+            this.gdbserver.stdout.on('data', (data) => {
+                const out = data.toString();
+                if (!gdbserverStartupResolved) {
+                    accumulatedStdout += out;
+                }
+                this.sendEvent(new OutputEvent(out, 'server'));
+                checkTargetPort(accumulatedStdout);
+            });
+        } else {
+            throw new Error('Missing stdout in spawned gdbserver');
+        }
+
+        if (this.gdbserver.stderr) {
+            this.gdbserver.stderr.on('data', (data) => {
+                const err = data.toString();
+                if (!gdbserverStartupResolved) {
+                    accumulatedStderr += err;
+                }
+                this.sendEvent(new OutputEvent(err, 'server'));
+                checkTargetPort(accumulatedStderr);
+            });
+        } else {
+            throw new Error('Missing stderr in spawned gdbserver');
+        }
+
+        this.gdbserver.on('exit', async (code, signal) => {
+            const exitmsg =
+                code === null
+                    ? `gdbserver killed by signal ${signal}\n`
+                    : `gdbserver exited with code ${code}\n`;
+            this.sendEvent(new OutputEvent(exitmsg, 'server'));
+            if (!gdbserverStartupResolved) {
+                this.logGDBRemote('GDB server exited before ready');
+                gdbserverStartupResolved = true;
+                rejectStartup(new Error(exitmsg + '\n' + accumulatedStderr));
+            }
+            if (
+                this.sessionInfo.state < SessionState.EXITING &&
+                !this.sessionInfo.disconnectError &&
+                code !== 0
+            ) {
+                this.sessionInfo.disconnectError =
+                    'GDB server exited unexpectedly, see Debug Console for more info';
+            }
+            if (this.watchGdbServer) {
+                this.logGDBRemote('GDB server exited, exiting session');
+                await this.setExitSessionRequest(ExitSessionRequest.EXIT);
+            }
+        });
+
+        this.gdbserver.on('error', (err) => {
+            const errmsg = `gdbserver has hit error ${err}\n`;
+            this.sendEvent(new OutputEvent(errmsg, 'server'));
+            if (!gdbserverStartupResolved) {
+                gdbserverStartupResolved = true;
+                rejectStartup(new Error(errmsg + '\n' + accumulatedStderr));
+            }
+        });
+
+        // Wait until gdbserver is started and ready to receive connections.
+        await startupPromise;
     }
 
     protected initializeUARTConnection(
