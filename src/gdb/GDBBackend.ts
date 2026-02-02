@@ -76,23 +76,30 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
      * in case of error/timeout.
      */
     private async getAutoHostCharsetFromConsole(): Promise<string | undefined> {
-        return new Promise<string | undefined>(async (resolve) => {
-            let resolved = false;
-            let charset: string | undefined;
+        let resolved = false;
+        let charset: string | undefined;
+        let timeout: NodeJS.Timeout;
+        let logListener: (output: string, category: string) => void;
+        let resolvePromise: ((value: string | undefined) => void) | null;
 
-            // Call when promise is read to resolve,
-            // cleans up lister and timeout and calls resolve.
-            const done = () => {
-                if (!resolved) {
-                    resolved = true;
+        // Call when promise is read to resolve,
+        // cleans up lister and timeout and calls resolve.
+        const done = () => {
+            if (!resolved && resolvePromise) {
+                resolved = true;
+                if (logListener) {
                     this.off('consoleStreamOutput', logListener);
-                    clearTimeout(timeout);
-                    resolve(charset);
                 }
-            };
+                clearTimeout(timeout);
+                resolvePromise(charset);
+            }
+        };
+
+        const charsetPromise = new Promise<string | undefined>((resolve) => {
+            resolvePromise = resolve;
 
             // Temporary listener looking out for console output
-            const logListener = (output: string, category: string) => {
+            logListener = (output: string, category: string) => {
                 if (category !== 'stdout') {
                     return; // Expected output only on stdout
                 }
@@ -108,25 +115,28 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
             this.on('consoleStreamOutput', logListener);
             // Timeout to avoid lockup if something's wrong or stdout is missing.
-            const timeout = setTimeout(() => {
+            timeout = setTimeout(() => {
                 this.logger.error(
                     'Error detecting host character set from stdout: timeout'
                 );
                 done();
             }, 500);
-
-            try {
-                await this.sendCommand(
-                    '-interpreter-exec console "show host-charset"'
-                );
-            } catch (error) {
-                // Command failed
-                this.logger.error(
-                    `Error detecting host character set from stdout: ${error}`
-                );
-                done();
-            }
         });
+
+        try {
+            await this.sendCommand(
+                '-interpreter-exec console "show host-charset"'
+            );
+        } catch (error) {
+            // Command failed
+            this.logger.error(
+                `Error detecting host character set from stdout: ${error}`
+            );
+
+            // Trigger cleanup and resolution if not already done
+            done();
+        }
+        return charsetPromise;
     }
 
     /**
