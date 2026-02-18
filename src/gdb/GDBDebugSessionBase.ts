@@ -2614,7 +2614,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const addr =
                 ' at address ' +
                 (isNaN(Number(args.memoryReference))
-                    ? args.memoryReference
+                    ? `${args.memoryReference} +/- ${args.offset ?? 0}`
                     : '0x' +
                       (
                           Number(args.memoryReference) + Number(args.offset)
