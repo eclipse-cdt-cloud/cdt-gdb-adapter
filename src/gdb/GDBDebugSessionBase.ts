@@ -696,13 +696,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ) {
                     const poll = async () => {
                         if (this.waitPaused) {
-                            if ((await this.gdb.queryCurrentThreadId()) <= 0) {
+                            try {
+                                if (
+                                    (await this.gdb.queryCurrentThreadId()) <= 0
+                                ) {
+                                    this.waitPausedDone();
+                                } else {
+                                    this.waitPausedPollTimer = setTimeout(
+                                        poll,
+                                        2000
+                                    );
+                                }
+                            } catch {
+                                // e.g. 'gdb is not running'
                                 this.waitPausedDone();
-                            } else {
-                                this.waitPausedPollTimer = setTimeout(
-                                    poll,
-                                    2000
-                                );
                             }
                         }
                     };
