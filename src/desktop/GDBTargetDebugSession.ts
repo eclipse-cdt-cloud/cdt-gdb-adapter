@@ -265,10 +265,12 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         await this.setupCommonLoggerAndBackends(args);
         this.initializeSessionArguments(args);
 
-        if (request === 'launch') {
+        if (request === 'launch' && args.target?.type !== 'extended-remote') {
             const launchArgs = args as TargetLaunchRequestArguments;
             await this.startGDBServer(launchArgs);
-        }
+            this.isAttach = true;
+        } else
+            this.isAttach = false;
         await this.startGDBAndAttachToTarget(response, args);
     }
 
@@ -641,7 +643,6 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         }
         const target = args.target;
         try {
-            this.isAttach = true;
             // Start GDB process
             this.logGDBRemote(`spawn GDB\n`);
             await this.spawn(args);
