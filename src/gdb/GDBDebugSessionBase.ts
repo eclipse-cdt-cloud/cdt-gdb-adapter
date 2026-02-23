@@ -42,6 +42,7 @@ import {
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
+    RequestArgRun,
 } from '../types/session';
 import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
@@ -177,6 +178,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     protected updateThreadInfo: 'missing' | 'when-requested' | 'never' =
         'missing';
+    protected runAfterConfiguration: RequestArgRun = RequestArgRun.ALL;
 
     /**
      * State variables for pauseIfNeeded/continueIfNeeded logic, mostly used for
@@ -211,6 +213,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // and configurationDone response) we are
     protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
     protected isInitialized = false;
+    protected deferredStopEvents: any[] = [];
 
     /**
      *  customResetCommands from launch.json
@@ -350,6 +353,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     "Valid values are: 'missing', 'when-requested', or 'never'."
             );
         }
+        if (
+            args.run !== undefined &&
+            args.run !== RequestArgRun.ALL &&
+            args.run !== RequestArgRun.PRESERVE
+        ) {
+            throw new Error(
+                `Invalid value for 'run': '${args.run}'. ` +
+                    "Valid values are: 'all', 'preserve'."
+            );
+        }
     }
 
     /**
@@ -363,6 +376,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.steppingResponseTimeout =
             args.steppingResponseTimeout ?? DEFAULT_STEPPING_RESPONSE_TIMEOUT;
         this.updateThreadInfo = args.updateThreadInfo ?? 'missing';
+        this.runAfterConfiguration = args.run ?? RequestArgRun.ALL;
     }
 
     /**
@@ -595,6 +609,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
         this.sendEvent(new InitializedEvent());
         this.isInitialized = true;
+        for (const resultData of this.deferredStopEvents) {
+            this.handleGDBStopped(resultData);
+        }
+        this.deferredStopEvents.splice(0);
     }
 
     protected async attachRequest(
@@ -766,10 +784,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             if (this.pauseCount === 0) {
                 if (this.configuringState === ConfiguringState.FINISHING) {
                     this.configuringState = ConfiguringState.DONE;
-                    if (this.isAttach) {
-                        await mi.sendExecContinue(this.gdb);
-                    } else {
-                        await mi.sendExecRun(this.gdb);
+                    if (
+                        this.runAfterConfiguration == RequestArgRun.ALL ||
+                        this.waitPausedNeeded
+                    ) {
+                        if (this.isAttach) {
+                            await mi.sendExecContinue(this.gdb);
+                        } else {
+                            await mi.sendExecRun(this.gdb);
+                        }
                     }
                 } else if (this.waitPausedNeeded) {
                     if (this.gdb.isNonStopMode()) {
@@ -3188,6 +3211,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.updateIsRunning();
                 if (this.isInitialized) {
                     this.handleGDBResume(resultData);
+                } else {
+                    // while we are deferring events, cancel previous stop events for the same thread
+                    if (this.deferredStopEvents.length > 0) {
+                        if (resultData['thread-id'] === 'all') {
+                            this.deferredStopEvents.splice(0);
+                        } else if (resultData['thread-id'] !== undefined) {
+                            this.deferredStopEvents =
+                                this.deferredStopEvents.filter(
+                                    (stopResultData) =>
+                                        stopResultData['thread-id'] !==
+                                        resultData['thread-id']
+                                );
+                        }
+                    }
                 }
                 break;
             case 'stopped': {
@@ -3253,6 +3290,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ) {
                     if (this.isInitialized) {
                         this.handleGDBStopped(resultData);
+                    } else {
+                        this.deferredStopEvents.push(resultData);
                     }
                 }
                 break;
