@@ -144,7 +144,7 @@ describe('Memory Test Suite', function () {
                 count: 10,
             })
         );
-        expect(err.message).contains('Unable to read memory');
+        expect(err.message).contains('Unable to read memory. (@');
     });
 
     it('can read memory with offset', async function () {

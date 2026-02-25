@@ -2679,8 +2679,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         } catch (err) {
+            // If address is an expression, then leave it as is. If it's a number, add offset and convert to hex.
+            let addr = ' (@ ';
+            if (!isNaN(Number(args.memoryReference))) {
+                addr += `0x${(Number(args.memoryReference) + Number(args.offset ?? 0)).toString(16)}`;
+            } else {
+                addr += `${args.memoryReference}`;
+                if (args.offset) {
+                    addr += ` offset: ${args.offset}`;
+                }
+            }
+            addr += ')';
             const errorMessage =
-                err instanceof Error ? err.message : String(err);
+                err instanceof Error ? err.message + addr : String(err) + addr;
             if (!this.shouldReportError(err)) {
                 this.logger.verbose(errorMessage);
                 this.sendResponse(response);
