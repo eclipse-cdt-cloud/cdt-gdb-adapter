@@ -2093,9 +2093,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     false,
                     false,
                     varCreateResponse,
+                    'hexadecimal',
                     ref.type
                 );
-                await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
+                await mi.sendVarSetFormat(
+                    this.gdb,
+                    varobj.varname,
+                    'hexadecimal'
+                );
             }
             let assign;
             if (varobj) {
@@ -2298,6 +2303,46 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return this.doEvaluateRequest(response, args, false);
     }
 
+    private extractExpressionFormat(
+        expression: string
+    ): [string, mi.DisplayFormat] {
+        // Extract last two characters from expression
+        const lastTwoChars = expression.slice(-2);
+        if (lastTwoChars[0] !== ',') {
+            return [expression, 'natural'];
+        }
+        const formatSpecifier = lastTwoChars[1];
+        const slicedExpression = expression.slice(0, -2).trim();
+        const returnedPair: [string, mi.DisplayFormat] = [
+            slicedExpression,
+            'natural',
+        ];
+        switch (formatSpecifier) {
+            case 'x':
+                returnedPair[1] = 'hexadecimal';
+                break;
+            case 'd':
+                returnedPair[1] = 'decimal';
+                break;
+            case 'o':
+                returnedPair[1] = 'octal';
+                break;
+            case 't':
+                returnedPair[1] = 'binary';
+                break;
+            case 'b':
+                returnedPair[1] = 'binary';
+                break;
+            case 'z':
+                returnedPair[1] = 'zero-hexadecimal';
+                break;
+            default:
+                returnedPair[1] = 'unknown';
+                break;
+        }
+        return returnedPair;
+    }
+
     protected async doEvaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments,
@@ -2320,7 +2365,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            const expression = args.expression.trim();
+            let expression = args.expression.trim();
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
             const isAux = this.auxGdb && this.isRunning;
@@ -2407,7 +2452,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             const [gdb, frameRef, depth] =
                 await this.getFrameContext(initialFrameRef);
-
+            const [actualExpression, expressionDisplayFormat] =
+                this.extractExpressionFormat(expression);
+            if (expressionDisplayFormat === 'unknown') {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'Unknown expression format specifier, supported specifiers are: x, d, o, b, z'
+                );
+                return;
+            }
+            expression = actualExpression;
             let varobj = gdb.varManager.getVar(frameRef, depth, expression);
             if (!varobj) {
                 const varCreateResponse = await mi.sendVarCreate(gdb, {
@@ -2415,15 +2470,33 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     frameRef,
                     frame: frameRef ? 'current' : 'floating',
                 });
+                // if format is undefined, skip the format command and return the value as-is, otherwise apply the requested formatting)
+                if (expressionDisplayFormat !== 'natural') {
+                    varCreateResponse.value = await mi.sendVarSetFormat(
+                        gdb,
+                        varCreateResponse.name,
+                        expressionDisplayFormat
+                    );
+                }
                 varobj = gdb.varManager.addVar(
                     frameRef,
                     depth,
                     expression,
                     false,
                     false,
-                    varCreateResponse
+                    varCreateResponse,
+                    expressionDisplayFormat
                 );
             } else {
+                const currentFormat = varobj.displayFormat;
+                if (currentFormat !== expressionDisplayFormat) {
+                    varobj.value = await mi.sendVarSetFormat(
+                        gdb,
+                        varobj.varname,
+                        expressionDisplayFormat
+                    );
+                    varobj.displayFormat = expressionDisplayFormat;
+                }
                 const vup = await mi.sendVarUpdate(gdb, {
                     name: varobj.varname,
                 });
@@ -2446,13 +2519,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             expression,
                             frameRef,
                         });
+                        if (expressionDisplayFormat !== 'natural') {
+                            await mi.sendVarSetFormat(
+                                gdb,
+                                varCreateResponse.name,
+                                expressionDisplayFormat
+                            );
+                        }
                         varobj = gdb.varManager.addVar(
                             frameRef,
                             depth,
                             expression,
                             false,
                             false,
-                            varCreateResponse
+                            varCreateResponse,
+                            expressionDisplayFormat
                         );
                     }
                 }
@@ -3301,7 +3382,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         variable.name,
                         true,
                         false,
-                        varCreateResponse
+                        varCreateResponse,
+                        'natural'
                     );
                 } else {
                     // var existed as an expression before. Now it's a variable too.
