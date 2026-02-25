@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## 1.7.0
 
 - Fixes [`#432`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/432): Fix initCommands behavior.
 - Fixes [`#483`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/483): `detach` request still occasionally getting stuck on exited program.
