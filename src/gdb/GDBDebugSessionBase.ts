@@ -2616,9 +2616,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 addr += `0x${(Number(args.memoryReference) + Number(args.offset ?? 0)).toString(16)}`;
             } else {
                 addr += `${args.memoryReference}`;
-            }
-            if (args.offset) {
-                addr += ` offset: ${args.offset}`;
+                if (args.offset) {
+                    addr += ` offset: ${args.offset}`;
+                }
             }
             const errorMessage =
                 err instanceof Error ? err.message + addr : String(err) + addr;
