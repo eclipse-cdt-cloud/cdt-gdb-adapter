@@ -2620,6 +2620,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     addr += ` offset: ${args.offset}`;
                 }
             }
+            addr += ')';
             const errorMessage =
                 err instanceof Error ? err.message + addr : String(err) + addr;
             if (!this.shouldReportError(err)) {
