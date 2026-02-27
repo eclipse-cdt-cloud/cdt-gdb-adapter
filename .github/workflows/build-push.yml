@@ -115,5 +115,5 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Build
         run: yarn
-      - name: Publish
-        run: yarn publish
+      - name: Publish (OIDC)
+        run: npm publish
