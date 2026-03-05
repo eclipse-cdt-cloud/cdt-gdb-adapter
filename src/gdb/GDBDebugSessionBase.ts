@@ -153,6 +153,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected logger: Logger.Logger;
 
     protected frameHandles = new Handles<FrameReference>();
+    private globalFrameHandle: number | undefined = undefined;
     protected variableHandles = new Handles<VariableReference>();
     protected functionBreakpoints: string[] = [];
     protected logPointMessages: { [key: string]: string } = {};
@@ -1681,6 +1682,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
+            // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
+            // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
+            this.globalFrameHandle = this.frameHandles.create({
+                threadId: 1,
+                frameId: 0,
+            });
             const threadId = args.threadId;
             const depthResult = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
@@ -2277,14 +2284,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
     ): Promise<void> {
-        return this.doEvaluateRequest(response, args, false);
-    }
-
-    protected async doEvaluateRequest(
-        response: DebugProtocol.EvaluateResponse,
-        args: DebugProtocol.EvaluateArguments,
-        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId
-    ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
             variablesReference: 0,
@@ -2305,27 +2304,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const expression = args.expression.trim();
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
-            const isAux = this.auxGdb && this.isRunning;
-            // Allow evaluation of expression without frame info when CLI commands are always allowed or
-            // when called with normal expression in auxiliary GDB mode.
-            const allowUndefinedFrame =
-                (isCliCommand && alwaysAllowCliCommand) ||
-                (!isCliCommand && isAux);
-
-            if (!allowUndefinedFrame && args.frameId == undefined) {
-                throw new Error(
-                    'Evaluation of expression without frameId is not supported.'
-                );
-            }
 
             const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
-                : undefined;
-
-            if (!allowUndefinedFrame && !initialFrameRef) {
-                this.sendResponse(response);
-                return;
-            }
+                : this.frameHandles.get(this.globalFrameHandle ?? -1); // if frameId is undefined, try globalFrameHandle, if that's also undefined use an invalid frame handle to trigger error handling in getFrameContext
 
             if (isCliCommand) {
                 const expressionNoPrefix = expression.slice(1).trim();
@@ -2395,7 +2377,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const varCreateResponse = await mi.sendVarCreate(gdb, {
                     expression,
                     frameRef,
-                    frame: frameRef ? 'current' : 'floating',
+                    frame: frameRef?.frameId ? 'current' : 'floating',
                 });
                 varobj = gdb.varManager.addVar(
                     frameRef,
@@ -2440,7 +2422,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             }
             if (varobj) {
-                const frameHandle = args.frameId ?? -1;
+                const frameHandle =
+                    args.frameId ?? this.globalFrameHandle ?? -1;
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
                         ? await this.getChildElements(varobj, frameHandle)
