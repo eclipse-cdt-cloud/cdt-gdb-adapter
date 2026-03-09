@@ -2435,7 +2435,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             if (varobj) {
                 const frameHandle = args.frameId ?? -1;
-                const result =
+                let result =
                     args.context === 'variables' && Number(varobj.numchild)
                         ? await this.getChildElements(varobj, frameHandle)
                         : varobj.value;
@@ -2447,6 +2447,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                               varobjName: varobj.varname,
                           })
                         : 0;
+                if (args.format?.hex) {
+                    result = await mi.sendVarSetFormatToHex(gdb, varobj.varname);
+                }
                 response.body = {
                     result,
                     type: varobj.type,

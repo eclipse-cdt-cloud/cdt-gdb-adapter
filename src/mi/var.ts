@@ -69,6 +69,10 @@ export interface MIVarPathInfoResponse {
     path_expr: string;
 }
 
+export interface MIVarSetFormatToHexResponse {
+    value: string;
+}
+
 function quote(expression: string) {
     return `"${expression}"`;
 }
@@ -207,10 +211,11 @@ export function sendVarInfoPathExpression(
     return gdb.sendCommand(command);
 }
 
-export function sendVarSetFormatToHex(
+export async function sendVarSetFormatToHex(
     gdb: IGDBBackend,
     name: string
-): Promise<void> {
+): Promise<string> {
     const command = `-var-set-format ${name} hexadecimal`;
-    return gdb.sendCommand(command);
+    const response: MIVarSetFormatToHexResponse = await gdb.sendCommand(command);
+    return response.value;
 }
