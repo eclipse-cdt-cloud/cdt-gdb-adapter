@@ -206,7 +206,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
-        this.globalFrameHandle = this.frameHandles.create({ threadId: 1, frameId: 0 });
+        this.globalFrameHandle = this.frameHandles.create({
+            threadId: 1,
+            frameId: 0,
+        });
     }
 
     /**
@@ -2302,15 +2305,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // Allow evaluation of expression without frame info when CLI commands are always allowed or
             // when called with normal expression in auxiliary GDB mode.
             const allowUndefinedFrame =
-                (isCliCommand) ||
+                isCliCommand ||
                 (!isCliCommand && this.auxGdb && this.isRunning);
-            
+
             if (!allowUndefinedFrame && args.frameId === undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
             }
-            
+
             const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
                 : this.frameHandles.get(this.globalFrameHandle ?? -1); // if frameId is undefined, try globalFrameHandle, if that's also undefined use an invalid frame handle to trigger error handling in getFrameContext
