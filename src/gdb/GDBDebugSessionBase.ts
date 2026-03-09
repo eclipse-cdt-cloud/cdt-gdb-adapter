@@ -153,7 +153,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected logger: Logger.Logger;
 
     protected frameHandles = new Handles<FrameReference>();
-    private globalFrameHandle: number | undefined = undefined;
+    private globalFrameHandle: number;
     protected variableHandles = new Handles<VariableReference>();
     protected functionBreakpoints: string[] = [];
     protected logPointMessages: { [key: string]: string } = {};
@@ -206,6 +206,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
+        this.globalFrameHandle = this.frameHandles.create({ threadId: 1, frameId: 0 });
     }
 
     /**
@@ -1682,12 +1683,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
-            // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
-            this.globalFrameHandle = this.frameHandles.create({
-                threadId: 1,
-                frameId: 0,
-            });
             const threadId = args.threadId;
             const depthResult = await mi.sendStackInfoDepth(this.gdb, {
                 maxDepth: 100,
@@ -2304,7 +2299,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const expression = args.expression.trim();
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
-
+            // Allow evaluation of expression without frame info when CLI commands are always allowed or
+            // when called with normal expression in auxiliary GDB mode.
+            const allowUndefinedFrame =
+                (isCliCommand) ||
+                (!isCliCommand && this.auxGdb && this.isRunning);
+            
+            if (!allowUndefinedFrame && args.frameId === undefined) {
+                throw new Error(
+                    'Evaluation of expression without frameId is not supported.'
+                );
+            }
+            
             const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
                 : this.frameHandles.get(this.globalFrameHandle ?? -1); // if frameId is undefined, try globalFrameHandle, if that's also undefined use an invalid frame handle to trigger error handling in getFrameContext
@@ -2754,6 +2760,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
+        // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
+        // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
+        this.globalFrameHandle = this.frameHandles.create({
+            threadId: 1,
+            frameId: 0,
+        });
         // Send the event
         this.sendEvent(new StoppedEvent(reason, threadId, allThreadsStopped));
     }
@@ -2824,6 +2836,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
+        // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
+        // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
+        this.globalFrameHandle = this.frameHandles.create({
+            threadId: 1,
+            frameId: 0,
+        });
         // Send the event
         this.sendEvent(new ContinuedEvent(threadId, allThreadsContinued));
     }
