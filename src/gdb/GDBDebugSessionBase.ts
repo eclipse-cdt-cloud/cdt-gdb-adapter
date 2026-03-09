@@ -2447,8 +2447,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                               varobjName: varobj.varname,
                           })
                         : 0;
-                if (args.format?.hex && variablesReference === 0) {
-                    result = await mi.sendVarSetFormatToHex(gdb, varobj.varname);
+                if (args.format?.hex) {
+                    result = await mi.sendVarSetFormatToHex(
+                        gdb,
+                        varobj.varname
+                    );
                 }
                 response.body = {
                     result,

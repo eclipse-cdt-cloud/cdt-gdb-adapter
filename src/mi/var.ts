@@ -216,6 +216,7 @@ export async function sendVarSetFormatToHex(
     name: string
 ): Promise<string> {
     const command = `-var-set-format ${name} hexadecimal`;
-    const response: MIVarSetFormatToHexResponse = await gdb.sendCommand(command);
+    const response: MIVarSetFormatToHexResponse =
+        await gdb.sendCommand(command);
     return response.value;
 }
