@@ -220,3 +220,13 @@ export async function sendVarSetFormatToHex(
         await gdb.sendCommand(command);
     return response.value;
 }
+
+export async function sendVarSetFormatToDecimal(
+    gdb: IGDBBackend,
+    name: string
+): Promise<string> {
+    const command = `-var-set-format ${name} decimal`;
+    const response: MIVarSetFormatToHexResponse =
+        await gdb.sendCommand(command);
+    return response.value;
+}

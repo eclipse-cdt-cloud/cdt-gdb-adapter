@@ -2452,6 +2452,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         gdb,
                         varobj.varname
                     );
+                } else {
+                    result = await mi.sendVarSetFormatToDecimal(
+                        gdb,
+                        varobj.varname
+                    );
                 }
                 response.body = {
                     result,
