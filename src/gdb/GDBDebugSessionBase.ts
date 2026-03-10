@@ -2447,17 +2447,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                               varobjName: varobj.varname,
                           })
                         : 0;
-                if (args.format?.hex) {
-                    result = await mi.sendVarSetFormatToHex(
-                        gdb,
-                        varobj.varname
-                    );
-                } else {
-                    result = await mi.sendVarSetFormatToDecimal(
-                        gdb,
-                        varobj.varname
-                    );
-                }
+                // if format is undefined, skip the format command and return the value as-is, otherwise apply the requested formatting)
+                if (args.format) {
+                    if (args.format.hex) {
+                        result = await mi.sendVarSetFormatToHex(
+                            gdb,
+                            varobj.varname
+                        );
+                    } else {
+                        result = await mi.sendVarSetFormatToDecimal(
+                            gdb,
+                            varobj.varname
+                        );
+                    }
+                }   
                 response.body = {
                     result,
                     type: varobj.type,
