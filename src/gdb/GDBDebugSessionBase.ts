@@ -2460,7 +2460,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             varobj.varname
                         );
                     }
-                }   
+                }
                 response.body = {
                     result,
                     type: varobj.type,
