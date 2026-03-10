@@ -56,13 +56,17 @@ describe('evaluate request', function () {
         expect(res.body.result).eq('4');
     });
 
-    it('should evaluate simple expressions without a frame', async function () {
-        const res = await dc.evaluateRequest({
-            context: 'repl',
-            expression: '2 + 2',
-        });
-
-        expect(res.body.result).eq('4');
+    it('should not evaluate expressions without a frame', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: '2 + 2',
+            })
+        );
+        // expect to fail and read error message from the response
+        expect(err.message).eq(
+            'Evaluation of expression without frameId is not supported.'
+        );
     });
 
     it('should send an error when evaluating an invalid expression', async function () {
@@ -228,52 +232,6 @@ describe('evaluate request global variables', function () {
             context: 'hover',
             expression: 's0',
             frameId: scope.frame.id,
-        });
-
-        expect(resolvedExpression.body.result).to.equal('{...}');
-
-        const children = await dc.variablesRequest({
-            variablesReference: resolvedExpression.body.variablesReference,
-        });
-        expect(children.body.variables).lengthOf(3);
-        const childrenContents = [
-            { name: 'a', hasChildren: false },
-            { name: 'b', hasChildren: false },
-            { name: 'char_array', hasChildren: true },
-        ];
-        children.body.variables.forEach((variable, index) => {
-            expect(variable.name).to.equal(childrenContents[index].name);
-            expect(variable.evaluateName).to.equal(
-                `s0.${childrenContents[index].name}`
-            );
-            if (childrenContents[index].hasChildren) {
-                expect(variable.variablesReference).not.to.equal(0);
-            } else {
-                expect(variable.variablesReference).to.equal(0);
-            }
-        });
-
-        const arrayChildren = await dc.variablesRequest({
-            variablesReference: children.body.variables[2].variablesReference,
-        });
-        expect(arrayChildren.body.variables).lengthOf(arrayLength);
-        arrayChildren.body.variables.forEach((variable, index) => {
-            expect(variable.name).to.equal(`[${index}]`);
-            expect(variable.evaluateName).to.equal(`s0.char_array[${index}]`);
-            expect(variable.variablesReference).to.equal(0);
-            const charCode =
-                index === arrayLength - 1 ? 0 : arrayContent.charCodeAt(index);
-            const charValue = `${charCode} '${charCode === 0 ? '\\000' : String.fromCharCode(charCode)}'`;
-            expect(variable.value).to.equal(charValue);
-        });
-    });
-
-    it('evaluates a global struct variable without a frameID and creates sensible evaluate names for members', async function () {
-        const arrayContent = 'char_array';
-        const arrayLength = arrayContent.length + 1; // +1 for '\0'
-        const resolvedExpression = await dc.evaluateRequest({
-            context: 'hover',
-            expression: 's0',
         });
 
         expect(resolvedExpression.body.result).to.equal('{...}');
