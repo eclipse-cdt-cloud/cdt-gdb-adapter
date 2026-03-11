@@ -153,7 +153,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected logger: Logger.Logger;
 
     protected frameHandles = new Handles<FrameReference>();
-    private globalFrameHandle: number;
     protected variableHandles = new Handles<VariableReference>();
     protected functionBreakpoints: string[] = [];
     protected logPointMessages: { [key: string]: string } = {};
@@ -206,10 +205,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     constructor(protected readonly backendFactory: IGDBBackendFactory) {
         super();
         this.logger = logger;
-        this.globalFrameHandle = this.frameHandles.create({
-            threadId: 1,
-            frameId: 0,
-        });
     }
 
     /**
@@ -2316,7 +2311,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             const initialFrameRef = args.frameId
                 ? this.frameHandles.get(args.frameId)
-                : this.frameHandles.get(this.globalFrameHandle ?? -1); // if frameId is undefined, try globalFrameHandle, if that's also undefined use an invalid frame handle to trigger error handling in getFrameContext
+                : undefined;
 
             if (isCliCommand) {
                 const expressionNoPrefix = expression.slice(1).trim();
@@ -2432,7 +2427,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             if (varobj) {
                 const frameHandle =
-                    args.frameId ?? this.globalFrameHandle ?? -1;
+                    args.frameId ?? -1;
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
                         ? await this.getChildElements(varobj, frameHandle)
@@ -2763,12 +2758,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
-        // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
-        // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
-        this.globalFrameHandle = this.frameHandles.create({
-            threadId: 1,
-            frameId: 0,
-        });
         // Send the event
         this.sendEvent(new StoppedEvent(reason, threadId, allThreadsStopped));
     }
@@ -2839,12 +2828,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // Reset frame handles and variables for new context
         this.frameHandles.reset();
         this.variableHandles.reset();
-        // Create an initial frame handle for each thread, this will be used as a fall back frame for global expressions, but it won't be used for stack trace response as it doesn't contain frame level information.
-        // Later on requests (evaluate and/or variables) with undefined frameIDs will fallback to this frame handle
-        this.globalFrameHandle = this.frameHandles.create({
-            threadId: 1,
-            frameId: 0,
-        });
         // Send the event
         this.sendEvent(new ContinuedEvent(threadId, allThreadsContinued));
     }
