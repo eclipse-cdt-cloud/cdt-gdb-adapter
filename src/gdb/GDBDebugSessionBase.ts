@@ -2313,6 +2313,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 ? this.frameHandles.get(args.frameId)
                 : undefined;
 
+            if (!allowUndefinedFrame && !initialFrameRef) {
+                this.sendResponse(response);
+                return;
+            }
+
             if (isCliCommand) {
                 const expressionNoPrefix = expression.slice(1).trim();
                 const regexCommands = new RegExp(
