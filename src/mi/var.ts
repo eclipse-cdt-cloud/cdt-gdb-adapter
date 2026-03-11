@@ -214,10 +214,15 @@ export function sendVarInfoPathExpression(
 export async function sendVarSetFormat(
     gdb: IGDBBackend,
     name: string,
-    format: 'hexadecimal' | 'decimal' | 'octal' | 'binary' | 'natural' | 'zero-hexadecimal'
+    format:
+        | 'hexadecimal'
+        | 'decimal'
+        | 'octal'
+        | 'binary'
+        | 'natural'
+        | 'zero-hexadecimal'
 ): Promise<string> {
     const command = `-var-set-format ${name} ${format}`;
-    const response: MIVarSetFormatResponse =
-        await gdb.sendCommand(command);
+    const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
     return response.value;
 }

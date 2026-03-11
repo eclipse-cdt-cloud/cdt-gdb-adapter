@@ -2071,7 +2071,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     varCreateResponse,
                     ref.type
                 );
-                await mi.sendVarSetFormat(this.gdb, varobj.varname, 'hexadecimal');
+                await mi.sendVarSetFormat(
+                    this.gdb,
+                    varobj.varname,
+                    'hexadecimal'
+                );
             }
             let assign;
             if (varobj) {
