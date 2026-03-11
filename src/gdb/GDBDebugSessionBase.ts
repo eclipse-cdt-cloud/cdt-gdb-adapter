@@ -2426,8 +2426,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             }
             if (varobj) {
-                const frameHandle =
-                    args.frameId ?? -1;
+                const frameHandle = args.frameId ?? -1;
                 const result =
                     args.context === 'variables' && Number(varobj.numchild)
                         ? await this.getChildElements(varobj, frameHandle)
