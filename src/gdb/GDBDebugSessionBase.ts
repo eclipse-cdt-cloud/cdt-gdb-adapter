@@ -2071,7 +2071,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     varCreateResponse,
                     ref.type
                 );
-                await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
+                await mi.sendVarSetFormat(this.gdb, varobj.varname, 'hexadecimal');
             }
             let assign;
             if (varobj) {
@@ -2450,14 +2450,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 // if format is undefined, skip the format command and return the value as-is, otherwise apply the requested formatting)
                 if (args.format) {
                     if (args.format.hex) {
-                        result = await mi.sendVarSetFormatToHex(
+                        result = await mi.sendVarSetFormat(
                             gdb,
-                            varobj.varname
+                            varobj.varname,
+                            'hexadecimal'
                         );
                     } else {
-                        result = await mi.sendVarSetFormatToDecimal(
+                        result = await mi.sendVarSetFormat(
                             gdb,
-                            varobj.varname
+                            varobj.varname,
+                            'natural'
                         );
                     }
                 }
