@@ -11,6 +11,14 @@ import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
 import { MIResponse } from './base';
 
+export type DisplayFormat =
+    | 'hexadecimal'
+    | 'decimal'
+    | 'octal'
+    | 'binary'
+    | 'natural'
+    | 'zero-hexadecimal';
+
 export enum MIVarPrintValues {
     no = '0',
     all = '1',
@@ -71,6 +79,10 @@ export interface MIVarPathInfoResponse {
 
 export interface MIVarSetFormatResponse {
     value: string;
+}
+
+export interface MIVarShowFormatResponse {
+    format: DisplayFormat;
 }
 
 function quote(expression: string) {
@@ -225,4 +237,13 @@ export async function sendVarSetFormat(
     const command = `-var-set-format ${name} ${format}`;
     const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
     return response.value;
+}
+
+export async function sendVarShowFormat(
+    gdb: IGDBBackend,
+    name: string
+): Promise<DisplayFormat> {
+    const command = `-var-show-format ${name}`;
+    const response: MIVarShowFormatResponse = await gdb.sendCommand(command);
+    return response.format;
 }

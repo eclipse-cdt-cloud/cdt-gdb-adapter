@@ -57,17 +57,6 @@ describe('evaluate request', function () {
         expect(res.body.result).eq('4');
     });
 
-    it('should evaluate a simple literal expression and show the result in hex if format is set to hexadecimal', async function () {
-        const res = await dc.evaluateRequest({
-            context: 'repl',
-            expression: '5 + 5',
-            frameId: scope.frame.id,
-            format: { hex: true },
-        });
-
-        expect(res.body.result).eq('0xa');
-    });
-
     it('should reject evaluation of expression without a frame', async function () {
         if (isRemoteTest) {
             this.skip();
@@ -202,6 +191,67 @@ describe('evaluate request', function () {
         );
 
         expect(err.message).eq('Undefined MI command: a');
+    });
+
+    it('should evaluate an expression with format specifier', async function () {
+        const res = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 + 2,x',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('0x4');
+    });
+
+    it('should evaluate an expression with a non-default format specifier', async function () {
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        const defaultResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+
+        const hexResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,x',
+            frameId: scope.frame.id,
+        });
+
+        const binaryResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,b',
+            frameId: scope.frame.id,
+        });
+
+        const octalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,o',
+            frameId: scope.frame.id,
+        });
+
+        const decimalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,d',
+            frameId: scope.frame.id,
+        });
+        
+        expect(binaryResponse.body.result).to.equal('1010');
+        expect(defaultResponse.body.result).to.equal('10');
+        expect(hexResponse.body.result).to.equal('0xa');
+        expect(octalResponse.body.result).to.equal('012');
+        expect(decimalResponse.body.result).to.equal('10');
+
+        // Evaluate again without format specifier to check that the default format is not changed
+        const defaultResponse2 = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+        expect(defaultResponse2.body.result).to.equal('10');
     });
 });
 
