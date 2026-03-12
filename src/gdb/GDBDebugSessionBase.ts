@@ -2285,10 +2285,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         let expressionWithoutParentheses = expression;
         if (matches) {
             matches.forEach((match) => {
-                expressionWithoutParentheses = expressionWithoutParentheses.replace(match, '');
+                expressionWithoutParentheses =
+                    expressionWithoutParentheses.replace(match, '');
             });
         }
-        const formatSpecifier = expressionWithoutParentheses.trim().split(',').slice(-1)[0];
+        const formatSpecifier = expressionWithoutParentheses
+            .trim()
+            .split(',')
+            .slice(-1)[0];
         // If there was no formatSpecifier, return natural format
         if (formatSpecifier === expression.trim()) {
             return 'natural';

@@ -236,12 +236,13 @@ export async function sendVarSetFormat(
     } catch (err) {
         if (err instanceof Error) {
             if (err.message.startsWith('Must specify the format as:')) {
-                throw new Error(`Invalid format specified. Valid formats are: x, d, o, b, z.`);
+                throw new Error(
+                    `Invalid format specified. Valid formats are: x, d, o, b, z.`
+                );
             }
         }
         throw err;
     }
-
 }
 
 export async function sendVarShowFormat(

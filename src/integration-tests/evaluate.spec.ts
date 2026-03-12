@@ -253,6 +253,20 @@ describe('evaluate request', function () {
         });
         expect(defaultResponse2.body.result).to.equal('10');
     });
+
+    it('should return an error if an invalid format specifier is used', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: 'monitor,q',
+                frameId: scope.frame.id,
+            })
+        );
+
+        expect(err.message).to.equal(
+            'Invalid format specified. Valid formats are: x, d, o, b, z.'
+        );
+    });
 });
 
 describe('evaluate request global variables', function () {
