@@ -2421,9 +2421,22 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             depth,
                             varobj.varname
                         );
-                        await mi.sendVarDelete(gdb, {
-                            varname: varobj.varname,
-                        });
+                        try {
+                            await mi.sendVarDelete(gdb, {
+                                varname: varobj.varname,
+                            });
+                        } catch (e) {
+                            const msg = e instanceof Error ? String(e.message) : String(e ?? '');
+                            const isObjectNotFound = /object\s+not\s+found/i.test(
+                                msg
+                            );
+                            if (isObjectNotFound) {
+                                // swallow error: sendVarDelete(...) can throw "object not found" error
+                                // because removeVar(...) calls sendVarDelete(...) inside itself already
+                            } else {
+                                throw e;
+                            }
+                        }
                         const varCreateResponse = await mi.sendVarCreate(gdb, {
                             expression,
                             frameRef,
