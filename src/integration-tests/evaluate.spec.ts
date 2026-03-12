@@ -14,7 +14,6 @@ import {
     expectRejection,
     fillDefaults,
     getScopes,
-    isRemoteTest,
     resolveLineTagLocations,
     Scope,
     standardBeforeEach,
@@ -57,18 +56,14 @@ describe('evaluate request', function () {
         expect(res.body.result).eq('4');
     });
 
-    it('should reject evaluation of expression without a frame', async function () {
-        if (isRemoteTest) {
-            this.skip();
-        }
-
+    it('should not evaluate expressions without a frame', async function () {
         const err = await expectRejection(
             dc.evaluateRequest({
                 context: 'repl',
                 expression: '2 + 2',
             })
         );
-
+        // expect to fail and read error message from the response
         expect(err.message).eq(
             'Evaluation of expression without frameId is not supported.'
         );
