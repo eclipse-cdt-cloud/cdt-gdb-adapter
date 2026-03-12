@@ -238,7 +238,7 @@ describe('evaluate request', function () {
             expression: 'monitor,d',
             frameId: scope.frame.id,
         });
-        
+
         expect(binaryResponse.body.result).to.equal('1010');
         expect(defaultResponse.body.result).to.equal('10');
         expect(hexResponse.body.result).to.equal('0xa');
