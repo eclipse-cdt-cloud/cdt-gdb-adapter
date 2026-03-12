@@ -17,7 +17,8 @@ export type DisplayFormat =
     | 'octal'
     | 'binary'
     | 'natural'
-    | 'zero-hexadecimal';
+    | 'zero-hexadecimal'
+    | 'unknown';
 
 export enum MIVarPrintValues {
     no = '0',
@@ -226,17 +227,21 @@ export function sendVarInfoPathExpression(
 export async function sendVarSetFormat(
     gdb: IGDBBackend,
     name: string,
-    format:
-        | 'hexadecimal'
-        | 'decimal'
-        | 'octal'
-        | 'binary'
-        | 'natural'
-        | 'zero-hexadecimal'
+    format: DisplayFormat
 ): Promise<string> {
     const command = `-var-set-format ${name} ${format}`;
-    const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
-    return response.value;
+    try {
+        const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
+        return response.value;
+    } catch (err) {
+        if (err instanceof Error) {
+            if (err.message.startsWith('Must specify the format as:')) {
+                throw new Error(`Invalid format specified. Valid formats are: x, d, o, b, z.`);
+            }
+        }
+        throw err;
+    }
+
 }
 
 export async function sendVarShowFormat(

@@ -2279,7 +2279,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     private extractExpressionFormat(expression: string): mi.DisplayFormat {
-        switch (expression.trim().split(',').slice(-1)[0]) {
+        // Create a regex to make sure the comma is not inside parentheses, which would indicate it's part of the expression rather than a format specifier
+        const regex = /\(([^)]+)\)/g;
+        const matches = expression.match(regex);
+        let expressionWithoutParentheses = expression;
+        if (matches) {
+            matches.forEach((match) => {
+                expressionWithoutParentheses = expressionWithoutParentheses.replace(match, '');
+            });
+        }
+        const formatSpecifier = expressionWithoutParentheses.trim().split(',').slice(-1)[0];
+        // If there was no formatSpecifier, return natural format
+        if (formatSpecifier === expression.trim()) {
+            return 'natural';
+        }
+        switch (formatSpecifier) {
             case 'x':
                 return 'hexadecimal';
             case 'd':
@@ -2288,8 +2302,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return 'octal';
             case 'b':
                 return 'binary';
+            case 'z':
+                return 'zero-hexadecimal';
             default:
-                return 'natural';
+                return 'unknown';
         }
     }
 
