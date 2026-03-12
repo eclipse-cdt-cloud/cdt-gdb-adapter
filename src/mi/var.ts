@@ -11,6 +11,15 @@ import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
 import { MIResponse } from './base';
 
+export type DisplayFormat =
+    | 'hexadecimal'
+    | 'decimal'
+    | 'octal'
+    | 'binary'
+    | 'natural'
+    | 'zero-hexadecimal'
+    | 'unknown';
+
 export enum MIVarPrintValues {
     no = '0',
     all = '1',
@@ -67,6 +76,14 @@ export interface MIVarAssignResponse {
 
 export interface MIVarPathInfoResponse {
     path_expr: string;
+}
+
+export interface MIVarSetFormatResponse {
+    value: string;
+}
+
+export interface MIVarShowFormatResponse {
+    format: DisplayFormat;
 }
 
 function quote(expression: string) {
@@ -206,11 +223,41 @@ export function sendVarInfoPathExpression(
     const command = `-var-info-path-expression ${name}`;
     return gdb.sendCommand(command);
 }
-
+// This function is still here because it was added a long time ago and it might be used by other derived implementations. Please from now on use sendVarSetFormat instead of this function.
 export function sendVarSetFormatToHex(
     gdb: IGDBBackend,
     name: string
 ): Promise<void> {
     const command = `-var-set-format ${name} hexadecimal`;
     return gdb.sendCommand(command);
+}
+
+export async function sendVarSetFormat(
+    gdb: IGDBBackend,
+    name: string,
+    format: DisplayFormat
+): Promise<string> {
+    const command = `-var-set-format ${name} ${format}`;
+    try {
+        const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
+        return response.value;
+    } catch (err) {
+        if (err instanceof Error) {
+            if (err.message.startsWith('Must specify the format as:')) {
+                throw new Error(
+                    `Invalid format specified. Valid formats are: x, d, o, b, z.`
+                );
+            }
+        }
+        throw err;
+    }
+}
+
+export async function sendVarShowFormat(
+    gdb: IGDBBackend,
+    name: string
+): Promise<DisplayFormat> {
+    const command = `-var-show-format ${name}`;
+    const response: MIVarShowFormatResponse = await gdb.sendCommand(command);
+    return response.format;
 }

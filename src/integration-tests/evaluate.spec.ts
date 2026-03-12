@@ -192,6 +192,81 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('Undefined MI command: a');
     });
+
+    it('should evaluate an expression with format specifier', async function () {
+        const res = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 + 2,x',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('0x4');
+    });
+
+    it('should evaluate an expression with a non-default format specifier', async function () {
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        const defaultResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+
+        const hexResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,x',
+            frameId: scope.frame.id,
+        });
+
+        const binaryResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,b',
+            frameId: scope.frame.id,
+        });
+
+        const octalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,o',
+            frameId: scope.frame.id,
+        });
+
+        const decimalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,d',
+            frameId: scope.frame.id,
+        });
+
+        expect(binaryResponse.body.result).to.equal('1010');
+        expect(defaultResponse.body.result).to.equal('10');
+        expect(hexResponse.body.result).to.equal('0xa');
+        expect(octalResponse.body.result).to.equal('012');
+        expect(decimalResponse.body.result).to.equal('10');
+
+        // Evaluate again without format specifier to check that the default format is not changed
+        const defaultResponse2 = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+        expect(defaultResponse2.body.result).to.equal('10');
+    });
+
+    it('should return an error if an invalid format specifier is used', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: 'monitor,q',
+                frameId: scope.frame.id,
+            })
+        );
+
+        expect(err.message).to.equal(
+            'Invalid format specified. Valid formats are: x, d, o, b, z.'
+        );
+    });
 });
 
 describe('evaluate request global variables', function () {
