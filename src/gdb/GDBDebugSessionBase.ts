@@ -421,7 +421,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsInstructionBreakpoints = true;
         response.body.supportsTerminateRequest = true;
         response.body.supportsDataBreakpoints = true;
-        response.body.supportsValueFormattingOptions = true;
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
