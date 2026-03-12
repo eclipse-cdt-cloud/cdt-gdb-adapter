@@ -62,7 +62,7 @@ describe('evaluate request', function () {
             context: 'repl',
             expression: '5 + 5',
             frameId: scope.frame.id,
-            format: {hex: true},
+            format: { hex: true },
         });
 
         expect(res.body.result).eq('0xa');
