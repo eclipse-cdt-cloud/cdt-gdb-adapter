@@ -57,6 +57,17 @@ describe('evaluate request', function () {
         expect(res.body.result).eq('4');
     });
 
+    it('should evaluate a simple literal expression and show the result in hex if format is set to hexadecimal', async function () {
+        const res = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '5 + 5',
+            frameId: scope.frame.id,
+            format: {hex: true},
+        });
+
+        expect(res.body.result).eq('0xa');
+    });
+
     it('should reject evaluation of expression without a frame', async function () {
         if (isRemoteTest) {
             this.skip();
