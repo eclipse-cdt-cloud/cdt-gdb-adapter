@@ -223,6 +223,14 @@ export function sendVarInfoPathExpression(
     const command = `-var-info-path-expression ${name}`;
     return gdb.sendCommand(command);
 }
+// This function is still here because it was added a long time ago and it might be used by other derived implementations. Please from now on use sendVarSetFormat instead of this function.
+export function sendVarSetFormatToHex(
+    gdb: IGDBBackend,
+    name: string
+): Promise<void> {
+    const command = `-var-set-format ${name} hexadecimal`;
+    return gdb.sendCommand(command);
+}
 
 export async function sendVarSetFormat(
     gdb: IGDBBackend,

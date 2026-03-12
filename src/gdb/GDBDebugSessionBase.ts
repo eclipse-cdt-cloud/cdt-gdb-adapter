@@ -2455,10 +2455,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     expressionDisplayFormat
                 );
             } else {
-                const currentFormat = await mi.sendVarShowFormat(
-                    gdb,
-                    varobj.varname
-                );
+                const currentFormat = varobj.displayFormat;
                 if (currentFormat !== expressionDisplayFormat) {
                     varobj.value = await mi.sendVarSetFormat(
                         gdb,
