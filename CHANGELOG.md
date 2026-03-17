@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [`#507`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/507): Execution of GDB commands with quotes or backslashes (e.g. Windows paths) in the Debug Console. If you have previously added inexplicable extra backslashes to commands to work around this, you need to stop doing that now.
+
 ## 1.7.0
 
 - Implements [`#432`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/432)/[`#476`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/476): Add `preConnectCommands` which executes GDB commands before attaching to inferior (`gdb` type) / before attaching to target (`gdbtarget` type).

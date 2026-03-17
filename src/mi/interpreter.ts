@@ -32,6 +32,7 @@ export function sendInterpreterExecConsole(
     ) {
         cmd += ` --frame ${params.frameRef.frameId}`;
     }
-    cmd += ` console "${params.command}"`;
+    const stringifiedCommand = `${params.command}`;
+    cmd += ` console "${stringifiedCommand.replace(/(["\\])/g, '\\$1')}"`;
     return gdb.sendCommand(cmd);
 }
