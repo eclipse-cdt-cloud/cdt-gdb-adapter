@@ -8,6 +8,7 @@ mem
 vars
 vars_env
 vars_globals
+watch_local_scope_transition
 segv
 loopforever
 MultiThread

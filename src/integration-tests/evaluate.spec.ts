@@ -463,3 +463,119 @@ describe('evaluate request global variables', function () {
         });
     });
 });
+
+describe('evaluate request - watch local variable across lexical scope transition', function () {
+    let dc: CdtDebugClient;
+    let scope: Scope;
+
+    const DEBUG = false;
+    const program = path.join(testProgramsDir, 'watch_local_scope_transition');
+    const src = path.join(testProgramsDir, 'watch_local_scope_transition.c');
+    const lineTags = {
+        FIRST_SCOPE: 0,
+        SECOND_SCOPE: 0,
+    };
+
+    before(function () {
+        resolveLineTagLocations(src, lineTags);
+        if (DEBUG) {
+            console.log('FIRST_SCOPE line:', lineTags.FIRST_SCOPE);
+            console.log('SECOND_SCOPE line:', lineTags.SECOND_SCOPE);
+        }
+    });
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach();
+
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program,
+            })
+        );
+
+        await dc.setBreakpointsRequest({
+            source: { path: src },
+            breakpoints: [
+                { line: lineTags.FIRST_SCOPE },
+                { line: lineTags.SECOND_SCOPE },
+            ],
+        });
+
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+
+        scope = await getScopes(dc);
+    });
+
+    afterEach(async function () {
+        await dc.stop();
+    });
+
+    it('should reevaluate a watched local variable when a same-named local is recreated in a new scope', async function () {
+        // Evaluate "x" in the first lexical scope and cache/reuse the varobj.
+        // With the buggy implementation, when that varobj later goes out of scope,
+        // doEvaluateRequest() deletes it twice:
+        //   1) indirectly via varManager.removeVar()
+        //   2) directly via an extra mi.sendVarDelete()
+        //
+        // The second delete triggers the GDB/MI error "Variable object not found",
+        // causing watch reevaluation to fail instead of recreating the varobj for
+        // the new in-scope local variable in the second block.
+
+        const first = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'x',
+            frameId: scope.frame.id,
+        });
+        if (DEBUG) {
+            console.log('first watch result:', first.body.result);
+        }
+        expect(first.body.result).to.equal('1');
+
+        // Re-evaluate once more in the first scope to ensure the existing varobj
+        // path is exercised before transitioning to the next scope.
+        const firstAgain = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'x',
+            frameId: scope.frame.id,
+        });
+        if (DEBUG) {
+            console.log('firstAgain watch result:', firstAgain.body.result);
+        }
+        expect(firstAgain.body.result).to.equal('1');
+
+        // Continue to the second block where a new local variable "x" is created.
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.continueRequest({ threadId: scope.thread.id }),
+        ]);
+
+        scope = await getScopes(dc);
+
+        try {
+            const second = await dc.evaluateRequest({
+                context: 'watch',
+                expression: 'x',
+                frameId: scope.frame.id,
+            });
+
+            if (DEBUG) {
+                console.log('second watch result:', second.body.result);
+            }
+            expect(second.body.result).to.equal('2');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (DEBUG) {
+                console.log(
+                    'watch reevaluation failed after scope transition:',
+                    msg
+                );
+            }
+            expect.fail(
+                `Expected watched expression "x" to reevaluate to "2" in the second scope, but evaluation failed: ${msg}`
+            );
+        }
+    });
+});

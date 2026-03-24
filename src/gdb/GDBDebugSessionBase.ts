@@ -2498,9 +2498,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             depth,
                             varobj.varname
                         );
-                        await mi.sendVarDelete(gdb, {
-                            varname: varobj.varname,
-                        });
                         const varCreateResponse = await mi.sendVarCreate(gdb, {
                             expression,
                             frameRef,
