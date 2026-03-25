@@ -66,6 +66,10 @@ describe('breakpoints', async function () {
         await dc.configurationDoneRequest();
 
         expect(outputs.body.reason).eq('new');
+        expect(outputs.body.breakpoint.source.name).eq('count.c');
+        expect(outputs.body.breakpoint.source.path).eq(
+            `${testProgramsDir}/count.c`
+        );
         expect(outputs.body.breakpoint.line).eq(4);
     });
 
@@ -314,15 +318,46 @@ describe('breakpoints', async function () {
         if (gdbNonStop && isRemoteTest) {
             this.skip();
         }
+
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [
+                {
+                    column: 1,
+                    line: 4,
+                },
+            ],
+        });
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+
+        const scope = await getScopes(dc);
+        const evalRequestOutput = await dc.evaluateRequest({
+            expression: '(unsigned long long)main',
+            context: 'repl',
+            frameId: scope.frame.id,
+        });
+        const mainAddr = evalRequestOutput.body.result;
+        const mainAddrHex = '0x' + BigInt(mainAddr).toString(16);
+
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
-                    instructionReference: '0x720',
+                    instructionReference: mainAddr,
                 },
             ],
         });
         expect(bpResp.body.breakpoints.length).eq(1);
-        expect(bpResp.body.breakpoints[0].instructionReference).eq('0x720');
+        expect(bpResp.body.breakpoints[0].instructionReference).eq(mainAddrHex);
+        expect(bpResp.body.breakpoints[0].source?.name).eq('count.c');
+        expect(bpResp.body.breakpoints[0].source?.path).eq(
+            path.join(testProgramsDir, 'count.c')
+        );
     });
 
     it('set an instruction breakpoint with non-numeric sends response', async function () {

@@ -1137,8 +1137,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 id: parseInt(bp.number, 10),
                 line: bp['line'] ? parseInt(bp['line'], 10) : undefined,
                 source: {
-                    name: bp.fullname,
-                    path: bp.file,
+                    path: bp.fullname,
+                    name: bp.file,
                 },
                 instructionReference: bp['original-location']?.slice(1),
             };
@@ -3032,8 +3032,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         id: parseInt(notifyData.bkpt.number, 10),
                         verified: notifyData.bkpt.enabled === 'y',
                         source: {
-                            name: notifyData.bkpt.fullname,
-                            path: notifyData.bkpt.file,
+                            path: notifyData.bkpt.fullname,
+                            name: notifyData.bkpt.file,
                         },
                         line: parseInt(notifyData.bkpt.line, 10),
                     };
@@ -3056,8 +3056,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             id: parseInt(notifyData.bkpt.number, 10),
                             verified: true,
                             source: {
-                                name: notifyData.bkpt.fullname,
-                                path: notifyData.bkpt.file,
+                                path: notifyData.bkpt.fullname,
+                                name: notifyData.bkpt.file,
                             },
                             line: parseInt(notifyData.bkpt.line, 10),
                         };
