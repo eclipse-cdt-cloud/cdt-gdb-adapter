@@ -329,18 +329,27 @@ export class CdtDebugClient extends DebugClient {
         );
     }
 
+    // Needed until https://github.com/microsoft/vscode-debugadapter-node/issues/323 is resolved
+    // and released
     public readMemoryRequest(
         args: DebugProtocol.ReadMemoryArguments
     ): Promise<DebugProtocol.ReadMemoryResponse> {
         return this.send('readMemory', args);
     }
 
+    // Needed until https://github.com/microsoft/vscode-debugadapter-node/issues/323 is resolved
+    // and released
     public setInstructionBreakpointsRequest(
         args: DebugProtocol.SetInstructionBreakpointsArguments
-    ): Promise<DebugProtocol.Response> {
-        return this.send('setInstructionBreakpoints', args);
+    ): Promise<DebugProtocol.SetInstructionBreakpointsResponse> {
+        return this.send(
+            'setInstructionBreakpoints',
+            args
+        ) as any as Promise<DebugProtocol.SetInstructionBreakpointsResponse>;
     }
 
+    // Needed until https://github.com/microsoft/vscode-debugadapter-node/issues/323 is resolved
+    // and released
     public writeMemoryRequest(
         args: DebugProtocol.WriteMemoryArguments
     ): Promise<DebugProtocol.WriteMemoryResponse> {
