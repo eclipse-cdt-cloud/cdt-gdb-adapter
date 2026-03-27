@@ -1017,6 +1017,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetInstructionBreakpointsResponse,
         args: DebugProtocol.SetInstructionBreakpointsArguments
     ): Promise<void> {
+        try {
+            return await this.doSetInstructionBreakpointsRequest(
+                response,
+                args
+            );
+        } catch (err) {
+            this.sendErrorResponse(
+                response,
+                1,
+                err instanceof Error ? err.message : String(err)
+            );
+        }
+    }
+
+    protected async doSetInstructionBreakpointsRequest(
+        response: DebugProtocol.SetInstructionBreakpointsResponse,
+        args: DebugProtocol.SetInstructionBreakpointsArguments
+    ): Promise<void> {
         // If this is the first time sending this breakpoint and there are no breakpoints to set,
         // do not change state of the target by avoiding an unnecessary pause
         if (!this.isInstructionBreakpointSent) {

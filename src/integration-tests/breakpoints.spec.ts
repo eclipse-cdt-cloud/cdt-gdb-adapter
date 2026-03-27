@@ -325,6 +325,27 @@ describe('breakpoints', async function () {
         expect(bpResp.body.breakpoints[0].instructionReference).eq('0x720');
     });
 
+    it('set an instruction breakpoint with non-numeric sends response', async function () {
+        if (gdbNonStop && isRemoteTest) {
+            this.skip();
+        }
+        dc.setInstructionBreakpointsRequest({
+            breakpoints: [
+                {
+                    instructionReference: 'main',
+                },
+            ],
+        })
+            .then(function (_response) {
+                throw new Error(
+                    'Not expected to succeed - if support for non-numeric instruction breakpoints has been written, update this test'
+                );
+            })
+            .catch(function (reason) {
+                expect(reason).to.contain('Cannot convert main to a BigInt');
+            });
+    });
+
     it('set type of standard breakpoint', async () => {
         const bpResp = await dc.setBreakpointsRequest({
             source: {
