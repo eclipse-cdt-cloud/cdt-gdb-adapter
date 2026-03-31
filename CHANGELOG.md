@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+## 1.8.0
+
 - Fixes [`#507`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/507): Execution of GDB commands with quotes or backslashes (e.g. Windows paths) in the Debug Console. If you have previously added inexplicable extra backslashes to commands to work around this, you need to stop doing that now.
+- Fixes [`#513`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/513): Ensure consistent use of Source.path as full name of source.
+- Fixes [`#516`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/516): Make sure error response is sent on failed setInstructionBreakpointsRequest.
 
 ## 1.7.0
 
