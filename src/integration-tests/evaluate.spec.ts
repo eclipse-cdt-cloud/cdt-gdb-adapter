@@ -227,6 +227,12 @@ describe('evaluate request', function () {
             frameId: scope.frame.id,
         });
 
+        const anotherBinaryResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,t',
+            frameId: scope.frame.id,
+        });
+
         const octalResponse = await dc.evaluateRequest({
             context: 'watch',
             expression: 'monitor,o',
@@ -240,6 +246,7 @@ describe('evaluate request', function () {
         });
 
         expect(binaryResponse.body.result).to.equal('1010');
+        expect(anotherBinaryResponse.body.result).to.equal('1010');
         expect(defaultResponse.body.result).to.equal('10');
         expect(hexResponse.body.result).to.equal('0xa');
         expect(octalResponse.body.result).to.equal('012');

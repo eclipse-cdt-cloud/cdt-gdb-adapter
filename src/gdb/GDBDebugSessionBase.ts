@@ -2327,10 +2327,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             case 'o':
                 returnedPair[1] = 'octal';
                 break;
-            case 't':
-                returnedPair[1] = 'binary';
-                break;
-            case 'b':
+            case 't': // GDB convention because 'b' already means 'byte'
+            case 'b': // VSCode convention
                 returnedPair[1] = 'binary';
                 break;
             case 'z':
