@@ -23,6 +23,7 @@ import {
 } from './utils';
 import { expect } from 'chai';
 import * as os from 'os';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 describe('launch remote', function () {
     let dc: CdtDebugClient;
@@ -324,5 +325,21 @@ describe('launch remote', function () {
             initPos,
             'preConnectCommands should execute before initCommands'
         );
+    });
+
+    it('disconnect from launch but not terminate debuggee', async function () {
+        const args = {
+            program: emptyProgram,
+            target: {
+                type: 'remote',
+            } as TargetLaunchArguments,
+        } as TargetLaunchRequestArguments;
+        await dc.launchRequest(fillDefaults(this.test, args));
+
+        const detachEvent = dc.waitForOutputEvent('log', 'detach\n');
+        await dc.disconnectRequest({
+            terminateDebuggee: false,
+        } as DebugProtocol.DisconnectArguments);
+        await detachEvent;
     });
 });
