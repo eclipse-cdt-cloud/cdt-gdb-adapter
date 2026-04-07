@@ -425,20 +425,27 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.breakpointModes = this.getBreakpointModes();
         this.sendResponse(response);
     }
-
-    private actOnGdbOutput(input: string, category: string): StreamOutput {
-        // When a new output radix is set, VScode needs to reread all information again. Hence, the adapter sends an invalidate event
-        if (input.startsWith('Output radix now set')){
-            this.sendEvent(new InvalidatedEvent());
-        }
+    private switchTooManyBreakpointsMessage(): StreamOutput {
         const TooManyBreakpointsOutputToError =
             'HW breakpoint limit reached, reduce set breakpoints';
-        const returnPair: StreamOutput = input.startsWith(
-            'Cannot insert hardware breakpoint'
-        )
-            ? { output: TooManyBreakpointsOutputToError, category: 'stderr' }
-            : { output: input, category: category };
+        const returnPair: StreamOutput = {
+            output: TooManyBreakpointsOutputToError,
+            category: 'stderr',
+        };
         return returnPair;
+    }
+    private actOnGdbOutput(
+        input: string,
+        category: string
+    ): void | StreamOutput {
+        // When a new output radix is set, VScode needs to reread all information again. Hence, the adapter sends an invalidate event
+        if (input.startsWith('Output radix now set')) {
+            this.sendEvent(new InvalidatedEvent());
+            return;
+        }
+        if (input.startsWith('Cannot insert hardware breakpoint')) {
+            return this.switchTooManyBreakpointsMessage();
+        }
     }
 
     protected async setupCommonLoggerAndBackends(
@@ -465,9 +472,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         gdb.on('consoleStreamOutput', (output, category) => {
             const messageToPrint = this.actOnGdbOutput(output, category);
-            this.sendEvent(
-                new OutputEvent(messageToPrint.output, messageToPrint.category)
-            );
+            if (messageToPrint) {
+                this.sendEvent(
+                    new OutputEvent(
+                        messageToPrint.output,
+                        messageToPrint.category
+                    )
+                );
+            }
         });
 
         gdb.on('execAsync', (resultClass, resultData) =>
