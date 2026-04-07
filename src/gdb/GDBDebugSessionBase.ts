@@ -14,6 +14,7 @@ import {
     BreakpointEvent,
     Handles,
     InitializedEvent,
+    InvalidatedEvent,
     Logger,
     logger,
     LoggingDebugSession,
@@ -425,13 +426,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
-    private switchOutputToError(input: string, category: string): StreamOutput {
-        const outputToError =
+    private actOnGdbOutput(input: string, category: string): StreamOutput {
+        // When a new output radix is set, VScode needs to reread all information again. Hence, the adapter sends an invalidate event
+        if (input.startsWith('Output radix now set')){
+            this.sendEvent(new InvalidatedEvent());
+        }
+        const TooManyBreakpointsOutputToError =
             'HW breakpoint limit reached, reduce set breakpoints';
         const returnPair: StreamOutput = input.startsWith(
             'Cannot insert hardware breakpoint'
         )
-            ? { output: outputToError, category: 'stderr' }
+            ? { output: TooManyBreakpointsOutputToError, category: 'stderr' }
             : { output: input, category: category };
         return returnPair;
     }
@@ -459,7 +464,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         gdb.on('consoleStreamOutput', (output, category) => {
-            const messageToPrint = this.switchOutputToError(output, category);
+            const messageToPrint = this.actOnGdbOutput(output, category);
             this.sendEvent(
                 new OutputEvent(messageToPrint.output, messageToPrint.category)
             );
