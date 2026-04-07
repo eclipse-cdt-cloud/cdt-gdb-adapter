@@ -468,7 +468,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         gdb.on('consoleStreamOutput', (output, category) => {
-            const messageToPrint = this.actOnGdbOutput(output, category);
+            const messageToPrint = this.actOnGdbOutput(output);
             if (messageToPrint) {
                 this.sendEvent(
                     new OutputEvent(
