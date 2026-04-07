@@ -434,10 +434,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         };
         return returnPair;
     }
-    private actOnGdbOutput(
-        input: string,
-        category: string
-    ): void | StreamOutput {
+    private actOnGdbOutput(input: string): void | StreamOutput {
         // When a new output radix is set, VScode needs to reread all information again. Hence, the adapter sends an invalidate event
         if (input.startsWith('Output radix now set')) {
             this.sendEvent(new InvalidatedEvent());
@@ -479,7 +476,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         messageToPrint.category
                     )
                 );
+                return;
             }
+            this.sendEvent(new OutputEvent(output, category));
         });
 
         gdb.on('execAsync', (resultClass, resultData) =>
