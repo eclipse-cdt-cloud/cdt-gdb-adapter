@@ -192,6 +192,16 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('Undefined MI command: a');
     });
+    it('should send invalidate event when changing global radix through evaluate request', async function () {
+        const event = dc.waitForEvent('invalidated');
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> set output-radix 10',
+            frameId: scope.frame.id,
+        });
+        const invalidatedEvent = await event;
+        expect(invalidatedEvent).to.be.not.undefined;
+    });
 });
 
 describe('evaluate request global variables', function () {
