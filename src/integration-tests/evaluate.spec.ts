@@ -198,7 +198,7 @@ describe('evaluate request', function () {
     });
 
     it('should send invalidate event when changing global radix through evaluate request', async function () {
-        if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
+        if (!(isRemoteTest && gdbAsync)) {
             this.skip();
         }
         const event = dc.waitForEvent('invalidated');
