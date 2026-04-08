@@ -22,7 +22,6 @@ import {
     testProgramsDir,
 } from './utils';
 import { expect } from 'chai';
-import * as os from 'os';
 
 describe('evaluate request', function () {
     let dc: CdtDebugClient;
