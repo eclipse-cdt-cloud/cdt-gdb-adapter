@@ -87,7 +87,7 @@ interface StreamOutput {
     category: string;
 }
 
-// Interface for notify data of cmd-param-changed  
+// Interface for notify data of cmd-param-changed
 interface CmdParamChangedNotifyData {
     param: string;
     value: string;

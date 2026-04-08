@@ -167,7 +167,7 @@ describe('evaluate request', function () {
         });
         expect(res2.body.result).eq('10');
     });
-    
+
     it('should be able to use GDB command', async function () {
         const res1 = await dc.evaluateRequest({
             context: 'repl',
@@ -196,11 +196,11 @@ describe('evaluate request', function () {
 
         expect(err.message).eq('Undefined MI command: a');
     });
-    
+
     it('should send invalidate event when changing global radix through evaluate request', async function () {
         if (os.platform() === 'win32' || !(isRemoteTest && gdbAsync)) {
-                    this.skip();
-                }
+            this.skip();
+        }
         const event = dc.waitForEvent('invalidated');
         await dc.evaluateRequest({
             context: 'repl',
