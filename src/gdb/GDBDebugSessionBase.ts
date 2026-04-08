@@ -87,6 +87,12 @@ interface StreamOutput {
     category: string;
 }
 
+// Interface for notify data of cmd-param-changed  
+interface CmdParamChangedNotifyData {
+    param: string;
+    value: string;
+}
+
 // Interface for a pending pause request, used with pauseIfRunning() logic
 interface PendingPauseRequest {
     threadId: number | undefined; // All threads if undefined
@@ -3005,7 +3011,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
-    private handleCmdParamChanged(notifyData: any) {
+    private handleCmdParamChanged(notifyData: CmdParamChangedNotifyData) {
         switch (notifyData.param) {
             case 'output-radix':
                 this.sendEvent(new InvalidatedEvent(['variables']));
