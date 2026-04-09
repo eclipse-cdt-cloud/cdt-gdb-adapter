@@ -13,6 +13,7 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
+    gdbAsync,
     getScopes,
     isRemoteTest,
     resolveLineTagLocations,
@@ -165,6 +166,7 @@ describe('evaluate request', function () {
         });
         expect(res2.body.result).eq('10');
     });
+
     it('should be able to use GDB command', async function () {
         const res1 = await dc.evaluateRequest({
             context: 'repl',
@@ -181,6 +183,7 @@ describe('evaluate request', function () {
 
         expect(res2.body.result).eq('\r');
     });
+
     it('should reject entering an invalid MI command', async function () {
         const err = await expectRejection(
             dc.evaluateRequest({
@@ -191,6 +194,20 @@ describe('evaluate request', function () {
         );
 
         expect(err.message).eq('Undefined MI command: a');
+    });
+
+    it('should send invalidate event when changing global radix through evaluate request', async function () {
+        if (!(isRemoteTest && gdbAsync)) {
+            this.skip();
+        }
+        const event = dc.waitForEvent('invalidated');
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> set output-radix 16',
+            frameId: scope.frame.id,
+        });
+        const invalidatedEvent = await event;
+        expect(invalidatedEvent).to.be.not.undefined;
     });
 });
 
