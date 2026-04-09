@@ -13,6 +13,7 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
+    gdbAsync,
     getScopes,
     isRemoteTest,
     resolveLineTagLocations,
@@ -165,6 +166,7 @@ describe('evaluate request', function () {
         });
         expect(res2.body.result).eq('10');
     });
+
     it('should be able to use GDB command', async function () {
         const res1 = await dc.evaluateRequest({
             context: 'repl',
@@ -181,6 +183,7 @@ describe('evaluate request', function () {
 
         expect(res2.body.result).eq('\r');
     });
+
     it('should reject entering an invalid MI command', async function () {
         const err = await expectRejection(
             dc.evaluateRequest({
@@ -271,6 +274,44 @@ describe('evaluate request', function () {
         );
 
         expect(err.message).to.startWith('Unknown expression format specifier');
+    });
+
+    it('should not change the format of a variable in the variables view while evaluating the same variable with a format specifier in the watch view', async function () {
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        const watchResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,x',
+            frameId: scope.frame.id,
+        });
+        expect(watchResponse.body.result).to.equal('0xa');
+
+        const variableRequestResponse = await dc.variablesRequest({
+            variablesReference: scope.scopes.body.scopes[0].variablesReference,
+        });
+        const monitorVariable = variableRequestResponse.body.variables.find(
+            (variable) => variable.name === 'monitor'
+        );
+        expect(monitorVariable).to.not.be.undefined;
+        expect(monitorVariable?.value).to.equal('10');
+    });
+    
+    it('should send invalidate event when changing global radix through evaluate request', async function () {
+        if (!(isRemoteTest && gdbAsync)) {
+            this.skip();
+        }
+        const event = dc.waitForEvent('invalidated');
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: '> set output-radix 16',
+            frameId: scope.frame.id,
+        });
+        const invalidatedEvent = await event;
+        expect(invalidatedEvent).to.be.not.undefined;
     });
 });
 

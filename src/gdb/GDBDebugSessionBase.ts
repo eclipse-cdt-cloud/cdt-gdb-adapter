@@ -14,6 +14,7 @@ import {
     BreakpointEvent,
     Handles,
     InitializedEvent,
+    InvalidatedEvent,
     Logger,
     logger,
     LoggingDebugSession,
@@ -84,6 +85,12 @@ const threadAllRegex = /.*\s+\-\-all(\s+.*|$)/;
 interface StreamOutput {
     output: string;
     category: string;
+}
+
+// Interface for notify data of cmd-param-changed
+interface CmdParamChangedNotifyData {
+    param: string;
+    value: string;
 }
 
 // Interface for a pending pause request, used with pauseIfRunning() logic
@@ -2473,7 +2480,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     expression,
                     false,
                     false,
-                    varCreateResponse,
+                    varCreateResponse
                 );
             } else {
                 const vup = await mi.sendVarUpdate(gdb, {
@@ -2511,15 +2518,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             if (varobj) {
                 const frameHandle = args.frameId ?? -1;
-                const hasChildren = args.context === 'variables' && Number(varobj.numchild);
-                const result =
-                    hasChildren
-                        ? await this.getChildElements(varobj, frameHandle)
-                        : expressionDisplayFormat !== 'natural' ? await mi.sendVarSetFormat(
-                              gdb,
-                              varobj.varname,
-                              expressionDisplayFormat
-                          ) : varobj.value;
+                const hasChildren =
+                    args.context === 'variables' && Number(varobj.numchild);
+                const result = hasChildren
+                    ? await this.getChildElements(varobj, frameHandle)
+                    : expressionDisplayFormat !== 'natural'
+                      ? await mi.sendVarSetFormat(
+                            gdb,
+                            varobj.varname,
+                            expressionDisplayFormat
+                        )
+                      : varobj.value;
                 if (expressionDisplayFormat !== 'natural') {
                     // restore original format after evaluation
                     await mi.sendVarSetFormat(gdb, varobj.varname, 'natural');
@@ -3065,6 +3074,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
     }
 
+    private handleCmdParamChanged(notifyData: CmdParamChangedNotifyData) {
+        switch (notifyData.param) {
+            case 'output-radix':
+                this.sendEvent(new InvalidatedEvent(['variables']));
+                break;
+            default:
+                break;
+        }
+    }
+
     protected handleGDBNotify(notifyClass: string, notifyData: any) {
         switch (notifyClass) {
             case 'thread-created':
@@ -3151,7 +3170,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 break;
             case 'cmd-param-changed':
-                // Known unhandled notifies
+                this.handleCmdParamChanged(notifyData);
                 break;
             default:
                 logger.warn(
@@ -3362,8 +3381,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         variable.name,
                         true,
                         false,
-                        varCreateResponse,
-                        'natural'
+                        varCreateResponse
                     );
                 } else {
                     // var existed as an expression before. Now it's a variable too.
