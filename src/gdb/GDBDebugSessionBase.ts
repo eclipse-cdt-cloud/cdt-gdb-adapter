@@ -2093,7 +2093,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     false,
                     false,
                     varCreateResponse,
-                    'hexadecimal',
                     ref.type
                 );
                 await mi.sendVarSetFormat(
@@ -2468,14 +2467,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     frameRef,
                     frame: frameRef ? 'current' : 'floating',
                 });
-                // if format is undefined, skip the format command and return the value as-is, otherwise apply the requested formatting)
-                if (expressionDisplayFormat !== 'natural') {
-                    varCreateResponse.value = await mi.sendVarSetFormat(
-                        gdb,
-                        varCreateResponse.name,
-                        expressionDisplayFormat
-                    );
-                }
                 varobj = gdb.varManager.addVar(
                     frameRef,
                     depth,
@@ -2483,18 +2474,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     false,
                     false,
                     varCreateResponse,
-                    expressionDisplayFormat
                 );
             } else {
-                const currentFormat = varobj.displayFormat;
-                if (currentFormat !== expressionDisplayFormat) {
-                    varobj.value = await mi.sendVarSetFormat(
-                        gdb,
-                        varobj.varname,
-                        expressionDisplayFormat
-                    );
-                    varobj.displayFormat = expressionDisplayFormat;
-                }
                 const vup = await mi.sendVarUpdate(gdb, {
                     name: varobj.varname,
                 });
@@ -2517,31 +2498,32 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             expression,
                             frameRef,
                         });
-                        if (expressionDisplayFormat !== 'natural') {
-                            await mi.sendVarSetFormat(
-                                gdb,
-                                varCreateResponse.name,
-                                expressionDisplayFormat
-                            );
-                        }
                         varobj = gdb.varManager.addVar(
                             frameRef,
                             depth,
                             expression,
                             false,
                             false,
-                            varCreateResponse,
-                            expressionDisplayFormat
+                            varCreateResponse
                         );
                     }
                 }
             }
             if (varobj) {
                 const frameHandle = args.frameId ?? -1;
+                const hasChildren = args.context === 'variables' && Number(varobj.numchild);
                 const result =
-                    args.context === 'variables' && Number(varobj.numchild)
+                    hasChildren
                         ? await this.getChildElements(varobj, frameHandle)
-                        : varobj.value;
+                        : expressionDisplayFormat !== 'natural' ? await mi.sendVarSetFormat(
+                              gdb,
+                              varobj.varname,
+                              expressionDisplayFormat
+                          ) : varobj.value;
+                if (expressionDisplayFormat !== 'natural') {
+                    // restore original format after evaluation
+                    await mi.sendVarSetFormat(gdb, varobj.varname, 'natural');
+                }
                 const variablesReference =
                     parseInt(varobj.numchild, 10) > 0
                         ? this.variableHandles.create({

@@ -2,7 +2,6 @@ import { IGDBBackend } from './types/gdb';
 import { FrameReference } from './types/session';
 import {
     MIVarCreateResponse,
-    DisplayFormat,
     sendVarCreate,
     sendVarDelete,
     sendVarUpdate,
@@ -18,7 +17,6 @@ export interface VarObjType {
     isVar: boolean;
     isChild: boolean;
     varType: string;
-    displayFormat: DisplayFormat;
 }
 
 export class VarManager {
@@ -90,7 +88,6 @@ export class VarManager {
         isVar: boolean,
         isChild: boolean,
         varCreateResponse: MIVarCreateResponse,
-        displayFormat: DisplayFormat,
         type?: string
     ): VarObjType {
         let vars = this.variableMap.get(this.getKey(frameRef, depth));
@@ -107,7 +104,6 @@ export class VarManager {
             type: varCreateResponse.type,
             isVar,
             isChild,
-            displayFormat,
             varType: type ? type : 'local',
         };
         vars.push(varobj);
@@ -168,8 +164,7 @@ export class VarManager {
                     varobj.expression,
                     varobj.isVar,
                     varobj.isChild,
-                    createResponse,
-                    varobj.displayFormat
+                    createResponse
                 );
             }
         }
