@@ -2523,16 +2523,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const result = hasChildren
                     ? await this.getChildElements(varobj, frameHandle)
                     : expressionDisplayFormat !== 'natural'
-                      ? await mi.sendVarSetFormat(
-                            gdb,
-                            varobj.varname,
-                            expressionDisplayFormat
-                        )
+                      ? (
+                            await mi.sendVarEvaluateExpression(gdb, {
+                                varname: varobj.varname,
+                                format: expressionDisplayFormat,
+                            })
+                        ).value
                       : varobj.value;
-                if (expressionDisplayFormat !== 'natural') {
-                    // restore original format after evaluation
-                    await mi.sendVarSetFormat(gdb, varobj.varname, 'natural');
-                }
                 const variablesReference =
                     parseInt(varobj.numchild, 10) > 0
                         ? this.variableHandles.create({
