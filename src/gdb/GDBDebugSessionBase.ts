@@ -2302,14 +2302,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
     ): Promise<void> {
-        return this.doEvaluateRequest(response, args, false);
-    }
-
-    protected async doEvaluateRequest(
-        response: DebugProtocol.EvaluateResponse,
-        args: DebugProtocol.EvaluateArguments,
-        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId
-    ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
             variablesReference: 0,
@@ -2330,14 +2322,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const expression = args.expression.trim();
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
-            const isAux = this.auxGdb && this.isRunning;
             // Allow evaluation of expression without frame info when CLI commands are always allowed or
             // when called with normal expression in auxiliary GDB mode.
             const allowUndefinedFrame =
-                (isCliCommand && alwaysAllowCliCommand) ||
-                (!isCliCommand && isAux);
+                isCliCommand ||
+                (!isCliCommand && this.auxGdb && this.isRunning);
 
-            if (!allowUndefinedFrame && args.frameId == undefined) {
+            if (!allowUndefinedFrame && args.frameId === undefined) {
                 throw new Error(
                     'Evaluation of expression without frameId is not supported.'
                 );
@@ -2420,7 +2411,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const varCreateResponse = await mi.sendVarCreate(gdb, {
                     expression,
                     frameRef,
-                    frame: frameRef ? 'current' : 'floating',
+                    frame: frameRef?.frameId ? 'current' : 'floating',
                 });
                 varobj = gdb.varManager.addVar(
                     frameRef,
