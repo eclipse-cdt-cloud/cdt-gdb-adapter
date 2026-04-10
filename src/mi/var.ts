@@ -206,7 +206,7 @@ export function sendVarAssign(
     return gdb.sendCommand(command);
 }
 
-export async function sendVarEvaluateExpression(
+export function sendVarEvaluateExpression(
     gdb: IGDBBackend,
     params: {
         varname: string;
@@ -218,8 +218,7 @@ export async function sendVarEvaluateExpression(
         command += ` -f ${params.format}`;
     }
     command += ` ${params.varname}`;
-    const result: MIVarEvalResponse = await gdb.sendCommand(command);
-    return result;
+    return gdb.sendCommand(command);
 }
 
 export function sendVarInfoPathExpression(
