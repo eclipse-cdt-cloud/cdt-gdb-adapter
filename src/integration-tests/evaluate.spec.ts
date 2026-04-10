@@ -13,7 +13,6 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
-    //gdbAsync,
     getScopes,
     isRemoteTest,
     resolveLineTagLocations,
@@ -301,9 +300,6 @@ describe('evaluate request', function () {
     });
     
     it('should send invalidate event when changing global radix through evaluate request', async function () {
-        //if (!(isRemoteTest && gdbAsync)) {
-        //    this.skip();
-        //}
         const event = dc.waitForEvent('invalidated');
         await dc.evaluateRequest({
             context: 'repl',
