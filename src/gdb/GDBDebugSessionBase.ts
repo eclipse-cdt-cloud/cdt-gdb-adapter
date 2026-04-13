@@ -2462,7 +2462,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendErrorResponse(
                     response,
                     1,
-                    'Unknown expression format specifier, supported specifiers are: x, d, o, b, z'
+                    'Unknown expression format specifier, supported specifiers are: x, d, o, b, t, z'
                 );
                 return;
             }
