@@ -298,7 +298,7 @@ describe('evaluate request', function () {
         expect(monitorVariable).to.not.be.undefined;
         expect(monitorVariable?.value).to.equal('10');
     });
-    
+
     it('should send invalidate event when changing global radix through evaluate request', async function () {
         const event = dc.waitForEvent('invalidated');
         await dc.evaluateRequest({
