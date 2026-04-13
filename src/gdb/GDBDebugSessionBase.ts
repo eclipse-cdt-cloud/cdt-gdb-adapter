@@ -2102,7 +2102,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     varCreateResponse,
                     ref.type
                 );
-                await mi.sendVarSetFormatToHex(this.gdb, varobj.varname);
+                await mi.sendVarSetFormat(
+                    this.gdb,
+                    varobj.varname,
+                    'hexadecimal'
+                );
             }
             let assign;
             if (varobj) {
@@ -2305,6 +2309,44 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return this.doEvaluateRequest(response, args, false);
     }
 
+    private extractExpressionFormat(
+        expression: string
+    ): [string, mi.DisplayFormat] {
+        // Extract last two characters from expression
+        const lastTwoChars = expression.slice(-2);
+        if (lastTwoChars[0] !== ',') {
+            return [expression, 'natural'];
+        }
+        const formatSpecifier = lastTwoChars[1];
+        const slicedExpression = expression.slice(0, -2).trim();
+        const returnedPair: [string, mi.DisplayFormat] = [
+            slicedExpression,
+            'natural',
+        ];
+        switch (formatSpecifier) {
+            case 'x':
+                returnedPair[1] = 'hexadecimal';
+                break;
+            case 'd':
+                returnedPair[1] = 'decimal';
+                break;
+            case 'o':
+                returnedPair[1] = 'octal';
+                break;
+            case 't': // GDB convention because 'b' already means 'byte'
+            case 'b': // VSCode convention
+                returnedPair[1] = 'binary';
+                break;
+            case 'z':
+                returnedPair[1] = 'zero-hexadecimal';
+                break;
+            default:
+                returnedPair[1] = 'unknown';
+                break;
+        }
+        return returnedPair;
+    }
+
     protected async doEvaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments,
@@ -2327,7 +2369,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            const expression = args.expression.trim();
+            let expression = args.expression.trim();
             const isCliCommand =
                 expression.startsWith('>') && args.context === 'repl';
             const isAux = this.auxGdb && this.isRunning;
@@ -2414,7 +2456,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
             const [gdb, frameRef, depth] =
                 await this.getFrameContext(initialFrameRef);
-
+            const [actualExpression, expressionDisplayFormat] =
+                this.extractExpressionFormat(expression);
+            if (expressionDisplayFormat === 'unknown') {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    'Unknown expression format specifier, supported specifiers are: x, d, o, b, t, z'
+                );
+                return;
+            }
+            expression = actualExpression;
             let varobj = gdb.varManager.getVar(frameRef, depth, expression);
             if (!varobj) {
                 const varCreateResponse = await mi.sendVarCreate(gdb, {
@@ -2466,10 +2518,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             }
             if (varobj) {
                 const frameHandle = args.frameId ?? -1;
-                const result =
-                    args.context === 'variables' && Number(varobj.numchild)
-                        ? await this.getChildElements(varobj, frameHandle)
-                        : varobj.value;
+                const hasChildren =
+                    args.context === 'variables' && Number(varobj.numchild);
+                const result = hasChildren
+                    ? await this.getChildElements(varobj, frameHandle)
+                    : expressionDisplayFormat !== 'natural'
+                      ? (
+                            await mi.sendVarEvaluateExpression(gdb, {
+                                varname: varobj.varname,
+                                format: expressionDisplayFormat,
+                            })
+                        ).value
+                      : varobj.value;
                 const variablesReference =
                     parseInt(varobj.numchild, 10) > 0
                         ? this.variableHandles.create({
