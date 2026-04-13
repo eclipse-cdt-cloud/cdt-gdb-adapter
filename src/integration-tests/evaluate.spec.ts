@@ -13,6 +13,7 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
+    gdbAsync,
     getScopes,
     isRemoteTest,
     resolveLineTagLocations,
