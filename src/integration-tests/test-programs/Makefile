@@ -1,4 +1,4 @@
-BINS = empty empty\ space evaluate vars vars_cpp vars_env vars_globals mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试 cwd.exe stepping
+BINS = empty empty\ space evaluate vars vars_cpp vars_env vars_globals mem segv count disassemble functions loopforever MultiThread MultiThreadRunControl stderr bug275-测试 cwd.exe stepping watch_local_scope_transition
 
 .PHONY: all
 all: $(BINS)
@@ -90,6 +90,9 @@ stderr: stderr.o
 	$(LINK)
 
 stepping: stepping.o
+	$(LINK)
+
+watch_local_scope_transition: watch_local_scope_transition.o
 	$(LINK)
 
 %.o: %.c
