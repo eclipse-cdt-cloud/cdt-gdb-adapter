@@ -210,7 +210,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // keeps track of where in the configuration phase (between initialize event
     // and configurationDone response) we are
     protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
-    protected isInitialized = false;
+    protected isInitialized = false; // unused here but kept for compatibility
     protected deferredStopEvents: any[] = [];
 
     /**
@@ -603,10 +603,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
         this.sendEvent(new InitializedEvent());
         this.isInitialized = true;
-        for (const resultData of this.deferredStopEvents) {
-            this.handleGDBStopped(resultData);
-        }
-        this.deferredStopEvents.splice(0);
     }
 
     protected async attachRequest(
@@ -772,12 +768,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.waitPaused = undefined;
     }
 
+    protected setConfiguringStateDone(): void {
+        this.configuringState = ConfiguringState.DONE;
+        for (const resultData of this.deferredStopEvents) {
+            this.handleGDBStopped(resultData);
+        }
+        this.deferredStopEvents.splice(0);
+    }
+
     protected async continueIfNeeded(): Promise<void> {
         if (this.pauseCount > 0) {
             this.pauseCount--;
             if (this.pauseCount === 0) {
                 if (this.configuringState === ConfiguringState.FINISHING) {
-                    this.configuringState = ConfiguringState.DONE;
                     if (
                         this.runAfterConfiguration == RequestArgRun.ALWAYS ||
                         this.waitPausedNeeded
@@ -788,6 +791,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             await mi.sendExecRun(this.gdb);
                         }
                     }
+                    this.setConfiguringStateDone();
                 } else if (this.waitPausedNeeded) {
                     if (this.gdb.isNonStopMode()) {
                         await mi.sendExecContinue(
@@ -1725,7 +1729,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.configuringState = ConfiguringState.FINISHING;
                 await this.continueIfNeeded();
             } else {
-                this.configuringState = ConfiguringState.DONE;
+                this.setConfiguringStateDone();
             }
             this.sendResponse(response);
         } catch (err) {
@@ -3185,7 +3189,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
                 updateIsRunning();
-                if (this.isInitialized) {
+                if (this.configuringState == ConfiguringState.DONE) {
                     this.handleGDBResume(resultData);
                 } else {
                     // while we are deferring events, cancel previous stop events for the same thread
@@ -3258,7 +3262,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     (this.gdb.isNonStopMode() ||
                         (wasRunning && !this.isRunning))
                 ) {
-                    if (this.isInitialized) {
+                    if (this.configuringState == ConfiguringState.DONE) {
                         this.handleGDBStopped(resultData);
                     } else {
                         this.deferredStopEvents.push(resultData);
