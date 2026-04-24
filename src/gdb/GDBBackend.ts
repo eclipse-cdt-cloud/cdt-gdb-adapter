@@ -295,9 +295,9 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
         return this.hardwareBreakpoint;
     }
 
-    public pause(threadId?: number) {
+    public pause(threadId?: number): Promise<void> | void {
         if (this.gdbAsync) {
-            sendExecInterrupt(this, threadId);
+            return sendExecInterrupt(this, threadId) as Promise<void>;
         } else {
             if (!this.proc) {
                 throw new Error('GDB is not running, nothing to interrupt');
