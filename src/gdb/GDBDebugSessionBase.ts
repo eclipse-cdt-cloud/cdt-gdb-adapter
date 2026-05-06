@@ -2195,7 +2195,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 : undefined;
             const [gdb, frameRef, depth] =
                 await this.getFrameContext(initialFrameRef);
-            const varObj = this.gdb.varManager.getVar(
+            const varObj = gdb.varManager.getVar(
                 frameRef,
                 depth,
                 args.expression
