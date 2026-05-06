@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.8.0
+
+- Implements [`#506`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/506): Support value formatting in expressions with `,<type>` (where `<type>` is one of `x` (hex), `d` (dec), `o` (oct), `t`/`b` (bin), `z` (zero-padded hex)).
+- Implements [`#523`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/523): Send invalidate-variables event to the client when GDB `output-radix` changes.
+- Fixes [`#512`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/512): Remove redundant `sendVarDelete` call that threw an exception when watching variables that share a name across lexical scopes.
+- Fixes [`#521`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/521): Restrict support for terminate request to `gdbtarget` (remote) sessions only.
+- Fixes [`#522`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/522): Use `detach` command for disconnection from a remote target.
+
 ## 1.7.1
 
 - Fixes [`#507`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/507): Execution of GDB commands with quotes or backslashes (e.g. Windows paths) in the Debug Console. If you have previously added inexplicable extra backslashes to commands to work around this, you need to stop doing that now.
