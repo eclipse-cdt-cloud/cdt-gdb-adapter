@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.8.1
+
+- Fixes [`#530`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/530): Bump publish job to Node 24 to work around an npm self-upgrade crash that prevented 1.8.0 from being published to npm.
+
 ## 1.8.0
 
 - Implements [`#506`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/506): Support value formatting in expressions with `,<type>` (where `<type>` is one of `x` (hex), `d` (dec), `o` (oct), `t`/`b` (bin), `z` (zero-padded hex)).
