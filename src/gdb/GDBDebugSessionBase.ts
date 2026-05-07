@@ -3168,14 +3168,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             case 'cmd-param-changed':
                 this.handleCmdParamChanged(notifyData);
                 break;
-            case 'memory-changed':
+            case 'memory-changed': {
                 const memoryEvent = new MemoryEvent(
                     notifyData.addr,
                     0,
                     parseInt(notifyData.len)
                 );
                 this.sendEvent(memoryEvent);
-                    break;
+                break;
+            }
             default:
                 logger.warn(
                     `GDB unhandled notify: ${notifyClass}: ${JSON.stringify(

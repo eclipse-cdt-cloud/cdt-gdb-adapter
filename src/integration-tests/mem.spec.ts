@@ -214,7 +214,6 @@ describe('Memory Test Suite', function () {
             frameId: frame.id,
             context: 'repl',
         });
-        //await dc.writeMemoryRequest(writeArguments);
         const output = await memoryEvent;
         expect(parseInt(output.body.memoryReference)).eq(addrOfArray);
         expect(output.body.count).eq(1);
