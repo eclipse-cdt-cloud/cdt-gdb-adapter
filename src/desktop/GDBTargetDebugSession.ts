@@ -835,7 +835,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
 
     protected async doDisconnectRequest(
         gdbServerTimeout: number,
-        sendTerminate?: boolean
+        terminateDebuggee?: boolean
     ): Promise<void> {
         await this.setSessionState(SessionState.EXITING);
 
@@ -854,12 +854,19 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     this.targetType === 'remote' &&
                     (!this.launchGdbServer || isProcessActive(this.gdbserver))
                 ) {
-                    // Need to pause first, then disconnect and exit.
-                    await this.pauseIfNeeded(true);
-                    if (this.auxGdb?.isActive()) {
-                        await this.auxGdb.sendCommand('disconnect');
+                    let command = 'detach';
+                    if (terminateDebuggee !== false) {
+                        // Need to pause first, then disconnect and exit.
+                        await this.pauseIfNeeded(true);
+                        command = 'disconnect';
+                    } else if (this.gdb.isNonStopMode() === false) {
+                        // Need to pause before detach if it is all-stop mode
+                        await this.pauseIfNeeded(true);
                     }
-                    await this.gdb.sendCommand('disconnect');
+                    if (this.auxGdb?.isActive()) {
+                        await this.auxGdb.sendCommand(command);
+                    }
+                    await this.gdb.sendCommand(command);
                 }
 
                 if (this.auxGdb?.isActive()) {
@@ -894,7 +901,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             }
         }
 
-        if (sendTerminate) {
+        if (terminateDebuggee) {
             this.sendEvent(new TerminatedEvent());
         }
     }
@@ -905,10 +912,10 @@ export class GDBTargetDebugSession extends GDBDebugSession {
      */
     protected async disconnectRequest(
         response: DebugProtocol.DisconnectResponse,
-        _args: DebugProtocol.DisconnectArguments
+        args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            await this.doDisconnectRequest(0);
+            await this.doDisconnectRequest(0, args?.terminateDebuggee);
             if (this.sessionInfo.disconnectError) {
                 this.sendErrorResponse(
                     response,

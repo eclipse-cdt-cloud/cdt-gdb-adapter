@@ -13,7 +13,6 @@ import { CdtDebugClient } from './debugClient';
 import {
     expectRejection,
     fillDefaults,
-    gdbAsync,
     getScopes,
     isRemoteTest,
     resolveLineTagLocations,
@@ -196,7 +195,111 @@ describe('evaluate request', function () {
         expect(err.message).eq('Undefined MI command: a');
     });
 
-    it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
+    it('should evaluate an expression with format specifier', async function () {
+        const res = await dc.evaluateRequest({
+            context: 'repl',
+            expression: '2 + 2,x',
+            frameId: scope.frame.id,
+        });
+        expect(res.body.result).eq('0x4');
+    });
+
+    it('should evaluate an expression with a non-default format specifier', async function () {
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        const defaultResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+
+        const hexResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,x',
+            frameId: scope.frame.id,
+        });
+
+        const binaryResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,b',
+            frameId: scope.frame.id,
+        });
+
+        const anotherBinaryResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,t',
+            frameId: scope.frame.id,
+        });
+
+        const octalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,o',
+            frameId: scope.frame.id,
+        });
+
+        const decimalResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,d',
+            frameId: scope.frame.id,
+        });
+
+        expect(binaryResponse.body.result).to.equal('1010');
+        expect(anotherBinaryResponse.body.result).to.equal('1010');
+        expect(defaultResponse.body.result).to.equal('10');
+        expect(hexResponse.body.result).to.equal('0xa');
+        expect(octalResponse.body.result).to.equal('012');
+        expect(decimalResponse.body.result).to.equal('10');
+
+        // Evaluate again without format specifier to check that the default format is not changed
+        const defaultResponse2 = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor',
+            frameId: scope.frame.id,
+        });
+        expect(defaultResponse2.body.result).to.equal('10');
+    });
+
+    it('should return an error if an invalid format specifier is used', async function () {
+        const err = await expectRejection(
+            dc.evaluateRequest({
+                context: 'repl',
+                expression: 'monitor,q',
+                frameId: scope.frame.id,
+            })
+        );
+
+        expect(err.message).to.startWith('Unknown expression format specifier');
+    });
+
+    it('should not change the format of a variable in the variables view while evaluating the same variable with a format specifier in the watch view', async function () {
+        await dc.evaluateRequest({
+            context: 'repl',
+            expression: 'monitor = 10',
+            frameId: scope.frame.id,
+        });
+
+        const watchResponse = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'monitor,x',
+            frameId: scope.frame.id,
+        });
+        expect(watchResponse.body.result).to.equal('0xa');
+
+        const variableRequestResponse = await dc.variablesRequest({
+            variablesReference: scope.scopes.body.scopes[0].variablesReference,
+        });
+        const monitorVariable = variableRequestResponse.body.variables.find(
+            (variable) => variable.name === 'monitor'
+        );
+        expect(monitorVariable).to.not.be.undefined;
+        expect(monitorVariable?.value).to.equal('10');
+    });
+
+     it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
         if (!(isRemoteTest && gdbAsync)) {
             this.skip();
         }
@@ -364,5 +467,121 @@ describe('evaluate request global variables', function () {
                 expect(gcVariable.variablesReference).to.equal(0);
             });
         });
+    });
+});
+
+describe('evaluate request - watch local variable across lexical scope transition', function () {
+    let dc: CdtDebugClient;
+    let scope: Scope;
+
+    const DEBUG = false;
+    const program = path.join(testProgramsDir, 'watch_local_scope_transition');
+    const src = path.join(testProgramsDir, 'watch_local_scope_transition.c');
+    const lineTags = {
+        FIRST_SCOPE: 0,
+        SECOND_SCOPE: 0,
+    };
+
+    before(function () {
+        resolveLineTagLocations(src, lineTags);
+        if (DEBUG) {
+            console.log('FIRST_SCOPE line:', lineTags.FIRST_SCOPE);
+            console.log('SECOND_SCOPE line:', lineTags.SECOND_SCOPE);
+        }
+    });
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach();
+
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, {
+                program,
+            })
+        );
+
+        await dc.setBreakpointsRequest({
+            source: { path: src },
+            breakpoints: [
+                { line: lineTags.FIRST_SCOPE },
+                { line: lineTags.SECOND_SCOPE },
+            ],
+        });
+
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.configurationDoneRequest(),
+        ]);
+
+        scope = await getScopes(dc);
+    });
+
+    afterEach(async function () {
+        await dc.stop();
+    });
+
+    it('should reevaluate a watched local variable when a same-named local is recreated in a new scope', async function () {
+        // Evaluate "x" in the first lexical scope and cache/reuse the varobj.
+        // With the buggy implementation, when that varobj later goes out of scope,
+        // doEvaluateRequest() deletes it twice:
+        //   1) indirectly via varManager.removeVar()
+        //   2) directly via an extra mi.sendVarDelete()
+        //
+        // The second delete triggers the GDB/MI error "Variable object not found",
+        // causing watch reevaluation to fail instead of recreating the varobj for
+        // the new in-scope local variable in the second block.
+
+        const first = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'x',
+            frameId: scope.frame.id,
+        });
+        if (DEBUG) {
+            console.log('first watch result:', first.body.result);
+        }
+        expect(first.body.result).to.equal('1');
+
+        // Re-evaluate once more in the first scope to ensure the existing varobj
+        // path is exercised before transitioning to the next scope.
+        const firstAgain = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'x',
+            frameId: scope.frame.id,
+        });
+        if (DEBUG) {
+            console.log('firstAgain watch result:', firstAgain.body.result);
+        }
+        expect(firstAgain.body.result).to.equal('1');
+
+        // Continue to the second block where a new local variable "x" is created.
+        await Promise.all([
+            dc.waitForEvent('stopped'),
+            dc.continueRequest({ threadId: scope.thread.id }),
+        ]);
+
+        scope = await getScopes(dc);
+
+        try {
+            const second = await dc.evaluateRequest({
+                context: 'watch',
+                expression: 'x',
+                frameId: scope.frame.id,
+            });
+
+            if (DEBUG) {
+                console.log('second watch result:', second.body.result);
+            }
+            expect(second.body.result).to.equal('2');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (DEBUG) {
+                console.log(
+                    'watch reevaluation failed after scope transition:',
+                    msg
+                );
+            }
+            expect.fail(
+                `Expected watched expression "x" to reevaluate to "2" in the second scope, but evaluation failed: ${msg}`
+            );
+        }
     });
 });

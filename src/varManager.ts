@@ -1,7 +1,11 @@
 import { IGDBBackend } from './types/gdb';
-import { MIVarCreateResponse } from './mi/var';
-import { sendVarCreate, sendVarDelete, sendVarUpdate } from './mi/var';
 import { FrameReference } from './types/session';
+import {
+    MIVarCreateResponse,
+    sendVarCreate,
+    sendVarDelete,
+    sendVarUpdate,
+} from './mi/var';
 
 export interface VarObjType {
     varname: string;
