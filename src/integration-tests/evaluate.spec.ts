@@ -19,6 +19,7 @@ import {
     Scope,
     standardBeforeEach,
     testProgramsDir,
+    gdbAsync,
 } from './utils';
 import { expect } from 'chai';
 
