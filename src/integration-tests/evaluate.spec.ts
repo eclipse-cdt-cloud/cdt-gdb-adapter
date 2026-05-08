@@ -300,7 +300,7 @@ describe('evaluate request', function () {
         expect(monitorVariable?.value).to.equal('10');
     });
 
-     it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
+    it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
         if (!(isRemoteTest && gdbAsync)) {
             this.skip();
         }
