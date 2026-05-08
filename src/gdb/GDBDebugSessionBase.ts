@@ -3169,12 +3169,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.handleCmdParamChanged(notifyData);
                 break;
             case 'memory-changed': {
-                const length = isNaN(notifyData.len) ? 0 : parseInt(notifyData.len, 10);
-                const memoryEvent = new MemoryEvent(
-                    notifyData.addr,
-                    0,
-                    length
-                );
+                const length = isNaN(notifyData.len)
+                    ? 0
+                    : parseInt(notifyData.len, 10);
+                const memoryEvent = new MemoryEvent(notifyData.addr, 0, length);
                 this.sendEvent(memoryEvent);
                 break;
             }
