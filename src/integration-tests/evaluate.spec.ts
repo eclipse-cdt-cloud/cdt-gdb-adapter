@@ -196,18 +196,21 @@ describe('evaluate request', function () {
         expect(err.message).eq('Undefined MI command: a');
     });
 
-    it('should send invalidate event when changing global radix through evaluate request', async function () {
+    it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
         if (!(isRemoteTest && gdbAsync)) {
             this.skip();
         }
         const event = dc.waitForEvent('invalidated');
+        const customEvent = dc.waitForEvent('OutputRadixUpdated');
         await dc.evaluateRequest({
             context: 'repl',
             expression: '> set output-radix 16',
             frameId: scope.frame.id,
         });
         const invalidatedEvent = await event;
+        const outputRadixUpdatedEvent = await customEvent;
         expect(invalidatedEvent).to.be.not.undefined;
+        expect(outputRadixUpdatedEvent.body.radix).eq('16');
     });
 });
 

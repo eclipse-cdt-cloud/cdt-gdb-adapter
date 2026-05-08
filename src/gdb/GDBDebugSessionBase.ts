@@ -3015,12 +3015,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     private handleCmdParamChanged(notifyData: CmdParamChangedNotifyData) {
         switch (notifyData.param) {
             case 'output-radix':
-                this.sendEvent(new InvalidatedEvent(['variables']));
                 this.sendEvent(
                     new Event('OutputRadixUpdated', {
                         radix: notifyData.value,
                     })
                 );
+                this.sendEvent(new InvalidatedEvent(['variables']));
                 break;
             default:
                 break;
