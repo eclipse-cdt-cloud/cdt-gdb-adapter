@@ -3169,9 +3169,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.handleCmdParamChanged(notifyData);
                 break;
             case 'memory-changed': {
-                const length = isNaN(notifyData.len)
-                    ? 0
-                    : parseInt(notifyData.len, 10);
+                let length = 0;
+                if (isNaN(notifyData.len)) {
+                    logger.warn(
+                        `GDB notify "memory-changed" has invalid length: ${notifyData.len}`
+                    );
+                }
+                length = parseInt(notifyData.len);
                 const memoryEvent = new MemoryEvent(notifyData.addr, 0, length);
                 this.sendEvent(memoryEvent);
                 break;
