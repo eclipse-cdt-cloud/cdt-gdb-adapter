@@ -19,7 +19,6 @@ import {
     Scope,
     standardBeforeEach,
     testProgramsDir,
-    gdbAsync,
 } from './utils';
 import { expect } from 'chai';
 
@@ -301,9 +300,6 @@ describe('evaluate request', function () {
     });
 
     it('should send a custom event and an invalidate event when changing global radix through evaluate request', async function () {
-        if (!(isRemoteTest && gdbAsync)) {
-            this.skip();
-        }
         const event = dc.waitForEvent('invalidated');
         const customEvent = dc.waitForEvent('OutputRadixUpdated');
         await dc.evaluateRequest({
