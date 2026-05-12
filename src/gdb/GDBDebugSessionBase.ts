@@ -25,6 +25,7 @@ import {
     TerminatedEvent,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { Mutex } from 'async-mutex';
 import { ContinuedEvent } from '../events/continuedEvent';
 import { StoppedEvent } from '../events/stoppedEvent';
 import { VarObjType } from '../varManager';
@@ -188,6 +189,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // reference count of operations requiring pausing, to make sure only the
     // first of them pauses, and the last to complete resumes
     protected pauseCount = 0;
+
+    // Serializes the bodies of the breakpoint request handlers so their
+    // read-modify-write of GDB's global breakpoint list cannot interleave.
+    // pauseIfNeeded/continueIfNeeded only coalesces the target pause, it does
+    // not prevent concurrent handlers from acting on stale snapshots.
+    protected breakpointMutex = new Mutex();
 
     // Pending requests to pause a thread silently (without sending stopped event).
     // At the moment only used with pauseIfRunning().
@@ -916,6 +923,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetDataBreakpointsResponse,
         args: DebugProtocol.SetDataBreakpointsArguments
     ): Promise<void> {
+        await this.breakpointMutex.runExclusive(() =>
+            this.doSetDataBreakpointsRequest(response, args)
+        );
+    }
+
+    protected async doSetDataBreakpointsRequest(
+        response: DebugProtocol.SetDataBreakpointsResponse,
+        args: DebugProtocol.SetDataBreakpointsArguments
+    ): Promise<void> {
         // If this is the first time sending this breakpoint and there are no breakpoints to set,
         // do not change state of the target by avoiding an unnecessary pause
         if (!this.isDataBreakpointSent) {
@@ -1025,18 +1041,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.SetInstructionBreakpointsResponse,
         args: DebugProtocol.SetInstructionBreakpointsArguments
     ): Promise<void> {
-        try {
-            return await this.doSetInstructionBreakpointsRequest(
-                response,
-                args
-            );
-        } catch (err) {
-            this.sendErrorResponse(
-                response,
-                1,
-                err instanceof Error ? err.message : String(err)
-            );
-        }
+        await this.breakpointMutex.runExclusive(async () => {
+            try {
+                await this.doSetInstructionBreakpointsRequest(response, args);
+            } catch (err) {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    err instanceof Error ? err.message : String(err)
+                );
+            }
+        });
     }
 
     protected async doSetInstructionBreakpointsRequest(
@@ -1162,6 +1177,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     protected async setBreakPointsRequest(
+        response: DebugProtocol.SetBreakpointsResponse,
+        args: DebugProtocol.SetBreakpointsArguments
+    ): Promise<void> {
+        await this.breakpointMutex.runExclusive(() =>
+            this.doSetBreakPointsRequest(response, args)
+        );
+    }
+
+    protected async doSetBreakPointsRequest(
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ): Promise<void> {
@@ -1413,6 +1437,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     }
 
     protected async setFunctionBreakPointsRequest(
+        response: DebugProtocol.SetFunctionBreakpointsResponse,
+        args: DebugProtocol.SetFunctionBreakpointsArguments
+    ) {
+        await this.breakpointMutex.runExclusive(() =>
+            this.doSetFunctionBreakPointsRequest(response, args)
+        );
+    }
+
+    protected async doSetFunctionBreakPointsRequest(
         response: DebugProtocol.SetFunctionBreakpointsResponse,
         args: DebugProtocol.SetFunctionBreakpointsArguments
     ) {
