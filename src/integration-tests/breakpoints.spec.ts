@@ -885,4 +885,27 @@ describe('breakpoints', async function () {
         });
         expect(response.body.breakpoints.length).eq(0);
     });
+
+    it('uses breakpointLocations to verify valid breakpoint locations', async () => {
+        const response = await dc.customRequest('breakpointLocations', {
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            line: 1,
+            endLine: 10,
+        });
+        expect(response.body.breakpoints.length).to.be.greaterThan(0);
+        expect(response.body.breakpoints[0]).to.have.property('line');
+        // Line 6 should be a valid breakpoint location, as it has code
+        const line6 = response.body.breakpoints.find(
+            (bp: any) => bp.line === 6
+        );
+        expect(line6).not.eq(undefined);
+        // Line 5 should not be a valid breakpoint location, as it has no code
+        const line5 = response.body.breakpoints.find(
+            (bp: any) => bp.line === 5
+        );
+        expect(line5).eq(undefined);
+    });
 });
