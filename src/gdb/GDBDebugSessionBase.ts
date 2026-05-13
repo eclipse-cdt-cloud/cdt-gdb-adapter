@@ -1581,7 +1581,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return { resolved, deletes };
     }
 
-    protected async breakpointLocationsRequest(response: DebugProtocol.BreakpointLocationsResponse, args: DebugProtocol.BreakpointLocationsArguments): Promise<void> {
+    protected async breakpointLocationsRequest(
+        response: DebugProtocol.BreakpointLocationsResponse,
+        args: DebugProtocol.BreakpointLocationsArguments
+    ): Promise<void> {
         // Check if debug adapter is in a state to proceed with the request.
         if (!this.canRequestProceed()) {
             this.logger.verbose(
@@ -1597,13 +1600,17 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const file = args.source.path;
             if (!file) {
                 throw new Error('Source path is missing');
-            }  
-            const availableLines = await mi.sendSymbolListLines(this.gdb, file); 
+            }
+            const availableLines = await mi.sendSymbolListLines(this.gdb, file);
             // Compare available lines with requested lines range and return the ones that are available in GDB
             const startLine = args.line;
             const endLine = args.endLine || args.line;
             const breakpoints = availableLines.lines
-                .filter((line) => parseInt(line.line, 10) >= startLine && parseInt(line.line, 10) <= endLine)
+                .filter(
+                    (line) =>
+                        parseInt(line.line, 10) >= startLine &&
+                        parseInt(line.line, 10) <= endLine
+                )
                 .map((line) => ({
                     line: parseInt(line.line, 10),
                 }));
@@ -1612,9 +1619,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             };
             this.sendResponse(response);
         } catch (err) {
-            if (err instanceof Error && err.message.includes('-symbol-list-lines: Unknown source file name.')) {
+            if (
+                err instanceof Error &&
+                err.message.includes(
+                    '-symbol-list-lines: Unknown source file name.'
+                )
+            ) {
                 // fail silently
-                this.logger.verbose(`GDB cannot provide breakpoint locations for file ${args.source.path}: ${err.message}`);
+                this.logger.verbose(
+                    `GDB cannot provide breakpoint locations for file ${args.source.path}: ${err.message}`
+                );
                 response.body = {
                     breakpoints: [],
                 };

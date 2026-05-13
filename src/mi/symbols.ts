@@ -99,7 +99,8 @@ export async function sendSymbolListLines(
     gdb: IGDBBackend,
     file: string
 ): Promise<MISymbolListLinesResponse> {
-    const response: MISymbolListLinesResponse = await gdb.sendCommand(`-symbol-list-lines ${file}`);
+    const response: MISymbolListLinesResponse = await gdb.sendCommand(
+        `-symbol-list-lines ${file}`
+    );
     return response;
 }
-
