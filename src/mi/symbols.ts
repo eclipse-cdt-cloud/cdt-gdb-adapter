@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { standardEscape } from '../util/standardEscape';
 
 export interface MIDebugSymbol {
     line: string;
@@ -100,7 +101,7 @@ export async function sendSymbolListLines(
     file: string
 ): Promise<MISymbolListLinesResponse> {
     const response: MISymbolListLinesResponse = await gdb.sendCommand(
-        `-symbol-list-lines ${file}`
+        `-symbol-list-lines ${standardEscape(file)}`
     );
     return response;
 }
