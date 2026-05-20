@@ -199,6 +199,26 @@ describe('Memory Test Suite', function () {
         verifyReadMemoryResponse(memory, newValue, addrOfArray);
     });
 
+    it('can write memory and handle memory notifications from gdb', async function () {
+        const addrOfArray = parseInt(
+            (
+                await dc.evaluateRequest({
+                    expression: '&array[0]',
+                    frameId: frame.id,
+                })
+            ).body.result
+        );
+        const memoryEvent = dc.waitForEvent('memory');
+        await dc.evaluateRequest({
+            expression: '>set array[0] = 0xde',
+            frameId: frame.id,
+            context: 'repl',
+        });
+        const output = await memoryEvent;
+        expect(parseInt(output.body.memoryReference)).eq(addrOfArray);
+        expect(output.body.count).eq(1);
+    });
+
     it('fails when trying to write to read-only memory', async function () {
         const addrOfArray = parseInt(
             (
