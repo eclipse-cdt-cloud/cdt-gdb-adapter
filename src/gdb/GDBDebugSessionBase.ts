@@ -1610,9 +1610,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     line: parseInt(line.line, 10),
                 }))
                 .filter(
-                    (line) =>
-                        line.line >= startLine &&
-                        line.line <= endLine
+                    (line) => line.line >= startLine && line.line <= endLine
                 );
             response.body = {
                 breakpoints,
