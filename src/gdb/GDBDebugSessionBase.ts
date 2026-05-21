@@ -2185,7 +2185,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             this.logger.verbose(
                 'Debug adapter cannot process set variable request, skipping it.'
             );
-            console.log(args);
             this.sendResponse(response);
             return;
         }
@@ -2200,6 +2199,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 depth,
                 args.expression
             );
+            // Not handling requests for expressions that do not have a dedicated GDB variable object for now.
             if (!varObj) {
                 throw new Error(`Variable ${args.expression} not found`);
             } else {

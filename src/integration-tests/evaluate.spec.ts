@@ -363,7 +363,33 @@ describe('evaluate request global variables', function () {
         });
     });
 
-    it('should be able to set a global variable and have that change reflected in the debuggee', async function () {
+    it('should be able to set a simple global variable and have that change reflected in the debuggee', async function () {
+        // Read global_int using watch
+        const watchRes = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int',
+            frameId: scope.frame.id,
+        });
+        expect(watchRes.body.result).to.equal('42');
+
+        // Set global_int using setExpressionRequest
+        const setRes = await dc.customRequest('setExpression', {
+            expression: 'global_int',
+            value: '100',
+            frameId: scope.frame.id,
+        });
+        expect(setRes.body.value).to.equal('100');
+
+        // Read global_int again to check updated value is returned
+        const watchResUpdated = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int',
+            frameId: scope.frame.id,
+        });
+        expect(watchResUpdated.body.result).to.equal('100');
+    });
+
+    it('should be able to set a complex global variable and have that change reflected in the debuggee', async function () {
         // Read global variable using watch
         const watchResParent = await dc.evaluateRequest({
             context: 'watch',
