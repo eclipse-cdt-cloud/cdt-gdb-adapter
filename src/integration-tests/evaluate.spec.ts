@@ -465,6 +465,72 @@ describe('evaluate request global variables', function () {
             });
         });
     });
+
+    it('should be able to set a simple global variable and have that change reflected in the debuggee', async function () {
+        // Read global_int using watch
+        const watchRes = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int',
+            frameId: scope.frame.id,
+        });
+        expect(watchRes.body.result).to.equal('42');
+
+        // Set global_int using setExpressionRequest
+        const setRes = await dc.customRequest('setExpression', {
+            expression: 'global_int',
+            value: '100',
+            frameId: scope.frame.id,
+        });
+        expect(setRes.body.value).to.equal('100');
+
+        // Read global_int again to check updated value is returned
+        const watchResUpdated = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int',
+            frameId: scope.frame.id,
+        });
+        expect(watchResUpdated.body.result).to.equal('100');
+    });
+
+    it('should be able to set a complex global variable and have that change reflected in the debuggee', async function () {
+        // Read global variable using watch
+        const watchResParent = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 's1',
+            frameId: scope.frame.id,
+        });
+        const watchResChild = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 's1.m',
+            frameId: scope.frame.id,
+        });
+        expect(watchResParent.body.result).to.endWith('{...}');
+        expect(watchResChild.body.result).to.equal('10');
+
+        // Set global variable using setExpressionRequest
+        const setRes = await dc.customRequest('setExpression', {
+            expression: 's1.m',
+            value: '20',
+            frameId: scope.frame.id,
+        });
+        expect(setRes.body.value).to.equal('20');
+
+        // Read global variable again to check updated value is returned
+        const watchResChildUpdated = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 's1.m',
+            frameId: scope.frame.id,
+        });
+        expect(watchResChildUpdated.body.result).to.equal('20');
+
+        // Check updated value is reflected in the debuggee by evaluating an expression that uses the variable
+        const evalRes = await dc.evaluateRequest({
+            context: 'repl',
+            expression: 's1.m + 5',
+            frameId: scope.frame.id,
+        });
+        expect(evalRes.body.result).to.equal('25');
+    });
 });
 
 describe('evaluate request - watch local variable across lexical scope transition', function () {

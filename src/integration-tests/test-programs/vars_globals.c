@@ -36,6 +36,8 @@ volatile PARENT_STRUCT s1 = {
 
 volatile PARENT_STRUCT *p_s1 = &s1;
 
+volatile int global_int = 42;
+
 int main()
 {
     // Struct with array
