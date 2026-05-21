@@ -1606,14 +1606,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const startLine = args.line;
             const endLine = args.endLine || args.line;
             const breakpoints = availableLines.lines
-                .filter(
-                    (line) =>
-                        parseInt(line.line, 10) >= startLine &&
-                        parseInt(line.line, 10) <= endLine
-                )
                 .map((line) => ({
                     line: parseInt(line.line, 10),
-                }));
+                }))
+                .filter(
+                    (line) =>
+                        line.line >= startLine &&
+                        line.line <= endLine
+                );
             response.body = {
                 breakpoints,
             };
