@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { standardEscape } from '../util/standardEscape';
 
 export interface MIDebugSymbol {
     line: string;
@@ -32,6 +33,13 @@ export interface MISymbolInfoResponse {
         debug: MISymbolInfoDebug[];
         nondebug: MINonDebugSymbol[];
     };
+}
+
+export interface MISymbolListLinesResponse {
+    lines: {
+        pc: string;
+        line: string;
+    }[];
 }
 
 export function sendSymbolInfoVars(
@@ -86,4 +94,14 @@ export function sendSymbolInfoFunctions(
         }
     }
     return gdb.sendCommand(command);
+}
+
+export async function sendSymbolListLines(
+    gdb: IGDBBackend,
+    file: string
+): Promise<MISymbolListLinesResponse> {
+    const response: MISymbolListLinesResponse = await gdb.sendCommand(
+        `-symbol-list-lines ${standardEscape(file)}`
+    );
+    return response;
 }
