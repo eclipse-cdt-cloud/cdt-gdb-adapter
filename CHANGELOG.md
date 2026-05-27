@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.9.0
+
+- Implements [`#526`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/526): Handle memory-changed notifications
+- Implements [`#527`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/527): Support setting expressions' values
+- Implements [`#538`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/538): Add support for breakpointLocations request
+- Fixes [`#219`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/219): Handling discrepancies between debug console and context menus when it comes to global radix change
+- Fixes [`#218`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/218): Race condition when using breakpoint modes to set HW/SW breaks
+
 ## 1.8.1
 
 - Fixes [`#530`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/530): Bump publish job to Node 24 to work around an npm self-upgrade crash that prevented 1.8.0 from being published to npm.
