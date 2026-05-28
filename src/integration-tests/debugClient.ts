@@ -141,6 +141,7 @@ export class CdtDebugClient extends DebugClient {
         if (!args) {
             args = {
                 supportsRunInTerminalRequest: true,
+                supportsMemoryReferences: true,
                 adapterID: this['_debugType'],
                 linesStartAt1: true,
                 columnsStartAt1: true,

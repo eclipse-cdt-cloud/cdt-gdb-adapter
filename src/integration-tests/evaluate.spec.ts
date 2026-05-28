@@ -531,6 +531,26 @@ describe('evaluate request global variables', function () {
         });
         expect(evalRes.body.result).to.equal('25');
     });
+
+    it('response for variables should include memory reference if the expression has an lvalue', async function () {
+        // Read a global variable using evaluateRequest
+        const watchRes = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int',
+            frameId: scope.frame.id,
+        });
+        expect(watchRes.body.memoryReference).to.not.be.undefined;
+    });
+
+    it('should not include memory reference if the expression does not have an lvalue', async function () {
+        const watchRes = await dc.evaluateRequest({
+            context: 'watch',
+            expression: 'global_int + 1',
+            frameId: scope.frame.id,
+        });
+
+        expect(watchRes.body.memoryReference).to.be.undefined;
+    });
 });
 
 describe('evaluate request - watch local variable across lexical scope transition', function () {
