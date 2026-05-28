@@ -52,6 +52,7 @@ import { DEFAULT_STEPPING_RESPONSE_TIMEOUT } from '../constants/session';
 import { ThreadWithStatus } from './common';
 import { RESUME_COMMANDS, SET_ALL_CHARSET_REGEXPS } from '../constants/gdb';
 import { GDBThreadRunning } from './errors';
+import { MIGDBDataEvaluateExpressionResponse } from '../mi';
 
 /**
  * Keeps track of where in the configuration phase (between initialized event
@@ -157,6 +158,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected isRunning = false;
 
     protected supportsRunInTerminalRequest = false;
+    protected supportsMemoryReferences = false;
     public supportsGdbConsole = false;
 
     /* A reference to the logger to be used by subclasses */
@@ -419,6 +421,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     ): void {
         this.supportsRunInTerminalRequest =
             args.supportsRunInTerminalRequest === true;
+        this.supportsMemoryReferences = args.supportsMemoryReferences === true;
         this.supportsGdbConsole =
             os.platform() === 'linux' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
@@ -2674,10 +2677,35 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                               varobjName: varobj.varname,
                           })
                         : 0;
+                let memoryReferenceResult:
+                    | MIGDBDataEvaluateExpressionResponse
+                    | undefined;
+                let hasMemoryReference = false;
+                if (this.supportsMemoryReferences) {
+                    try {
+                        memoryReferenceResult =
+                            await mi.sendDataEvaluateExpression(
+                                gdb,
+                                `&(${varobj.expression})`
+                            );
+                        // Depending on the GDBServer being used, sometimes the result of evaluating an address of a symbol returns "<address> <symbol name>"
+                        if (memoryReferenceResult.value?.includes(' ')) {
+                            memoryReferenceResult.value =
+                                memoryReferenceResult.value.split(' ')[0];
+                        }
+                        hasMemoryReference = true;
+                    } catch {
+                        hasMemoryReference = false;
+                    }
+                }
                 response.body = {
                     result,
                     type: varobj.type,
                     variablesReference,
+                    memoryReference:
+                        hasMemoryReference && memoryReferenceResult
+                            ? memoryReferenceResult.value
+                            : undefined,
                 };
             }
 
