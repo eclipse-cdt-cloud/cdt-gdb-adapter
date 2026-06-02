@@ -2688,11 +2688,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     response.success = false;
                 }
                 this.sendResponse(response);
+            } else if (args.context === 'repl') {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    err instanceof Error ? err.message : String(err),
+                    undefined,
+                    2 // Send error only to telemtry to appear only in debug console and not in UI popups
+                );
             } else {
                 this.sendErrorResponse(
                     response,
                     1,
-                    err instanceof Error ? err.message : String(err)
+                    err instanceof Error ? err.message : String(err),
                 );
             }
         }
