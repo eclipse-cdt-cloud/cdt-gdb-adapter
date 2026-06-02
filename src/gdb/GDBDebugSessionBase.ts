@@ -2691,7 +2691,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             } else if (args.context === 'repl') {
                 this.sendErrorResponse(
                     response,
-                    1,
+                    1, // Id = 1 has always been the case for evaluateRequests
                     err instanceof Error ? err.message : String(err),
                     undefined,
                     2 // Send error only to telemetry to appear only in debug console and not in UI popups
