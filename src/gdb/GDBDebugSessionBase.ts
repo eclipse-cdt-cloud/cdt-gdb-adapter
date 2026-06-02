@@ -2700,7 +2700,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendErrorResponse(
                     response,
                     1,
-                    err instanceof Error ? err.message : String(err),
+                    err instanceof Error ? err.message : String(err)
                 );
             }
         }
