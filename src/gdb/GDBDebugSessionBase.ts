@@ -2694,7 +2694,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     1,
                     err instanceof Error ? err.message : String(err),
                     undefined,
-                    2 // Send error only to telemtry to appear only in debug console and not in UI popups
+                    2 // Send error only to telemetry to appear only in debug console and not in UI popups
                 );
             } else {
                 this.sendErrorResponse(
