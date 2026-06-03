@@ -444,6 +444,7 @@ describe('breakpoints', async function () {
             // win32 host can only pause remote + mi-async targets
             this.skip();
         }
+        const firstStoppedEvent = dc.waitForEvent('stopped');
         let response = await dc.setBreakpointsRequest({
             source: {
                 name: 'count.c',
@@ -458,7 +459,7 @@ describe('breakpoints', async function () {
         });
         expect(response.body.breakpoints.length).to.eq(1);
         await dc.configurationDoneRequest();
-        await dc.waitForEvent('stopped');
+        await firstStoppedEvent;
         const scope = await getScopes(dc);
         await dc.continueRequest({ threadId: scope.thread.id });
 
