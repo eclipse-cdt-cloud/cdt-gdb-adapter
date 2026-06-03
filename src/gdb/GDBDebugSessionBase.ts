@@ -2689,13 +2689,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 this.sendResponse(response);
             } else if (args.context === 'repl') {
-                this.sendErrorResponse(
-                    response,
-                    1, // Id = 1 has always been the case for evaluateRequests
-                    err instanceof Error ? err.message : String(err),
-                    undefined,
-                    2 // Send error only to telemetry to appear only in debug console and not in UI popups
-                );
+                this.sendErrorResponse(response, {
+                    id: 1, // Id = 1 has always been the case for evaluateRequests
+                    format: err instanceof Error ? err.message : String(err),
+                    showUser: false,
+                });
             } else {
                 this.sendErrorResponse(
                     response,
