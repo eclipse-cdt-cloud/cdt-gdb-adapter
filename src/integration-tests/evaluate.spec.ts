@@ -180,7 +180,7 @@ describe('evaluate request', function () {
             frameId: scope.frame.id,
         });
 
-        expect(res2.body.result).eq('\r');
+        expect(res2.body.result).matches(/^\{.*\}$/);
     });
 
     it('should reject entering an invalid MI command', async function () {

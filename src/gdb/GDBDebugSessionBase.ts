@@ -2385,15 +2385,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Send command to backend.
      * @param expression Command to be executed
+     * @returns Promise for: - MI response as JS object if MI command, - `undefined` if CLI command
      */
     protected async sendCommandToGdb(
         gdb: IGDBBackend,
         expression: string,
         frameRef: FrameReference | undefined
-    ): Promise<void> {
+    ): Promise<any> {
         if (expression.startsWith('-')) {
             // GDB/MI command
-            await gdb.sendCommand(expression);
+            return await gdb.sendCommand(expression);
         } else {
             // GDB CLI command
             await mi.sendInterpreterExecConsole(gdb, {
@@ -2444,9 +2445,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         frameRef: FrameReference | undefined
     ): Promise<void> {
         const trimmedExpression = expression.trim();
-        await this.sendCommandToGdb(this.gdb, trimmedExpression, frameRef);
+        const result = await this.sendCommandToGdb(
+            this.gdb,
+            trimmedExpression,
+            frameRef
+        );
         response.body = {
-            result: '\r',
+            result: result ? JSON.stringify(result) : '\r',
             variablesReference: 0,
         };
         await this.sendCommandToOtherGdbs(
