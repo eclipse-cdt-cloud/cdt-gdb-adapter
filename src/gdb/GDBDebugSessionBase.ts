@@ -2488,7 +2488,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
     ): Promise<void> {
-        return this.doEvaluateRequest(response, args, false);
+        return this.doEvaluateRequest(response, args, true);
     }
 
     private extractExpressionFormat(
@@ -2532,7 +2532,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async doEvaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments,
-        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId
+        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId (kept for compatibility)
     ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
