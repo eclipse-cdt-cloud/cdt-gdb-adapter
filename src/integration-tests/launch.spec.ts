@@ -18,7 +18,9 @@ import {
 import { CdtDebugClient } from './debugClient';
 import {
     fillDefaults,
+    gdbAsync,
     gdbNonStop,
+    gdbVersionAtLeast,
     isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
@@ -33,6 +35,7 @@ describe('launch', function () {
     const unicodeProgram = path.join(testProgramsDir, 'bug275-测试');
     // the name of this file is short enough to work around https://sourceware.org/bugzilla/show_bug.cgi?id=30618
     const unicodeSrc = path.join(testProgramsDir, 'bug275-测试.c');
+    const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
@@ -53,6 +56,81 @@ describe('launch', function () {
             }
         );
     });
+
+    function makeRunArgTest(runArg: string) {
+        return async function (this: Mocha.Context) {
+            // This tests both local and remote cases and does not need to be
+            // duplicated in launchRemote.spec.ts (beforeEach and afterEach are
+            // similar enough here and there).
+            const isAsync =
+                gdbAsync &&
+                (os.platform() !== 'win32' ||
+                    isRemoteTest ||
+                    (await gdbVersionAtLeast('13.0')));
+            if (
+                (!isAsync || (isRemoteTest && !gdbNonStop)) &&
+                runArg === 'all'
+            ) {
+                // in sync mode when all threads are running we can't ask '-thread-info'
+                // (remote needs non-stop to be really async)
+                this.skip();
+            }
+
+            const eventCounter = { stopped: 0, continued: 0 };
+            dc.on('stopped', () => {
+                eventCounter.stopped++;
+            });
+            dc.on('continued', () => {
+                eventCounter.continued++;
+            });
+
+            const launchArgs = fillDefaults(this.test, {
+                program: loopForeverProgram,
+                run: runArg,
+            } as LaunchRequestArguments);
+
+            await Promise.all([
+                dc
+                    .waitForEvent('initialized')
+                    .then(() => dc.configurationDoneRequest()),
+                dc.initializeRequest().then(() => dc.launchRequest(launchArgs)),
+            ]);
+
+            const threadInfo = JSON.parse(
+                (
+                    await dc.evaluateRequest({
+                        expression: '>-thread-info',
+                        context: 'repl',
+                    })
+                ).body.result
+            );
+            const threadStates = threadInfo.threads.map((t: any) => t.state);
+            if (runArg === 'all') {
+                expect(threadStates).to.contain('running');
+                expect(threadStates).not.to.contain('stopped');
+            } else if (runArg === 'preserve') {
+                if (isRemoteTest) {
+                    // GDBTargetDebugSession interprets "launch" as "launch
+                    // gdbserver", not "launch the program", so this case actually
+                    // behaves like an attach, not like a launch.
+                    expect(threadStates).to.contain('stopped');
+                } else {
+                    // GDBDebugSessionBase implements "launch" as expected.
+                    expect(threadStates).to.be.an('array').that.is.empty;
+                }
+            } else {
+                expect(runArg).to.be.oneOf(['all', 'preserve']);
+            }
+
+            expect(eventCounter).to.deep.equal({
+                stopped: isRemoteTest ? (runArg === 'all' ? 0 : 1) : 0,
+                continued: 0,
+            });
+        };
+    }
+
+    it('can launch and run', makeRunArgTest('all'));
+    it('can launch without running', makeRunArgTest('preserve'));
 
     it('receives an error when no port is provided nor a suitable regex', async function () {
         if (!isRemoteTest) {
