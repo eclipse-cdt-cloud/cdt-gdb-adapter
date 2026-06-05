@@ -159,6 +159,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     protected supportsRunInTerminalRequest = false;
     protected supportsMemoryReferences = false;
+    protected supportsMemoryEvent = false;
     public supportsGdbConsole = false;
 
     /* A reference to the logger to be used by subclasses */
@@ -422,6 +423,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.supportsRunInTerminalRequest =
             args.supportsRunInTerminalRequest === true;
         this.supportsMemoryReferences = args.supportsMemoryReferences === true;
+        this.supportsMemoryEvent = args.supportsMemoryEvent === true;
         this.supportsGdbConsole =
             os.platform() === 'linux' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
@@ -3339,6 +3341,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.handleCmdParamChanged(notifyData);
                 break;
             case 'memory-changed': {
+                if (!this.supportsMemoryEvent) {
+                    break;
+                }
                 let length = 0;
                 if (isNaN(notifyData.len)) {
                     logger.warn(
