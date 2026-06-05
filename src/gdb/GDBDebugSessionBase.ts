@@ -212,6 +212,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
     protected isInitialized = false; // unused here but kept for compatibility
     protected deferredStopEvents: any[] = [];
+    protected firstContinueIsRun = false;
 
     /**
      *  customResetCommands from launch.json
@@ -790,6 +791,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         } else {
                             await mi.sendExecRun(this.gdb);
                         }
+                    } else if (!this.isAttach) {
+                        // We would have sent a 'run' rather than a 'continue',
+                        // but since the user didn't want us to, let them do it
+                        // manually using a continue request.
+                        this.firstContinueIsRun = true;
                     }
                     this.setConfiguringStateDone();
                 } else if (this.waitPausedNeeded) {
@@ -2037,7 +2043,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            await mi.sendExecContinue(this.gdb, args.threadId);
+            if (this.firstContinueIsRun) {
+                this.firstContinueIsRun = false;
+                await mi.sendExecRun(this.gdb);
+            } else {
+                await mi.sendExecContinue(this.gdb, args.threadId);
+            }
             let isAllThreadsContinued;
             if (this.gdb.isNonStopMode()) {
                 isAllThreadsContinued = args.threadId ? false : true;
