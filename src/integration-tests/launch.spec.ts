@@ -36,6 +36,7 @@ describe('launch', function () {
     // the name of this file is short enough to work around https://sourceware.org/bugzilla/show_bug.cgi?id=30618
     const unicodeSrc = path.join(testProgramsDir, 'bug275-测试.c');
     const loopForeverProgram = path.join(testProgramsDir, 'loopforever');
+    const loopForeverSrc = path.join(testProgramsDir, 'loopforever.c');
 
     beforeEach(async function () {
         dc = await standardBeforeEach();
@@ -126,6 +127,27 @@ describe('launch', function () {
                 stopped: isRemoteTest ? (runArg === 'all' ? 0 : 1) : 0,
                 continued: 0,
             });
+
+            // check that continue sends the right GDB commands
+            // (always -exec-continue for attach;
+            // first -exec-run, then -exec-continue for launch)
+            if (runArg === 'preserve') {
+                await dc.setBreakpointsRequest({
+                    source: { path: loopForeverSrc },
+                    breakpoints: [{ line: 25 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 25 });
+                await dc.setBreakpointsRequest({
+                    source: { path: loopForeverSrc },
+                    breakpoints: [{ line: 26 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 26 });
+
+                expect(eventCounter).to.deep.equal({
+                    stopped: (isRemoteTest ? 1 : 0) + 2,
+                    continued: 2,
+                });
+            }
         };
     }
 
