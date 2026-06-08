@@ -102,6 +102,22 @@ describe('attach', function () {
             } else {
                 expect(runArg).to.be.oneOf(['always', 'preserve']);
             }
+
+            // check that continue sends the right GDB commands
+            // (always -exec-continue for attach;
+            // first -exec-run, then -exec-continue for launch)
+            if (runArg === 'preserve') {
+                await dc.setBreakpointsRequest({
+                    source: { path: src },
+                    breakpoints: [{ line: 25 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 25 });
+                await dc.setBreakpointsRequest({
+                    source: { path: src },
+                    breakpoints: [{ line: 26 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 26 });
+            }
         };
     }
 
