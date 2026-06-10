@@ -3638,9 +3638,20 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             });
         }
         // Grab the full path of parent.
-        const topLevelPathExpression =
-            varobj?.expression ??
-            (await this.getFullPathExpression(parentVarname, gdb));
+        let topLevelPathExpression = varobj?.expression;
+        // When -var-info-path-expression returns '', it's probably an anonymous
+        // struct or union - strip trailing .-separated components from the
+        // varobj name until we reach a non-anonymous ancestor
+        while (!topLevelPathExpression && parentVarname) {
+            topLevelPathExpression = await this.getFullPathExpression(
+                parentVarname,
+                gdb
+            );
+            parentVarname = parentVarname.substring(
+                0,
+                parentVarname.lastIndexOf('.')
+            );
+        }
 
         // iterate through the children
         for (const child of children.children) {
