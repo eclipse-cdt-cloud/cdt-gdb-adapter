@@ -23,7 +23,7 @@ import {
     fillDefaults,
 } from './utils';
 
-describe.only('Variables Test Suite', function () {
+describe('Variables Test Suite', function () {
     let dc: CdtDebugClient;
     let scope: Scope;
     const varsProgram = path.join(testProgramsDir, 'vars');

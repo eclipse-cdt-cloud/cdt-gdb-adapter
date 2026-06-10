@@ -23,7 +23,7 @@ import {
     fillDefaults,
 } from './utils';
 
-describe.only('Variables CPP Test Suite', function () {
+describe('Variables CPP Test Suite', function () {
     let dc: CdtDebugClient;
     let scope: Scope;
 
