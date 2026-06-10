@@ -3658,13 +3658,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
-                const name = child.name;
                 const objChildren = await mi.sendVarListChildren(gdb, {
-                    name,
+                    name: child.name,
                     printValues: mi.MIVarPrintValues.all,
                 });
                 for (const objChild of objChildren.children) {
-                    const childName = objChild.name;
                     variables.push({
                         name: objChild.exp,
                         // Append the grandchild path to the top level full path, without intervening 'public' etc. (child.exp)
@@ -3678,24 +3676,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                 ? this.variableHandles.create({
                                       type: 'object',
                                       frameHandle: ref.frameHandle,
-                                      varobjName: childName,
+                                      varobjName: objChild.name,
                                   })
                                 : 0,
                     });
                 }
             } else {
                 // check if we're dealing with an array
-                let name = child.name;
-                const varobjName = name;
                 const value = child.value ? child.value : child.type;
                 const isArrayChild =
                     arrayChildRegex.test(child.exp) &&
                     (!varobj || arrayRegex.test(varobj.type));
-                if (isArrayChild) {
-                    // update the display name for array elements to have square brackets
-                    name = `[${child.exp}]`;
-                }
-                const variableName = isArrayChild ? name : child.exp;
+                // update the display name for array elements to have square brackets
+                const variableName = isArrayChild
+                    ? `[${child.exp}]`
+                    : child.exp;
                 const evaluateName = isArrayChild
                     ? `${topLevelPathExpression}[${child.exp}]`
                     : child.exp.startsWith('<anonymous ')
@@ -3711,7 +3706,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             ? this.variableHandles.create({
                                   type: 'object',
                                   frameHandle: ref.frameHandle,
-                                  varobjName,
+                                  varobjName: child.name,
                               })
                             : 0,
                 });
