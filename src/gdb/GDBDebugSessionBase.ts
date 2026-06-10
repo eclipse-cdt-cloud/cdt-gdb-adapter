@@ -3652,13 +3652,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     name,
                     printValues: mi.MIVarPrintValues.all,
                 });
-                // Append the child path to the top level full path.
-                const parentClassName = `${topLevelPathExpression}.${child.exp}`;
                 for (const objChild of objChildren.children) {
                     const childName = objChild.name;
                     variables.push({
                         name: objChild.exp,
-                        evaluateName: `${parentClassName}.${objChild.exp}`,
+                        // Append the grandchild path to the top level full path, without intervening 'public' etc. (child.exp)
+                        evaluateName: `${topLevelPathExpression}.${objChild.exp}`,
                         value: objChild.value ? objChild.value : objChild.type,
                         type: objChild.type,
                         variablesReference:
