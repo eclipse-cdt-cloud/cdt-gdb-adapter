@@ -29,11 +29,38 @@ Foo::Foo(int a, int b, char c)
     this->c = c;
 }
 
+struct Nest {
+    int one;
+    union {
+        int two;
+        unsigned int three;
+    };
+    union {
+        int four;
+        unsigned int five;
+        struct {
+            int a;
+            union {
+                struct {
+                    int b;
+                    int c;
+                };
+                struct {
+                    int d;
+                    int e;
+                };
+            };
+        } more[3];
+        int matrix[3][2];
+    };
+};
+
 int main()
 {
     Foo *fooA = new Foo(1, 2, 'a');
     Foo *fooB = new Foo(3, 4, 'b');
     Foo *fooarr[] = {fooA, fooB};
+    Nest n = {0};
     cout << "!!!Hello World!!!" << endl; // STOP HERE
     cout << "!!!Hello World Again!!!" << endl;
     return 0;

@@ -19,6 +19,32 @@ struct foo
     struct baz aa;
 };
 
+struct nest {
+    int one;
+    union {
+        int two;
+        unsigned int three;
+    };
+    union {
+        int four;
+        unsigned int five;
+        struct {
+            int a;
+            union {
+                struct {
+                    int b;
+                    int c;
+                };
+                struct {
+                    int d;
+                    int e;
+                };
+            };
+        } more[3];
+        int matrix[3][2];
+    };
+};
+
 int main()
 {
     int a = 1;
@@ -32,5 +58,6 @@ int main()
     int rax = 1;
     const unsigned char h[] = {0x01, 0x10, 0x20};
     const unsigned char k[] = "hello"; // char string setup
-    return 0;
+    struct nest n = {0};
+    return 0; // end
 }
