@@ -915,7 +915,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         args: DebugProtocol.DisconnectArguments
     ): Promise<void> {
         try {
-            await this.doDisconnectRequest(0, args?.terminateDebuggee);
+            await this.doDisconnectRequest(this.serverDisconnectTimeout, args?.terminateDebuggee);
             if (this.sessionInfo.disconnectError) {
                 this.sendErrorResponse(
                     response,
