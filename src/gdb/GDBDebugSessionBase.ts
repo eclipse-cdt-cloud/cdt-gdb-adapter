@@ -3668,7 +3668,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     variables.push({
                         name: objChild.exp,
                         // Append the grandchild path to the top level full path, without intervening 'public' etc. (child.exp)
-                        evaluateName: `${topLevelPathExpression}.${objChild.exp}`,
+                        evaluateName: objChild.exp.startsWith('<anonymous ')
+                            ? topLevelPathExpression
+                            : `${topLevelPathExpression}.${objChild.exp}`,
                         value: objChild.value ? objChild.value : objChild.type,
                         type: objChild.type,
                         variablesReference:
@@ -3696,7 +3698,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const variableName = isArrayChild ? name : child.exp;
                 const evaluateName = isArrayChild
                     ? `${topLevelPathExpression}[${child.exp}]`
-                    : `${topLevelPathExpression}.${child.exp}`;
+                    : child.exp.startsWith('<anonymous ')
+                      ? topLevelPathExpression
+                      : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
                     evaluateName,
