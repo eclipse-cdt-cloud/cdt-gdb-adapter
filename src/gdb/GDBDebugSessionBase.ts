@@ -3647,7 +3647,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
-                const name = `${parentVarname}.${child.exp}`;
+                const name = child.name;
                 const objChildren = await mi.sendVarListChildren(gdb, {
                     name,
                     printValues: mi.MIVarPrintValues.all,
@@ -3655,7 +3655,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 // Append the child path to the top level full path.
                 const parentClassName = `${topLevelPathExpression}.${child.exp}`;
                 for (const objChild of objChildren.children) {
-                    const childName = `${name}.${objChild.exp}`;
+                    const childName = objChild.name;
                     variables.push({
                         name: objChild.exp,
                         evaluateName: `${parentClassName}.${objChild.exp}`,
@@ -3673,7 +3673,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             } else {
                 // check if we're dealing with an array
-                let name = `${ref.varobjName}.${child.exp}`;
+                let name = child.name;
                 const varobjName = name;
                 const value = child.value ? child.value : child.type;
                 const isArrayChild =
