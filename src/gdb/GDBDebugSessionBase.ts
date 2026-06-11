@@ -2046,7 +2046,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            this.gdb.pause(args.threadId);
+            // no need to await the result, but do catch any exceptions/rejections
+            await this.gdb.pause(args.threadId);
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
