@@ -2718,6 +2718,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     response.success = false;
                 }
                 this.sendResponse(response);
+            } else if (args.context === 'repl') {
+                this.sendErrorResponse(response, {
+                    id: 1, // Id = 1 has always been the case for evaluateRequests
+                    format: err instanceof Error ? err.message : String(err),
+                    showUser: false,
+                    sendTelemetry: undefined,
+                });
             } else {
                 this.sendErrorResponse(
                     response,
