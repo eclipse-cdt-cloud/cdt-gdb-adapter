@@ -10,6 +10,11 @@
 import { Response } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
+export const enum RequestArgRun {
+    ALWAYS = 'always',
+    PRESERVE = 'preserve',
+}
+
 export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     gdb?: string;
     gdbArguments?: string[];
@@ -30,6 +35,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     customResetCommands?: string[];
     steppingResponseTimeout?: number;
     updateThreadInfo?: 'missing' | 'when-requested' | 'never';
+    run?: RequestArgRun;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {

@@ -23,6 +23,7 @@ import {
     gdbAsync,
     fillDefaults,
     gdbNonStop,
+    isRemoteTest,
 } from './utils';
 import { expect } from 'chai';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -80,6 +81,75 @@ describe('attach remote', function () {
         await dc.attachHitBreakpoint(attachArgs, { line: 25, path: src });
         expect(await dc.evaluate('argv[1]')).to.contain('running-from-spawn');
     });
+
+    function makeRunArgTest(runArg: string) {
+        return async function (this: Mocha.Context) {
+            if (!isRemoteTest) {
+                // attach.spec.ts is the test for when !isRemoteTest
+                this.skip();
+            }
+            if ((!gdbAsync || !gdbNonStop) && runArg === 'always') {
+                // in sync mode when all threads are running we can't ask '-thread-info'
+                this.skip();
+            }
+
+            const attachArgs = fillDefaults(this.test, {
+                program: program,
+                target: {
+                    type: 'remote',
+                    parameters: [`localhost:${port}`],
+                } as TargetAttachArguments,
+                run: runArg,
+            } as TargetAttachRequestArguments);
+
+            await Promise.all([
+                dc
+                    .waitForEvent('initialized')
+                    .then(() => dc.configurationDoneRequest()),
+                dc.initializeRequest().then(() => dc.attachRequest(attachArgs)),
+            ]);
+
+            const threadInfo = JSON.parse(
+                (
+                    await dc.evaluateRequest({
+                        expression: '>-thread-info',
+                        context: 'repl',
+                    })
+                ).body.result
+            );
+            const threadStates = threadInfo.threads.map((t: any) => t.state);
+            if (runArg === 'always') {
+                expect(threadStates).to.contain('running');
+                expect(threadStates).not.to.contain('stopped');
+            } else if (runArg === 'preserve') {
+                expect(threadStates).to.contain('stopped');
+            } else {
+                expect(runArg).to.be.oneOf(['always', 'preserve']);
+            }
+
+            // check that continue sends the right GDB commands
+            // (always -exec-continue for attach;
+            // first -exec-run, then -exec-continue for launch)
+            if (runArg === 'preserve') {
+                await dc.setBreakpointsRequest({
+                    source: { path: src },
+                    breakpoints: [{ line: 25 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 25 });
+                await dc.setBreakpointsRequest({
+                    source: { path: src },
+                    breakpoints: [{ line: 26 }],
+                });
+                await dc.continue({ threadId: -1 }, 'breakpoint', { line: 26 });
+            }
+        };
+    }
+
+    it('can attach and continue stopped threads', makeRunArgTest('always'));
+    it(
+        'can attach without continuing stopped threads',
+        makeRunArgTest('preserve')
+    );
 
     it('can attach remote and hit a breakpoint without a program', async function () {
         if (os.platform() === 'win32') {

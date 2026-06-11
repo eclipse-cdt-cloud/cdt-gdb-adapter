@@ -42,6 +42,7 @@ import {
     ObjectVariableReference,
     MemoryRequestArguments,
     CDTDisassembleArguments,
+    RequestArgRun,
 } from '../types/session';
 import { IGDBBackend, IGDBBackendFactory } from '../types/gdb';
 import { getInstructions } from '../util/disassembly';
@@ -175,6 +176,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
     protected updateThreadInfo: 'missing' | 'when-requested' | 'never' =
         'missing';
+    protected runAfterConfiguration: RequestArgRun = RequestArgRun.ALWAYS;
 
     /**
      * State variables for pauseIfNeeded/continueIfNeeded logic, mostly used for
@@ -208,7 +210,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     // keeps track of where in the configuration phase (between initialize event
     // and configurationDone response) we are
     protected configuringState: ConfiguringState = ConfiguringState.INITIAL;
-    protected isInitialized = false;
+    protected isInitialized = false; // unused here but kept for compatibility
+    protected deferredStopEvents: any[] = [];
+    protected firstContinueIsRun = false;
 
     /**
      *  customResetCommands from launch.json
@@ -348,6 +352,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     "Valid values are: 'missing', 'when-requested', or 'never'."
             );
         }
+        if (
+            args.run !== undefined &&
+            args.run !== RequestArgRun.ALWAYS &&
+            args.run !== RequestArgRun.PRESERVE
+        ) {
+            throw new Error(
+                `Invalid value for 'run': '${args.run}'. ` +
+                    "Valid values are: 'always', 'preserve'."
+            );
+        }
     }
 
     /**
@@ -361,6 +375,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.steppingResponseTimeout =
             args.steppingResponseTimeout ?? DEFAULT_STEPPING_RESPONSE_TIMEOUT;
         this.updateThreadInfo = args.updateThreadInfo ?? 'missing';
+        this.runAfterConfiguration = args.run ?? RequestArgRun.ALWAYS;
     }
 
     /**
@@ -754,17 +769,35 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.waitPaused = undefined;
     }
 
+    protected setConfiguringStateDone(): void {
+        this.configuringState = ConfiguringState.DONE;
+        for (const resultData of this.deferredStopEvents) {
+            this.handleGDBStopped(resultData);
+        }
+        this.deferredStopEvents.splice(0);
+    }
+
     protected async continueIfNeeded(): Promise<void> {
         if (this.pauseCount > 0) {
             this.pauseCount--;
             if (this.pauseCount === 0) {
                 if (this.configuringState === ConfiguringState.FINISHING) {
-                    this.configuringState = ConfiguringState.DONE;
-                    if (this.isAttach) {
-                        await mi.sendExecContinue(this.gdb);
-                    } else {
-                        await mi.sendExecRun(this.gdb);
+                    if (
+                        this.runAfterConfiguration == RequestArgRun.ALWAYS ||
+                        this.waitPausedNeeded
+                    ) {
+                        if (this.isAttach) {
+                            await mi.sendExecContinue(this.gdb);
+                        } else {
+                            await mi.sendExecRun(this.gdb);
+                        }
+                    } else if (!this.isAttach) {
+                        // We would have sent a 'run' rather than a 'continue',
+                        // but since the user didn't want us to, let them do it
+                        // manually using a continue request.
+                        this.firstContinueIsRun = true;
                     }
+                    this.setConfiguringStateDone();
                 } else if (this.waitPausedNeeded) {
                     if (this.gdb.isNonStopMode()) {
                         await mi.sendExecContinue(
@@ -1702,7 +1735,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.configuringState = ConfiguringState.FINISHING;
                 await this.continueIfNeeded();
             } else {
-                this.configuringState = ConfiguringState.DONE;
+                this.setConfiguringStateDone();
             }
             this.sendResponse(response);
         } catch (err) {
@@ -2010,7 +2043,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         try {
-            await mi.sendExecContinue(this.gdb, args.threadId);
+            if (this.firstContinueIsRun) {
+                this.firstContinueIsRun = false;
+                await mi.sendExecRun(this.gdb);
+            } else {
+                await mi.sendExecContinue(this.gdb, args.threadId);
+            }
             let isAllThreadsContinued;
             if (this.gdb.isNonStopMode()) {
                 isAllThreadsContinued = args.threadId ? false : true;
@@ -2333,15 +2371,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /**
      * Send command to backend.
      * @param expression Command to be executed
+     * @returns Promise for: - MI response as JS object if MI command, - `undefined` if CLI command
      */
     protected async sendCommandToGdb(
         gdb: IGDBBackend,
         expression: string,
         frameRef: FrameReference | undefined
-    ): Promise<void> {
+    ): Promise<any> {
         if (expression.startsWith('-')) {
             // GDB/MI command
-            await gdb.sendCommand(expression);
+            return await gdb.sendCommand(expression);
         } else {
             // GDB CLI command
             await mi.sendInterpreterExecConsole(gdb, {
@@ -2392,9 +2431,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         frameRef: FrameReference | undefined
     ): Promise<void> {
         const trimmedExpression = expression.trim();
-        await this.sendCommandToGdb(this.gdb, trimmedExpression, frameRef);
+        const result = await this.sendCommandToGdb(
+            this.gdb,
+            trimmedExpression,
+            frameRef
+        );
         response.body = {
-            result: '\r',
+            result: result ? JSON.stringify(result) : '\r',
             variablesReference: 0,
         };
         await this.sendCommandToOtherGdbs(
@@ -2450,7 +2493,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments
     ): Promise<void> {
-        return this.doEvaluateRequest(response, args, false);
+        return this.doEvaluateRequest(response, args, true);
     }
 
     private extractExpressionFormat(
@@ -2494,7 +2537,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async doEvaluateRequest(
         response: DebugProtocol.EvaluateResponse,
         args: DebugProtocol.EvaluateArguments,
-        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId
+        alwaysAllowCliCommand: boolean // if true, allows evaluation of expression without a frameId (kept for compatibility)
     ): Promise<void> {
         response.body = {
             result: 'Error: could not evaluate expression',
@@ -3162,8 +3205,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 }
                 updateIsRunning();
-                if (this.isInitialized) {
+                if (this.configuringState == ConfiguringState.DONE) {
                     this.handleGDBResume(resultData);
+                } else {
+                    // while we are deferring events, cancel previous stop events for the same thread
+                    if (
+                        this.deferredStopEvents.length > 0 &&
+                        resultData['thread-id'] !== undefined
+                    ) {
+                        this.deferredStopEvents =
+                            this.deferredStopEvents.filter(
+                                (stopResultData) =>
+                                    stopResultData['thread-id'] !==
+                                    resultData['thread-id']
+                            );
+                    }
                 }
                 break;
             case 'stopped': {
@@ -3222,8 +3278,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     (this.gdb.isNonStopMode() ||
                         (wasRunning && !this.isRunning))
                 ) {
-                    if (this.isInitialized) {
+                    if (this.configuringState == ConfiguringState.DONE) {
                         this.handleGDBStopped(resultData);
+                    } else {
+                        this.deferredStopEvents.push(resultData);
                     }
                 }
                 break;
