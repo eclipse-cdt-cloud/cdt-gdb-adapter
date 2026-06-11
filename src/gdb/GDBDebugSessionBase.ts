@@ -3638,27 +3638,37 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             });
         }
         // Grab the full path of parent.
-        const topLevelPathExpression =
-            varobj?.expression ??
-            (await this.getFullPathExpression(parentVarname, gdb));
+        let topLevelPathExpression = varobj?.expression;
+        // When -var-info-path-expression returns '', it's probably an anonymous
+        // struct or union - strip trailing .-separated components from the
+        // varobj name until we reach a non-anonymous ancestor
+        while (!topLevelPathExpression && parentVarname) {
+            topLevelPathExpression = await this.getFullPathExpression(
+                parentVarname,
+                gdb
+            );
+            parentVarname = parentVarname.substring(
+                0,
+                parentVarname.lastIndexOf('.')
+            );
+        }
 
         // iterate through the children
         for (const child of children.children) {
             // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
-                const name = `${parentVarname}.${child.exp}`;
                 const objChildren = await mi.sendVarListChildren(gdb, {
-                    name,
+                    name: child.name,
                     printValues: mi.MIVarPrintValues.all,
                 });
-                // Append the child path to the top level full path.
-                const parentClassName = `${topLevelPathExpression}.${child.exp}`;
                 for (const objChild of objChildren.children) {
-                    const childName = `${name}.${objChild.exp}`;
                     variables.push({
                         name: objChild.exp,
-                        evaluateName: `${parentClassName}.${objChild.exp}`,
+                        // Append the grandchild path to the top level full path, without intervening 'public' etc. (child.exp)
+                        evaluateName: objChild.exp.startsWith('<anonymous ')
+                            ? topLevelPathExpression
+                            : `${topLevelPathExpression}.${objChild.exp}`,
                         value: objChild.value ? objChild.value : objChild.type,
                         type: objChild.type,
                         variablesReference:
@@ -3666,27 +3676,26 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                                 ? this.variableHandles.create({
                                       type: 'object',
                                       frameHandle: ref.frameHandle,
-                                      varobjName: childName,
+                                      varobjName: objChild.name,
                                   })
                                 : 0,
                     });
                 }
             } else {
                 // check if we're dealing with an array
-                let name = `${ref.varobjName}.${child.exp}`;
-                const varobjName = name;
                 const value = child.value ? child.value : child.type;
                 const isArrayChild =
                     arrayChildRegex.test(child.exp) &&
                     (!varobj || arrayRegex.test(varobj.type));
-                if (isArrayChild) {
-                    // update the display name for array elements to have square brackets
-                    name = `[${child.exp}]`;
-                }
-                const variableName = isArrayChild ? name : child.exp;
+                // update the display name for array elements to have square brackets
+                const variableName = isArrayChild
+                    ? `[${child.exp}]`
+                    : child.exp;
                 const evaluateName = isArrayChild
                     ? `${topLevelPathExpression}[${child.exp}]`
-                    : `${topLevelPathExpression}.${child.exp}`;
+                    : child.exp.startsWith('<anonymous ')
+                      ? topLevelPathExpression
+                      : `${topLevelPathExpression}.${child.exp}`;
                 variables.push({
                     name: variableName,
                     evaluateName,
@@ -3697,7 +3706,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             ? this.variableHandles.create({
                                   type: 'object',
                                   frameHandle: ref.frameHandle,
-                                  varobjName,
+                                  varobjName: child.name,
                               })
                             : 0,
                 });
