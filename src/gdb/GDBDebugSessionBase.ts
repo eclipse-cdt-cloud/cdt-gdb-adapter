@@ -427,25 +427,29 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         this.supportsGdbConsole =
             os.platform() === 'linux' && this.supportsRunInTerminalRequest;
         response.body = response.body || {};
-        response.body.supportsConfigurationDoneRequest = true;
-        response.body.supportsEvaluateForHovers = true;
-        response.body.supportsSetVariable = true;
-        response.body.supportsConditionalBreakpoints = true;
-        response.body.supportsHitConditionalBreakpoints = true;
-        response.body.supportsLogPoints = true;
-        response.body.supportsFunctionBreakpoints = true;
-        response.body.supportsSetExpression = true;
-        response.body.supportsDisassembleRequest = true;
-        response.body.supportsReadMemoryRequest = true;
-        response.body.supportsWriteMemoryRequest = true;
-        response.body.supportsSteppingGranularity = true;
-        response.body.supportsInstructionBreakpoints = true;
-        response.body.supportsTerminateRequest = this.isRemote;
-        response.body.supportsDataBreakpoints = true;
-        response.body.supportsBreakpointLocationsRequest = true;
-        response.body.supportTerminateDebuggee = this.isRemote;
-        response.body.breakpointModes = this.getBreakpointModes();
+        this.getCapabilities(response.body);
         this.sendResponse(response);
+    }
+
+    protected getCapabilities(cap: DebugProtocol.Capabilities): void {
+        cap.supportsConfigurationDoneRequest = true;
+        cap.supportsEvaluateForHovers = true;
+        cap.supportsSetVariable = true;
+        cap.supportsConditionalBreakpoints = true;
+        cap.supportsHitConditionalBreakpoints = true;
+        cap.supportsLogPoints = true;
+        cap.supportsFunctionBreakpoints = true;
+        cap.supportsSetExpression = true;
+        cap.supportsDisassembleRequest = true;
+        cap.supportsReadMemoryRequest = true;
+        cap.supportsWriteMemoryRequest = true;
+        cap.supportsSteppingGranularity = true;
+        cap.supportsInstructionBreakpoints = true;
+        cap.supportsTerminateRequest = this.isRemote;
+        cap.supportsDataBreakpoints = true;
+        cap.supportsBreakpointLocationsRequest = true;
+        cap.supportTerminateDebuggee = this.isRemote;
+        cap.breakpointModes = this.getBreakpointModes();
     }
 
     private switchOutputToError(input: string, category: string): StreamOutput {
