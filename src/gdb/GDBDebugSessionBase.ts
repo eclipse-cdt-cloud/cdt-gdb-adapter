@@ -154,7 +154,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
      * (GDBTargetDebugSession) and never for type="gdb" (GDBDebugSession).
      */
     protected isRemote = false;
-    // isRunning === true means there are no threads stopped.
+    // isRunning === true means there are threads and none are stopped.
+    // When uncertain because we have not received the status of the newest
+    // threads yet, this is the last certain value.
     protected isRunning = false;
 
     protected supportsRunInTerminalRequest = false;
@@ -1725,7 +1727,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             name += ` (${thread.details})`;
         }
 
-        const running = thread.state === 'running';
+        // 'thread-created' notifications don't include a thread state, it comes
+        // later via a 'stopped' or 'running' notification.
+        const running =
+            thread.state === 'running'
+                ? true
+                : thread.state === 'stopped'
+                  ? false
+                  : undefined;
 
         return new ThreadWithStatus(parseInt(thread.id, 10), name, running);
     }
@@ -3148,15 +3157,19 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return requestsToResolve.length > 0;
     }
 
+    private updateIsRunning() {
+        const newIsRunning = this.threads.some((t) => t.running === false) // have stopped
+            ? false
+            : this.threads.some((t) => t.running === undefined) // have unknown
+              ? undefined
+              : this.threads.some((t) => t.running === true); // have running
+        if (newIsRunning !== undefined) {
+            this.isRunning = newIsRunning;
+        }
+        // else leave this.isRunning at its previous known value
+    }
+
     protected handleGDBAsync(resultClass: string, resultData: any) {
-        const updateIsRunning = () => {
-            this.isRunning = this.threads.length ? true : false;
-            for (const thread of this.threads) {
-                if (!thread.running) {
-                    this.isRunning = false;
-                }
-            }
-        };
         switch (resultClass) {
             case 'running':
                 if (this.gdb.isNonStopMode()) {
@@ -3172,13 +3185,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         thread.running = true;
                     }
                 }
-                updateIsRunning();
+                this.updateIsRunning();
                 if (this.isInitialized) {
                     this.handleGDBResume(resultData);
                 }
                 break;
             case 'stopped': {
                 let suppressHandleGDBStopped = false;
+                let newThreadsConfirmed = false;
                 if (this.gdb.isNonStopMode()) {
                     const id = parseInt(resultData['thread-id'], 10);
                     for (const thread of this.threads) {
@@ -3202,6 +3216,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     }
                 } else {
                     for (const thread of this.threads) {
+                        if (thread.running === undefined) {
+                            newThreadsConfirmed = true;
+                        }
                         thread.running = false;
                         thread.lastRunToken = undefined;
                     }
@@ -3227,10 +3244,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
 
                 const wasRunning = this.isRunning;
-                updateIsRunning();
+                this.updateIsRunning();
                 if (
                     !suppressHandleGDBStopped &&
                     (this.gdb.isNonStopMode() ||
+                        newThreadsConfirmed ||
                         (wasRunning && !this.isRunning))
                 ) {
                     if (this.isInitialized) {
@@ -3267,6 +3285,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         switch (notifyClass) {
             case 'thread-created':
                 this.threads.push(this.convertThread(notifyData));
+                this.updateIsRunning();
                 this.missingThreadNames = true;
                 break;
             case 'thread-exited': {
