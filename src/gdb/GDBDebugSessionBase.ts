@@ -2692,8 +2692,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendErrorResponse(response, {
                     id: 1, // Id = 1 has always been the case for evaluateRequests
                     format: err instanceof Error ? err.message : String(err),
-                    showUser: false,
-                    sendTelemetry: undefined,
+                    showUser: false
                 });
             } else {
                 this.sendErrorResponse(
