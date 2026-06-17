@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import { expect } from 'chai';
+import * as fs from 'fs';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -28,6 +29,7 @@ describe('Variables CPP Test Suite', function () {
 
     const varsCppProgram = path.join(testProgramsDir, 'vars_cpp');
     const varsCppSrc = path.join(testProgramsDir, 'vars_cpp.cpp');
+    const numVars = 4; // number of variables in the main() scope of vars_cpp.cpp
 
     const lineTags = {
         'STOP HERE': 0,
@@ -66,7 +68,7 @@ describe('Variables CPP Test Suite', function () {
         expect(
             vars.body.variables.length,
             'There is a different number of variables than expected'
-        ).to.equal(3);
+        ).to.equal(numVars);
         verifyVariable(vars.body.variables[0], 'fooA', 'Foo *', undefined, {
             hasChildren: true,
         });
@@ -121,7 +123,7 @@ describe('Variables CPP Test Suite', function () {
         expect(
             vars2.body.variables.length,
             'There is a different number of variables than expected'
-        ).to.equal(3);
+        ).to.equal(numVars);
         compareVariable(
             vars2.body.variables[0],
             vars2.body.variables[1],
@@ -166,7 +168,7 @@ describe('Variables CPP Test Suite', function () {
         expect(
             vars.body.variables.length,
             'There is a different number of variables than expected'
-        ).to.equal(3);
+        ).to.equal(numVars);
         verifyVariable(vars.body.variables[0], 'fooA', 'Foo *', undefined, {
             hasChildren: true,
         });
@@ -216,5 +218,55 @@ describe('Variables CPP Test Suite', function () {
         verifyVariable(children.body.variables[2], 'b', 'int', '2', {
             hasMemoryReference: false,
         });
+    });
+
+    it('can evaluate anonymous and deeply nested structs and unions', async function () {
+        // assert we can see the struct
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(numVars);
+        verifyVariable(vars.body.variables[3], 'n', 'Nest', '{...}', {
+            hasChildren: true,
+        });
+
+        interface ExpandedVariable {
+            name: string;
+            type?: string;
+            evaluateName?: string;
+            children?: ExpandedVariable[];
+        }
+        async function expandRecursively(
+            variablesReference: number
+        ): Promise<ExpandedVariable[] | undefined> {
+            if (variablesReference <= 0) return undefined;
+            const vars = (await dc.variablesRequest({ variablesReference }))
+                .body.variables;
+            const exp = await Promise.all(
+                vars.map((v) => expandRecursively(v.variablesReference))
+            );
+            return vars.map((v, i) => {
+                const r: ExpandedVariable = {
+                    name: v.name,
+                    type: v.type,
+                    evaluateName: v.evaluateName,
+                };
+                if (exp[i]) r.children = exp[i];
+                return r;
+            });
+        }
+        const structure = await expandRecursively(
+            vars.body.variables[3].variablesReference
+        );
+        expect(structure).to.deep.equal(
+            JSON.parse(
+                fs.readFileSync(
+                    path.join(testProgramsDir, '..', 'var_nest_expected.json'),
+                    { encoding: 'utf-8' }
+                )
+            )
+        );
     });
 });

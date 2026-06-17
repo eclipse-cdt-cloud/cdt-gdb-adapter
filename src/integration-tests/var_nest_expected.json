@@ -1,0 +1,265 @@
+[
+  {
+    "name": "one",
+    "type": "int",
+    "evaluateName": "n.one"
+  },
+  {
+    "name": "<anonymous union>",
+    "type": "union {...}",
+    "evaluateName": "n",
+    "children": [
+      {
+        "name": "two",
+        "type": "int",
+        "evaluateName": "n.two"
+      },
+      {
+        "name": "three",
+        "type": "unsigned int",
+        "evaluateName": "n.three"
+      }
+    ]
+  },
+  {
+    "name": "<anonymous union>",
+    "type": "union {...}",
+    "evaluateName": "n",
+    "children": [
+      {
+        "name": "four",
+        "type": "int",
+        "evaluateName": "n.four"
+      },
+      {
+        "name": "five",
+        "type": "unsigned int",
+        "evaluateName": "n.five"
+      },
+      {
+        "name": "more",
+        "type": "struct {...} [3]",
+        "evaluateName": "n.more",
+        "children": [
+          {
+            "name": "[0]",
+            "type": "struct {...}",
+            "evaluateName": "n.more[0]",
+            "children": [
+              {
+                "name": "a",
+                "type": "int",
+                "evaluateName": "n.more[0].a"
+              },
+              {
+                "name": "<anonymous union>",
+                "type": "union {...}",
+                "evaluateName": "n.more[0]",
+                "children": [
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[0]",
+                    "children": [
+                      {
+                        "name": "b",
+                        "type": "int",
+                        "evaluateName": "n.more[0].b"
+                      },
+                      {
+                        "name": "c",
+                        "type": "int",
+                        "evaluateName": "n.more[0].c"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[0]",
+                    "children": [
+                      {
+                        "name": "d",
+                        "type": "int",
+                        "evaluateName": "n.more[0].d"
+                      },
+                      {
+                        "name": "e",
+                        "type": "int",
+                        "evaluateName": "n.more[0].e"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "[1]",
+            "type": "struct {...}",
+            "evaluateName": "n.more[1]",
+            "children": [
+              {
+                "name": "a",
+                "type": "int",
+                "evaluateName": "n.more[1].a"
+              },
+              {
+                "name": "<anonymous union>",
+                "type": "union {...}",
+                "evaluateName": "n.more[1]",
+                "children": [
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[1]",
+                    "children": [
+                      {
+                        "name": "b",
+                        "type": "int",
+                        "evaluateName": "n.more[1].b"
+                      },
+                      {
+                        "name": "c",
+                        "type": "int",
+                        "evaluateName": "n.more[1].c"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[1]",
+                    "children": [
+                      {
+                        "name": "d",
+                        "type": "int",
+                        "evaluateName": "n.more[1].d"
+                      },
+                      {
+                        "name": "e",
+                        "type": "int",
+                        "evaluateName": "n.more[1].e"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "[2]",
+            "type": "struct {...}",
+            "evaluateName": "n.more[2]",
+            "children": [
+              {
+                "name": "a",
+                "type": "int",
+                "evaluateName": "n.more[2].a"
+              },
+              {
+                "name": "<anonymous union>",
+                "type": "union {...}",
+                "evaluateName": "n.more[2]",
+                "children": [
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[2]",
+                    "children": [
+                      {
+                        "name": "b",
+                        "type": "int",
+                        "evaluateName": "n.more[2].b"
+                      },
+                      {
+                        "name": "c",
+                        "type": "int",
+                        "evaluateName": "n.more[2].c"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "<anonymous struct>",
+                    "type": "struct {...}",
+                    "evaluateName": "n.more[2]",
+                    "children": [
+                      {
+                        "name": "d",
+                        "type": "int",
+                        "evaluateName": "n.more[2].d"
+                      },
+                      {
+                        "name": "e",
+                        "type": "int",
+                        "evaluateName": "n.more[2].e"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "matrix",
+        "type": "int [3][2]",
+        "evaluateName": "n.matrix",
+        "children": [
+          {
+            "name": "[0]",
+            "type": "int [2]",
+            "evaluateName": "n.matrix[0]",
+            "children": [
+              {
+                "name": "[0]",
+                "type": "int",
+                "evaluateName": "n.matrix[0][0]"
+              },
+              {
+                "name": "[1]",
+                "type": "int",
+                "evaluateName": "n.matrix[0][1]"
+              }
+            ]
+          },
+          {
+            "name": "[1]",
+            "type": "int [2]",
+            "evaluateName": "n.matrix[1]",
+            "children": [
+              {
+                "name": "[0]",
+                "type": "int",
+                "evaluateName": "n.matrix[1][0]"
+              },
+              {
+                "name": "[1]",
+                "type": "int",
+                "evaluateName": "n.matrix[1][1]"
+              }
+            ]
+          },
+          {
+            "name": "[2]",
+            "type": "int [2]",
+            "evaluateName": "n.matrix[2]",
+            "children": [
+              {
+                "name": "[0]",
+                "type": "int",
+                "evaluateName": "n.matrix[2][0]"
+              },
+              {
+                "name": "[1]",
+                "type": "int",
+                "evaluateName": "n.matrix[2][1]"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

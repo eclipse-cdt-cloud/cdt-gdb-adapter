@@ -9,6 +9,7 @@
  *********************************************************************/
 
 import { expect } from 'chai';
+import * as fs from 'fs';
 import * as path from 'path';
 import { CdtDebugClient } from './debugClient';
 import {
@@ -27,12 +28,13 @@ describe('Variables Test Suite', function () {
     let scope: Scope;
     const varsProgram = path.join(testProgramsDir, 'vars');
     const varsSrc = path.join(testProgramsDir, 'vars.c');
-    const numVars = 11; // number of variables in the main() scope of vars.c
+    const numVars = 12; // number of variables in the main() scope of vars.c
 
     const lineTags = {
         'STOP HERE': 0,
         'After array init': 0,
         'char string setup': 0,
+        end: 0,
     };
 
     const hexValueRegex = /^0x[\da-fA-F]+$/;
@@ -550,6 +552,71 @@ describe('Variables Test Suite', function () {
         });
         expect(res.body.result).eq(
             '[\n  "104 \'h\'",\n  "101 \'e\'",\n  "108 \'l\'",\n  "108 \'l\'",\n  "111 \'o\'",\n  "0 \'\\\\000\'"\n]'
+        );
+    });
+
+    it('can evaluate anonymous and deeply nested structs and unions', async function () {
+        // skip ahead to the end
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsSrc },
+            breakpoints: [{ line: lineTags['end'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: lineTags['end'],
+            path: varsSrc,
+        });
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(2);
+        // assert we can see the struct
+        const vr = scope.scopes.body.scopes[0].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        expect(
+            vars.body.variables.length,
+            'There is a different number of variables than expected'
+        ).to.equal(numVars);
+        verifyVariable(vars.body.variables[11], 'n', 'struct nest', '{...}', {
+            hasChildren: true,
+        });
+
+        interface ExpandedVariable {
+            name: string;
+            type?: string;
+            evaluateName?: string;
+            children?: ExpandedVariable[];
+        }
+        async function expandRecursively(
+            variablesReference: number
+        ): Promise<ExpandedVariable[] | undefined> {
+            if (variablesReference <= 0) return undefined;
+            const vars = (await dc.variablesRequest({ variablesReference }))
+                .body.variables;
+            const exp = await Promise.all(
+                vars.map((v) => expandRecursively(v.variablesReference))
+            );
+            return vars.map((v, i) => {
+                const r: ExpandedVariable = {
+                    name: v.name,
+                    type: v.type,
+                    evaluateName: v.evaluateName,
+                };
+                if (exp[i]) r.children = exp[i];
+                return r;
+            });
+        }
+        const structure = await expandRecursively(
+            vars.body.variables[11].variablesReference
+        );
+        expect(structure).to.deep.equal(
+            JSON.parse(
+                fs.readFileSync(
+                    path.join(testProgramsDir, '..', 'var_nest_expected.json'),
+                    { encoding: 'utf-8' }
+                )
+            )
         );
     });
 });
