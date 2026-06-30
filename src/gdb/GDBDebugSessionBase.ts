@@ -465,6 +465,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         cap.supportsTerminateRequest = this.isRemote;
         cap.supportsDataBreakpoints = true;
         cap.supportsBreakpointLocationsRequest = true;
+        cap.supportsCompletionsRequest = true;
         cap.supportTerminateDebuggee = this.isRemote;
         cap.breakpointModes = this.getBreakpointModes();
     }
@@ -858,6 +859,51 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
 
         // The promise resolves when pushed resolveFunc gets called.
         return pausePromise;
+    }
+
+    protected async completionsRequest(
+        response: DebugProtocol.CompletionsResponse,
+        args: DebugProtocol.CompletionsArguments
+    ): Promise<void> {
+        try {
+            if (!this.canRequestProceed()) {
+                this.logger.verbose(
+                    'Debug adapter cannot process completions request, skipping it.'
+                );
+                this.sendResponse(response);
+                return;
+            }
+            const text = args.text.trim();
+            if (!text.startsWith('>')) {
+                // All GDB commands must start with a '>' character. If expression doesn't, return no completions.
+                this.sendResponse(response);
+                return;
+            }
+            const commandToComplete = text.slice(1).trim();
+            const completions = await mi.sendCompletions(
+                this.gdb,
+                commandToComplete
+            );
+            response.body = {
+                targets: completions.matches.map((completion) => {
+                    return {
+                        label: completion,
+                    };
+                }),
+            };
+            this.sendResponse(response);
+        } catch (err) {
+            if (err instanceof Error && err.message.includes('complete')) {
+                err.message = `GDB command completion failed: ${err.message}`;
+                this.sendErrorResponse(response, 1, err.message);
+            } else {
+                this.sendErrorResponse(
+                    response,
+                    1,
+                    err instanceof Error ? err.message : String(err)
+                );
+            }
+        }
     }
 
     protected async dataBreakpointInfoRequest(

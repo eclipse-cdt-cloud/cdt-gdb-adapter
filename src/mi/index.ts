@@ -17,3 +17,4 @@ export * from './thread';
 export * from './var';
 export * from './interpreter';
 export * from './symbols';
+export * from './miscellaneous';
