@@ -22,6 +22,8 @@ import {
     verifyRegister,
     fillDefaults,
 } from './utils';
+import { DebugProtocol } from '@vscode/debugprotocol';
+// import { ILocation } from '@vscode/debugadapter-testsupport/lib/debugClient';
 
 describe('Variables Test Suite', function () {
     let dc: CdtDebugClient;
@@ -618,5 +620,425 @@ describe('Variables Test Suite', function () {
                 )
             )
         );
+    });
+});
+
+describe('Global Variables Test Suite', function () {
+    let dc: CdtDebugClient;
+    let scope: Scope;
+
+    const varsGlobalsProgram = path.join(testProgramsDir, 'vars_globals');
+    const varsGlobalsSrc = path.join(testProgramsDir, 'vars_globals.c');
+    const lineTags = {
+        INITIAL_STOP: 0,
+        RETURN: 0,
+    };
+
+    before(function () {
+        resolveLineTagLocations(varsGlobalsSrc, lineTags);
+    });
+
+    beforeEach(async function () {
+        dc = await standardBeforeEach();
+        await dc.hitBreakpoint(
+            fillDefaults(this.currentTest, {
+                program: varsGlobalsProgram,
+                showGlobalVariables: true,
+            }),
+            {
+                path: varsGlobalsSrc,
+                line: lineTags['INITIAL_STOP'],
+            }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(3);
+        expect(scope.scopes.body.scopes[1].name).to.equal('Global');
+    });
+
+    afterEach(async function () {
+        await dc.stop();
+    });
+
+    const findVar = (
+        vars: DebugProtocol.Variable[],
+        name: string
+    ): DebugProtocol.Variable => {
+        const v = vars.find((v) => v.name === name);
+        expect(v, `Variable '${name}' not found`).to.exist;
+        return v as DebugProtocol.Variable;
+    };
+
+    it('can read simple global variables in a program', async function () {
+        const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        const globalInt: DebugProtocol.Variable = findVar(
+            vars.body.variables,
+            'global_int'
+        );
+        verifyVariable(globalInt, 'global_int', 'volatile int', '42');
+    });
+
+    it('can read and set struct global variables in a program', async function () {
+        let vr = scope.scopes.body.scopes[1].variablesReference;
+        let vars = await dc.variablesRequest({ variablesReference: vr });
+        let s0: DebugProtocol.Variable = findVar(vars.body.variables, 's0');
+        verifyVariable(s0, 's0', 'volatile STRUCT_WITH_ARRAY', '{...}', {
+            hasChildren: true,
+        });
+        let childrenS0Ref = s0.variablesReference;
+        let childrenS0 = await dc.variablesRequest({
+            variablesReference: childrenS0Ref,
+        });
+        expect(
+            childrenS0.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(3);
+        verifyVariable(childrenS0.body.variables[0], 'a', 'int', '1', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(childrenS0.body.variables[1], 'b', 'int', '2', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(
+            childrenS0.body.variables[2],
+            'char_array',
+            'char [11]',
+            '[11]',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        // set the variables to something different
+        const setAinHex = await dc.setVariableRequest({
+            name: 'a',
+            value: '0x25',
+            variablesReference: childrenS0Ref,
+        });
+        expect(setAinHex.body.value).to.equal('37');
+        const setA = await dc.setVariableRequest({
+            name: 'a',
+            value: '25',
+            variablesReference: childrenS0Ref,
+        });
+        expect(setA.body.value).to.equal('25');
+        const setB = await dc.setVariableRequest({
+            name: 'b',
+            value: '10',
+            variablesReference: childrenS0Ref,
+        });
+        expect(setB.body.value).to.equal('10');
+        // assert that the variables have been updated to the new values
+        childrenS0 = await dc.variablesRequest({
+            variablesReference: childrenS0Ref,
+        });
+        expect(
+            childrenS0.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(3);
+        verifyVariable(childrenS0.body.variables[0], 'a', 'int', '25', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(childrenS0.body.variables[1], 'b', 'int', '10', {
+            hasMemoryReference: false,
+        });
+        // step the program and see that the values were passed to the program and evaluated.
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsGlobalsSrc, line: lineTags['INITIAL_STOP'] + 1 }
+        );
+        await dc.next(
+            { threadId: scope.thread.id },
+            { path: varsGlobalsSrc, line: lineTags['INITIAL_STOP'] + 2 }
+        );
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(3);
+        vr = scope.scopes.body.scopes[1].variablesReference;
+        vars = await dc.variablesRequest({ variablesReference: vr });
+        s0 = findVar(vars.body.variables, 's0');
+        verifyVariable(s0, 's0', 'volatile STRUCT_WITH_ARRAY', '{...}', {
+            hasChildren: true,
+        });
+        childrenS0Ref = s0.variablesReference;
+        childrenS0 = await dc.variablesRequest({
+            variablesReference: childrenS0Ref,
+        });
+        expect(
+            childrenS0.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(3);
+        verifyVariable(childrenS0.body.variables[0], 'a', 'int', '250', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(childrenS0.body.variables[1], 'b', 'int', '20', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(
+            childrenS0.body.variables[2],
+            'char_array',
+            'char [11]',
+            '[11]',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+    });
+
+    it('can read and set array element in global variables in a program', async function () {
+        const vr = scope.scopes.body.scopes[1].variablesReference;
+        const vars = await dc.variablesRequest({ variablesReference: vr });
+        const s0: DebugProtocol.Variable = findVar(vars.body.variables, 's0');
+        verifyVariable(s0, 's0', 'volatile STRUCT_WITH_ARRAY', '{...}', {
+            hasChildren: true,
+        });
+        const childrenS0Ref = s0.variablesReference;
+        const childrenS0 = await dc.variablesRequest({
+            variablesReference: childrenS0Ref,
+        });
+        expect(
+            childrenS0.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(3);
+        verifyVariable(
+            childrenS0.body.variables[2],
+            'char_array',
+            'char [11]',
+            '[11]',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        const charArrayRef = childrenS0.body.variables[2].variablesReference;
+        let charArray = await dc.variablesRequest({
+            variablesReference: charArrayRef,
+        });
+        expect(
+            charArray.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(11);
+        verifyVariable(charArray.body.variables[0], '[0]', 'char', "99 'c'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[1], '[1]', 'char', "104 'h'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[2], '[2]', 'char', "97 'a'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[3], '[3]', 'char', "114 'r'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[4], '[4]', 'char', "95 '_'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[5], '[5]', 'char', "97 'a'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[6], '[6]', 'char', "114 'r'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[7], '[7]', 'char', "114 'r'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[8], '[8]', 'char', "97 'a'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(charArray.body.variables[9], '[9]', 'char', "121 'y'", {
+            hasMemoryReference: false,
+        });
+        verifyVariable(
+            charArray.body.variables[10],
+            '[10]',
+            'char',
+            "0 '\\000'",
+            {
+                hasMemoryReference: false,
+            }
+        );
+        // set the variable to something different
+        const setChar = await dc.setVariableRequest({
+            name: '[0]',
+            value: '67',
+            variablesReference: charArrayRef,
+        });
+        expect(setChar.body.value).to.equal("67 'C'");
+        // assert that the variables have been updated to the new values
+        charArray = await dc.variablesRequest({
+            variablesReference: charArrayRef,
+        });
+        expect(
+            charArray.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(11);
+        verifyVariable(charArray.body.variables[0], '[0]', 'char', "67 'C'", {
+            hasMemoryReference: false,
+        });
+    });
+
+    it('can read and set nested struct global variables in a program', async function () {
+        let vr = scope.scopes.body.scopes[1].variablesReference;
+        let vars = await dc.variablesRequest({ variablesReference: vr });
+        let s1: DebugProtocol.Variable = findVar(vars.body.variables, 's1');
+        verifyVariable(s1, 's1', 'volatile PARENT_STRUCT', '{...}', {
+            hasChildren: true,
+        });
+        let childrenS1Ref = s1.variablesReference;
+        let childrenS1 = await dc.variablesRequest({
+            variablesReference: childrenS1Ref,
+        });
+        expect(
+            childrenS1.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(4);
+        verifyVariable(
+            childrenS1.body.variables[3],
+            'children',
+            'CHILD_STRUCT [2]',
+            '[2]',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        let grandChildRef = childrenS1.body.variables[3].variablesReference;
+        let grandChild = await dc.variablesRequest({
+            variablesReference: grandChildRef,
+        });
+        expect(
+            grandChild.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(2);
+        verifyVariable(
+            grandChild.body.variables[0],
+            '[0]',
+            'CHILD_STRUCT',
+            '{...}',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        let grandGrandChildRef =
+            grandChild.body.variables[0].variablesReference;
+        let grandGrandChild = await dc.variablesRequest({
+            variablesReference: grandGrandChildRef,
+        });
+        expect(
+            grandGrandChild.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(2);
+        verifyVariable(grandGrandChild.body.variables[0], 'x', 'int', '6', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(grandGrandChild.body.variables[1], 'y', 'int', '7', {
+            hasMemoryReference: false,
+        });
+        // set the variable to something different
+        const setX = await dc.setVariableRequest({
+            name: 'x',
+            value: '11',
+            variablesReference: grandGrandChildRef,
+        });
+        expect(setX.body.value).to.equal('11');
+        const setY = await dc.setVariableRequest({
+            name: 'y',
+            value: '12',
+            variablesReference: grandGrandChildRef,
+        });
+        expect(setY.body.value).to.equal('12');
+        // assert that the variables have been updated to the new values
+        grandGrandChild = await dc.variablesRequest({
+            variablesReference: grandGrandChildRef,
+        });
+        expect(
+            grandGrandChild.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(2);
+        verifyVariable(grandGrandChild.body.variables[0], 'x', 'int', '11', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(grandGrandChild.body.variables[1], 'y', 'int', '12', {
+            hasMemoryReference: false,
+        });
+        // continue to hit bp see that the values were passed to the program and evaluated.
+        const br = await dc.setBreakpointsRequest({
+            source: { path: varsGlobalsSrc },
+            breakpoints: [{ line: lineTags['RETURN'] }],
+        });
+        expect(br.success).to.equal(true);
+        await dc.continue({ threadId: scope.thread.id }, 'breakpoint', {
+            line: lineTags['RETURN'],
+            path: varsGlobalsSrc,
+        });
+        scope = await getScopes(dc);
+        expect(
+            scope.scopes.body.scopes.length,
+            'Unexpected number of scopes returned'
+        ).to.equal(3);
+        vr = scope.scopes.body.scopes[1].variablesReference;
+        expect(scope.scopes.body.scopes[1].name).to.be.equal('Global');
+        vars = await dc.variablesRequest({ variablesReference: vr });
+        s1 = findVar(vars.body.variables, 's1');
+        verifyVariable(s1, 's1', 'volatile PARENT_STRUCT', '{...}', {
+            hasChildren: true,
+        });
+        childrenS1Ref = s1.variablesReference;
+        childrenS1 = await dc.variablesRequest({
+            variablesReference: childrenS1Ref,
+        });
+        expect(
+            childrenS1.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(4);
+        verifyVariable(
+            childrenS1.body.variables[3],
+            'children',
+            'CHILD_STRUCT [2]',
+            '[2]',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        grandChildRef = childrenS1.body.variables[3].variablesReference;
+        grandChild = await dc.variablesRequest({
+            variablesReference: grandChildRef,
+        });
+        expect(
+            grandChild.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(2);
+        verifyVariable(
+            grandChild.body.variables[0],
+            '[0]',
+            'CHILD_STRUCT',
+            '{...}',
+            {
+                hasChildren: true,
+                hasMemoryReference: false,
+            }
+        );
+        grandGrandChildRef = grandChild.body.variables[0].variablesReference;
+        grandGrandChild = await dc.variablesRequest({
+            variablesReference: grandGrandChildRef,
+        });
+        expect(
+            grandGrandChild.body.variables.length,
+            'There is a different number of child variables than expected'
+        ).to.equal(2);
+        verifyVariable(grandGrandChild.body.variables[0], 'x', 'int', '41', {
+            hasMemoryReference: false,
+        });
+        verifyVariable(grandGrandChild.body.variables[1], 'y', 'int', '52', {
+            hasMemoryReference: false,
+        });
     });
 });

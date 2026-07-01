@@ -36,6 +36,7 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     steppingResponseTimeout?: number;
     updateThreadInfo?: 'missing' | 'when-requested' | 'never';
     run?: RequestArgRun;
+    showGlobalVariables?: boolean;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -68,10 +69,16 @@ export interface RegisterVariableReference {
     regname?: string;
 }
 
+export interface GlobalVariableReference {
+    type: 'global';
+    frameHandle: number;
+}
+
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
-    | RegisterVariableReference;
+    | RegisterVariableReference
+    | GlobalVariableReference;
 
 export interface MemoryRequestArguments {
     address: string;
