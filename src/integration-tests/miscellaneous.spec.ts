@@ -52,7 +52,7 @@ describe('Miscellaneous GDB Commands Tests', function () {
         expect(completions.body.targets).to.be.empty;
     });
 
-    it('should retrieve a valid list of completions for a valid command with initial elements of an argument', async function () {
+    it('should retrieve a valid list of completions for a valid command without a complete argument', async function () {
         const completions: any = await dc.send('completions', {
             text: '>b ma ',
         });
