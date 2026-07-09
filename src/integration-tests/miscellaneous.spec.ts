@@ -65,16 +65,16 @@ describe('Miscellaneous GDB Commands Tests', function () {
     });
 
     it('should retrieve a valid list of completions for a valid command without a complete argument', async function () {
-        const text = ' > b ma ';
+        const text = ' > b ma';
         const completions: any = await dc.send('completions', {
             text: text,
-            column: text.length,
+            column: text.length + 1,
         });
         expect(completions.body.targets).to.be.an('array');
         const expectedCompletion = {
             label: ' b main',
-            length: text.length - text.indexOf('b'),
-            start: text.indexOf('b') + 1,
+            length: text.slice(text.indexOf('>') + 1, text.length).length, // everything after the ">" character should be replaced
+            start: text.indexOf('>') + 2, // vscode is 1-based, so we need to add 2 to the index of '>'
         };
         expect(completions.body.targets).to.deep.include(expectedCompletion);
     });
@@ -83,13 +83,13 @@ describe('Miscellaneous GDB Commands Tests', function () {
         const text = '   >   python-interactive';
         const completions: any = await dc.send('completions', {
             text: text,
-            column: text.length - 4,
+            column: text.length - 3,
         });
         expect(completions.body.targets).to.be.an('array');
         const expectedCompletion = {
             label: '   python-interactive',
-            length: text.length - 1 - 4 - text.indexOf('>') - 1, // as column is text.length - 4, subtract 4 from the length to mimic python-intera|ctive. Everything after '>' should be replaced
-            start: text.indexOf('p') + 1,
+            length: text.slice(text.indexOf('>') + 1, text.length - 4).length, // as column is text.length - 4, subtract 4 from the length to mimic python-intera|ctive. Everything after '>' should be replaced
+            start: text.indexOf('>') + 2,
         };
         expect(completions.body.targets).to.deep.include(expectedCompletion);
     });

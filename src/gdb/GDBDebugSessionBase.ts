@@ -888,9 +888,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return;
             }
             const trimmedWhiteSpaceLength = args.text.length - text.length;
-            const endOfCommandToComplete =
-                effectiveColumn - trimmedWhiteSpaceLength;
-            const commandToComplete = text.slice(1, endOfCommandToComplete);
+            // Slicing from > to end of command to complete
+            const commandToComplete = args.text.slice(
+                trimmedWhiteSpaceLength + 1,
+                effectiveColumn
+            );
             const completions = await mi.sendCompletions(
                 this.gdb,
                 commandToComplete
@@ -902,7 +904,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         length: commandToComplete.length,
                         start:
                             trimmedWhiteSpaceLength +
-                            (this.columnStartAt1 ? 2 : 1), // +1 for the '>' character
+                            (this.columnStartAt1 ? 2 : 1), // +1 for the '>' character if 0-based, +2 if 1-based
                     };
                 }),
             };
