@@ -76,8 +76,8 @@
     "@types/serialport": "^10.2.0",
     "@types/sinon": "^17.0.4",
     "@types/tmp": "^0.2.6",
-    "@typescript-eslint/eslint-plugin": "^8.35.1",
-    "@typescript-eslint/parser": "^8.35.1",
+    "@typescript-eslint/eslint-plugin": "8.63.0",
+    "@typescript-eslint/parser": "8.63.0",
     "@vscode/debugadapter-testsupport": "^1.68.0",
     "browserify": "^17.0.1",
     "chai": "^5.2.0",
@@ -102,7 +102,7 @@
     "tmp": "^0.2.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.35.1"
+    "typescript-eslint": "8.63.0"
   },
   "files": [
     "NOTICE",
