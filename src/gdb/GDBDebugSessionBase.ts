@@ -1299,12 +1299,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     ? gdbbp['original-location'].toLowerCase()
                     : gdbbp['original-location'];
 
-                if (
-                    !(
-                        origLocCmp.includes(prefixCmp) ||
-                        origLocCmp.includes(fileCmp)
-                    )
-                ) {
+                if (!(
+                    origLocCmp.includes(prefixCmp) ||
+                    origLocCmp.includes(fileCmp)
+                )) {
                     return false;
                 }
 
@@ -1433,8 +1431,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 try {
                     const line = vsbp.line.toString();
                     const breakpointMode = vsbp.mode as
-                        | mi.MIBreakpointMode
-                        | undefined;
+                        mi.MIBreakpointMode | undefined;
                     const options = await this.gdb.getBreakpointOptions(
                         {
                             locationType: 'source',
@@ -2737,8 +2734,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                           })
                         : 0;
                 let memoryReferenceResult:
-                    | MIGDBDataEvaluateExpressionResponse
-                    | undefined;
+                    MIGDBDataEvaluateExpressionResponse | undefined;
                 let hasMemoryReference = false;
                 if (this.supportsMemoryReferences) {
                     try {
