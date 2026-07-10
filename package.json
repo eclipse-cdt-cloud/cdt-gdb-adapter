@@ -87,7 +87,7 @@
     "esbuild-node-externals": "^1.18.0",
     "eslint": "^9.30.1",
     "eslint-plugin-chai-friendly": "1.2.1",
-    "eslint-config-prettier": "^10.1.5",
+    "eslint-config-prettier": "10.1.5",
     "globals": "17.7.0",
     "mocha": "11.7.6",
     "mocha-jenkins-reporter": "0.4.8",
