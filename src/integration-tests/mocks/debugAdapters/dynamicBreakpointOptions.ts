@@ -46,8 +46,7 @@ const breakpointMode =
     breakpointModeIndex < 0
         ? undefined
         : (process.argv[breakpointModeIndex + 1] as
-              | MIBreakpointMode
-              | undefined);
+              MIBreakpointMode | undefined);
 
 const throwError = process.argv.includes('--throw-error');
 

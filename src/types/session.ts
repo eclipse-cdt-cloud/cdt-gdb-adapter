@@ -182,8 +182,7 @@ export interface TargetAttachRequestArguments extends RequestArguments {
     auxiliaryGdb?: boolean;
 }
 
-export interface TargetLaunchRequestArguments
-    extends TargetAttachRequestArguments {
+export interface TargetLaunchRequestArguments extends TargetAttachRequestArguments {
     target?: TargetLaunchArguments;
     imageAndSymbols?: ImageAndSymbolArguments;
     // Optional commands to issue between loading image and resuming target
