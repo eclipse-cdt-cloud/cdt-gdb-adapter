@@ -876,13 +876,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 return;
             }
             const text = args.text.trimStart();
+            const beginningOfCommand = args.text.indexOf('>') + 1;
             const effectiveColumn = this.columnStartAt1
                 ? args.column - 1
                 : args.column;
-            if (
-                !text.startsWith('>') ||
-                args.column <= args.text.indexOf('>') + 1
-            ) {
+            if (!text.startsWith('>') || args.column <= beginningOfCommand) {
                 // All GDB commands must start with a '>' character. If expression doesn't, return no completions.
                 this.sendResponse(response);
                 return;
