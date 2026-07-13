@@ -1,5 +1,17 @@
 # Change Log
 
+## 1.10.0
+
+- Implements [`#528`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/528): Add `run` option to configure if to always run all threads after connect, or if to preserve their state encountered after connect.
+- Implements [`#539`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/539): Extend `evaluate` response by `memoryReference` field where possible and if supported by client. A client can use this to determine if an expression maps to a memory address.
+- Implements [`#550`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/550): Allow override of capabilities reported by `GDBDebugSessionBase` class.
+- Implements [`#560`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/560): Support `completions` request for GDB CLI commands (with `>` prefix). This enables auto-completion features in the IDE, for example in a debug console.
+- Fixes [cdt-gdb-vscode `#230`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/230): Fixes variables display of anonymous unions/structs.
+- Fixes [`#545`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/545): Skip error pop-up when `evaluate` request context is repl (e.g. Debug Console).
+- Fixes [`#549`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/549): Handle exceptions from `pause` request.
+- Fixes [`#558`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/558): Fixes exception when setting a watchpoint while multi-location breakpoints are set.
+- chore [`#561`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/561): Updated various production and development dependencies. Pin first-level dependencies to exact package versions to avoid unwanted version updates.
+
 ## 1.9.0
 
 - Implements [`#526`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/526): Handle memory-changed notifications
