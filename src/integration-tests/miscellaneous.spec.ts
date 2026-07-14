@@ -138,7 +138,6 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         dc = new CdtDebugClient();
         await dc.start(debugServerPort);
         await dc.initializeRequest(initRequestArgs);
-        //await dc.waitForEvent('initialized');
         await dc.launchRequest(
             fillDefaults(this.currentTest, { program: evaluateProgram })
         );
