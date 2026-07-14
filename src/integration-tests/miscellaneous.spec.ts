@@ -137,10 +137,12 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         };
         dc = new CdtDebugClient();
         await dc.start(debugServerPort);
+        const initializedEvent = dc.waitForEvent('initialized');
         await dc.initializeRequest(initRequestArgs);
         await dc.launchRequest(
             fillDefaults(this.currentTest, { program: evaluateProgram })
         );
+        await initializedEvent;
         await dc.setBreakpointsRequest({
             source: { path: evaluateSrc },
             lines: [2],
