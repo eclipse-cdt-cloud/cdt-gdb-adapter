@@ -880,10 +880,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const effectiveColumn = this.columnStartAt1
                 ? args.column - 1
                 : args.column;
-            if (
-                !text.startsWith('>') ||
-                effectiveColumn <= beginningOfCommand
-            ) {
+            if (!text.startsWith('>') || effectiveColumn < beginningOfCommand) {
                 // All GDB commands must start with a '>' character. If expression doesn't, return no completions.
                 this.sendResponse(response);
                 return;
