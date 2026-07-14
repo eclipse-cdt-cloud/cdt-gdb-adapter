@@ -138,15 +138,20 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         dc = new CdtDebugClient();
         await dc.start(debugServerPort);
         await dc.initializeRequest(initRequestArgs);
-        await dc.hitBreakpoint(
-            fillDefaults(this.currentTest, {
-                program: evaluateProgram,
-            }),
-            {
-                path: evaluateSrc,
-                line: 2,
-            }
+        //await dc.waitForEvent('initialized');
+        await dc.launchRequest(
+            fillDefaults(this.currentTest, { program: evaluateProgram })
         );
+        await dc.setBreakpointsRequest({
+            source: { path: evaluateSrc },
+            lines: [2],
+            breakpoints: [{ line: 2 }],
+        });
+        await dc.configurationDoneRequest();
+        await dc.assertStoppedLocation('breakpoint', {
+            path: evaluateSrc,
+            line: 2,
+        });
     });
 
     afterEach(async function () {
@@ -161,8 +166,8 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         expect(completions.body.targets).to.be.an('array');
         const expectedCompletion = {
             label: 'print',
-            length: 1,
-            start: 2,
+            length: 2,
+            start: 1,
         };
         expect(completions.body.targets).to.deep.include(expectedCompletion);
     });
@@ -191,7 +196,7 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         const expectedCompletion = {
             label: ' b main',
             length: text.slice(text.indexOf('>') + 1, text.length).length, // everything after the ">" character should be replaced
-            start: text.indexOf('>') + 2, // vscode is 1-based, so we need to add 2 to the index of '>'
+            start: text.indexOf('>') + 1,
         };
         expect(completions.body.targets).to.deep.include(expectedCompletion);
     });
@@ -205,8 +210,8 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         expect(completions.body.targets).to.be.an('array');
         const expectedCompletion = {
             label: '   python-interactive',
-            length: text.slice(text.indexOf('>') + 1, text.length - 4).length, // as column is text.length - 4, subtract 4 from the length to mimic python-intera|ctive. Everything after '>' should be replaced
-            start: text.indexOf('>') + 2,
+            length: text.slice(text.indexOf('>') + 1, text.length - 3).length, // as column is text.length - 3, subtract 3 from the length to mimic python-intera|ctive. Everything after '>' should be replaced
+            start: text.indexOf('>') + 1,
         };
         expect(completions.body.targets).to.deep.include(expectedCompletion);
     });
@@ -224,7 +229,7 @@ describe('Miscellaneous GDB commands tests with columnStartAt1 set to false', fu
         const text = '   >   interrupt';
         const completions: any = await dc.send('completions', {
             text: text,
-            column: text.indexOf('p') - 1, // cursor is before the "p" character
+            column: text.indexOf('p') - 2, // cursor is before the "p" character
         });
         expect(completions.body.targets).to.be.an('array');
         expect(completions.body.targets.length).to.be.greaterThan(1);
