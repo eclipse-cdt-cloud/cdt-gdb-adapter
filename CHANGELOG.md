@@ -1,5 +1,22 @@
 # Change Log
 
+## 1.10.0
+
+- Implements [`#528`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/528): Add `run` setting to configure if stopped threads are set running or kept stopped on attach.
+- Implements [`#539`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/539): Extend `evaluate` response by `memoryReference` field where possible and if supported by client. A client can use this to determine if an expression maps to a memory address.
+- Implements [`#550`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/550): Allow override of capabilities reported by `GDBDebugSessionBase` class.
+- Implements [`#560`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/560): Support `completions` request for GDB CLI commands (with `>` prefix). This enables auto-completion features in the IDE, for example in a debug console.
+- Fixes [cdt-gdb-vscode `#230`](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/issues/230): Fixes variables display of anonymous unions/structs.
+- Fixes [`#545`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/545): Skip error pop-up when `evaluate` request context is repl (e.g. Debug Console).
+- Fixes [`#549`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/549): Handle exceptions from `pause` request.
+- Fixes [`#558`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/558): Fixes exception when setting a watchpoint while multi-location breakpoints are set.
+- chore [`#561`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/561): Updated various production and development dependencies. Pin first-level dependencies to exact package versions to avoid unwanted version updates.
+- Adds support for `evaluate` requests without frame ID for GDB CLI commands (with `>` prefix) for `gdb` type. Previously was only enabled for `gdbtarget` type.
+- Notable code changes:
+    - Add an overridable `getCapabilities` method on `GDBDebugSessionBase` for configuring capabilities in the `initialize` response.
+    - The `alwaysAllowCliCommand` argument of the overridable `doEvaluateRequest` method on `GDBDebugSessionBase` is now redundant but is retained for backward compatibility.
+    - The overridable `sendCommandToGdb` method on `GDBDebugSessionBase` now returns a `Promise<any>` containing the command result instead of a `Promise<void>`.
+
 ## 1.9.0
 
 - Implements [`#526`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/526): Handle memory-changed notifications
