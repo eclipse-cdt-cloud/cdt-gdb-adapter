@@ -181,7 +181,7 @@ describe('Memory Test Suite', function () {
         memoryReference: '&array',
     };
 
-    it('can write memory', async function () {
+    it('can write memory and invalidates variables', async function () {
         const addrOfArray = parseInt(
             (
                 await dc.evaluateRequest({
@@ -190,12 +190,22 @@ describe('Memory Test Suite', function () {
                 })
             ).body.result
         );
-        await dc.writeMemoryRequest(writeArguments);
+
+        const invalidatedEventPromise = dc.waitForEvent('invalidated');
+
+        const writeMemoryResponse = await dc.writeMemoryRequest(writeArguments);
+
+        expect(writeMemoryResponse.success).to.be.true;
+
+        const invalidatedEvent = await invalidatedEventPromise;
+
+        expect(invalidatedEvent.body.areas).to.deep.equal(['variables']);
         const memory = await dc.readMemoryRequest({
             memoryReference: '&array',
             count: 10,
             offset: 0,
         });
+
         verifyReadMemoryResponse(memory, newValue, addrOfArray);
     });
 
