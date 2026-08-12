@@ -3111,6 +3111,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             const hexContent = base64ToHex(data);
             await mi.sendDataWriteMemoryBytes(gdb, memoryReference, hexContent);
             this.sendResponse(response);
+            // inform to Variables view that need to refresh data on the view
+            this.sendEvent(new InvalidatedEvent(['variables']));
         } catch (err) {
             this.sendErrorResponse(
                 response,
