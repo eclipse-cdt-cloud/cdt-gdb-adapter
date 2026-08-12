@@ -264,6 +264,8 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
         this.initializeSessionArguments(args);
+        this.showGlobalVariables =
+            args.showGlobalVariables ?? this.showGlobalVariables;
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
