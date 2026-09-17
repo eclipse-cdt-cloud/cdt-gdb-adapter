@@ -12,10 +12,15 @@ import { DebugSession, logger } from '@vscode/debugadapter';
 import {
     LaunchRequestArguments,
     AttachRequestArguments,
+    TargetLaunchRequestArguments,
+    SymbolProvider,
 } from '../types/session';
 import { GDBDebugSessionBase } from '../gdb/GDBDebugSessionBase';
 import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { IGDBBackendFactory } from '../types/gdb';
+import { AggregatingSymbolFileSource } from '../gdb/AggregatingSymbolFileSource';
+import { GNUObjdumpSymbolReader } from './GNUObjdumpSymbolReader';
+import { GlobalSymbolProvider } from '../gdb/GlobalSymbolProvider';
 
 export class GDBDebugSession extends GDBDebugSessionBase {
     /**
@@ -92,5 +97,24 @@ export class GDBDebugSession extends GDBDebugSessionBase {
                 ...GDBDebugSession.frozenRequestArguments,
             },
         ];
+    }
+
+    protected createGlobalSymbolsProvider(
+        args: LaunchRequestArguments | AttachRequestArguments
+    ): SymbolProvider | undefined {
+        const symbolFileName =
+            'imageAndSymbols' in args
+                ? (args as TargetLaunchRequestArguments).imageAndSymbols
+                      ?.symbolFileName
+                : undefined;
+
+        if (args.showGlobalVariables && (args.program || symbolFileName)) {
+            return new GlobalSymbolProvider(
+                new AggregatingSymbolFileSource(
+                    new GNUObjdumpSymbolReader(args.objdumpPath, args.nmPath)
+                )
+            );
+        }
+        return super.createGlobalSymbolsProvider(args);
     }
 }

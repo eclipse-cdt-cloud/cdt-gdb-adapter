@@ -17,6 +17,7 @@ import {
     MIBreakpointInsertOptions,
     MIBreakpointLocation,
     MIFeaturesResponse,
+    MIGDBDataEvaluateExpressionResponse,
     MIShowResponse,
     sendDataEvaluateExpression,
     sendExecInterrupt,
@@ -489,5 +490,19 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
 
     protected nextToken() {
         return this.token++;
+    }
+
+    public async queryInferiorId(threadId?: number): Promise<number> {
+        let command = '-data-evaluate-expression "$_inferior"';
+        if (threadId !== undefined) {
+            command = `-data-evaluate-expression --thread ${threadId} "$_inferior"`;
+        }
+        const response: MIGDBDataEvaluateExpressionResponse =
+            await this.sendCommand(command);
+        const id =
+            response.value !== undefined && response.value !== 'void'
+                ? parseInt(response.value, 10)
+                : -1;
+        return Number.isNaN(id) ? -1 : id;
     }
 }
