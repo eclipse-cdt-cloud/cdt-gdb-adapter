@@ -209,7 +209,6 @@ describe('launch remote', function () {
             }
         });
         const expectedLogOutput = [
-            'Debug adapter cannot process memory request, skipping it.',
             'Debug adapter cannot process data breakpoint info request, skipping it.',
             'Debug adapter cannot process data breakpoints request, skipping it.',
             'Debug adapter cannot process instruction breakpoints request, skipping it.',
@@ -232,7 +231,6 @@ describe('launch remote', function () {
         ];
         //Following requests get bounced and return "empty" responses instead of throwing errors
         const requestPromises = [
-            dc.customRequest('cdt-gdb-adapter/Memory', {}),
             dc.dataBreakpointInfoRequest({ name: 'foo' }),
             dc.setDataBreakpointsRequest({
                 breakpoints: [{ dataId: 'foo' }],
