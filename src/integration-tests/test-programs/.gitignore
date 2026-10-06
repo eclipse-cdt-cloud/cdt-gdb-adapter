@@ -4,6 +4,7 @@ disassemble
 empty
 empty space
 evaluate
+frame_arrays
 mem
 vars
 vars_env
