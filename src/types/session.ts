@@ -7,7 +7,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { Response } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
 export const enum RequestArgRun {
@@ -72,25 +71,6 @@ export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
     | RegisterVariableReference;
-
-export interface MemoryRequestArguments {
-    address: string;
-    length: number;
-    offset?: number;
-}
-
-/**
- * Response for our custom 'cdt-gdb-adapter/Memory' request.
- */
-export interface MemoryContents {
-    /* Hex-encoded string of bytes.  */
-    data: string;
-    address: string;
-}
-
-export interface MemoryResponse extends Response {
-    body: MemoryContents;
-}
 
 export interface CDTDisassembleArguments
     extends DebugProtocol.DisassembleArguments {

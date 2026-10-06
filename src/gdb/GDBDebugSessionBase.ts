@@ -36,11 +36,9 @@ import {
     VariableReference,
     LaunchRequestArguments,
     AttachRequestArguments,
-    MemoryResponse,
     FrameVariableReference,
     RegisterVariableReference,
     ObjectVariableReference,
-    MemoryRequestArguments,
     CDTDisassembleArguments,
     RequestArgRun,
 } from '../types/session';
@@ -295,11 +293,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.Response,
         args: any
     ): void {
-        if (command === 'cdt-gdb-adapter/Memory') {
-            this.memoryRequest(response as MemoryResponse, args);
-            // This custom request exists to allow tests in this repository to run arbitrary commands
-            // Use at your own risk!
-        } else if (command === 'cdt-gdb-tests/executeCommand') {
+        // This custom request exists to allow tests in this repository to run arbitrary commands
+        // Use at your own risk!
+        if (command === 'cdt-gdb-tests/executeCommand') {
             const consoleOutput: string[] = [];
             const consoleOutputListener = (line: string) =>
                 consoleOutput.push(line);
@@ -2891,68 +2887,6 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             return Boolean(varValue);
         } else {
             return varValue;
-        }
-    }
-
-    /**
-     * Implement the cdt-gdb-adapter/Memory request.
-     */
-    protected async memoryRequest(response: MemoryResponse, args: any) {
-        // Check if debug adapter is in a state to proceed with the request.
-        // Skip request without an error if not, it very likely means the
-        // session is about to end.
-        if (!this.canRequestProceed()) {
-            this.logger.verbose(
-                'Debug adapter cannot process memory request, skipping it.'
-            );
-            this.sendResponse(response);
-            return;
-        }
-
-        try {
-            if (typeof args.address !== 'string') {
-                throw new Error(
-                    `Invalid type for 'address', expected string, got ${typeof args.address}`
-                );
-            }
-
-            if (typeof args.length !== 'number') {
-                throw new Error(
-                    `Invalid type for 'length', expected number, got ${typeof args.length}`
-                );
-            }
-
-            if (
-                typeof args.offset !== 'number' &&
-                typeof args.offset !== 'undefined'
-            ) {
-                throw new Error(
-                    `Invalid type for 'offset', expected number or undefined, got ${typeof args.offset}`
-                );
-            }
-
-            const typedArgs = args as MemoryRequestArguments;
-
-            const result = await mi.sendDataReadMemoryBytes(
-                this.gdb,
-                typedArgs.address,
-                typedArgs.length,
-                typedArgs.offset
-            );
-            response.body = {
-                data: result.memory[0].contents,
-                address: result.memory[0].begin,
-            };
-            this.sendResponse(response);
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error ? err.message : String(err);
-            if (!this.shouldReportError(err)) {
-                this.logger.verbose(errorMessage);
-                this.sendResponse(response);
-                return;
-            }
-            this.sendErrorResponse(response, 1, errorMessage);
         }
     }
 
