@@ -1949,6 +1949,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const frameHandle = this.frameHandles.create({
                     threadId: args.threadId,
                     frameId: parseInt(frame.level, 10),
+                    pc: frame.addr,
                 });
                 const name = frame.func || frame.fullname || '';
                 const sf = new StackFrame(
@@ -2560,6 +2561,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             threadId: frameRef?.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
+        await this.gdb.varManager.prepareFrame(frameRef, depth);
         return [this.gdb, frameRef, depth, false];
     }
 
@@ -3641,6 +3643,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             threadId: frameRef.threadId,
         });
         const depth = parseInt(stackDepth.depth, 10);
+        await this.gdb.varManager.prepareFrame(frameRef, depth);
 
         // array of varnames to delete. Cannot delete while iterating through the vars array below.
         const toDelete = new Array<string>();
@@ -3712,6 +3715,9 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 printValues: 'simple-values',
             });
             for (const variable of result.variables) {
+                if (variable.shadowed === 'true') {
+                    continue;
+                }
                 let varobj = this.gdb.varManager.getVar(
                     frameRef,
                     depth,

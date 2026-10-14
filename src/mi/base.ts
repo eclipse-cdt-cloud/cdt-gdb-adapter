@@ -89,6 +89,7 @@ export interface MIVariableInfo {
     name: string;
     value?: string;
     type?: string;
+    shadowed?: 'true' | 'false';
 }
 
 export interface MIRegisterValueInfo {

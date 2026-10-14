@@ -11,6 +11,7 @@
 import 'mocha';
 import { expect } from 'chai';
 import * as sinon from 'sinon';
+import { logger } from '@vscode/debugadapter/lib/logger';
 
 import * as miVar from '../mi/var';
 import { VarManager } from '../varManager';
@@ -118,5 +119,137 @@ describe('VarManager.removeVar - MI deletion contract', function () {
             (miVar.sendVarDelete as sinon.SinonStub).callCount,
             'MI var delete must not occur for non-existing var'
         ).to.equal(0);
+    });
+});
+
+describe('VarManager.prepareFrame - PC-specific variable cache', function () {
+    let sandbox: sinon.SinonSandbox;
+    let varManager: VarManager;
+    let gdb: any;
+
+    beforeEach(function () {
+        sandbox = sinon.createSandbox();
+        gdb = {};
+        varManager = new VarManager(gdb);
+        sandbox.stub(miVar, 'sendVarDelete').resolves(undefined);
+    });
+
+    afterEach(function () {
+        sandbox.restore();
+    });
+
+    it('deletes stale root varobjs on a PC change and drops their cached children', async function () {
+        const frameRef = { threadId: 1, frameId: 0, pc: '0x100' };
+        const nextFrameRef = { ...frameRef, pc: '0x104' };
+
+        await varManager.prepareFrame(frameRef, 2);
+        const root = varManager.addVar(frameRef, 2, 'local', true, false, {
+            name: 'root',
+            numchild: '1',
+            value: '{...}',
+            type: 'Thing',
+            _class: 'done',
+        });
+        const child = varManager.addVar(
+            frameRef,
+            2,
+            'local.member',
+            true,
+            true,
+            {
+                name: 'child',
+                numchild: '0',
+                value: '1',
+                type: 'int',
+                _class: 'done',
+            }
+        );
+        root.children.push(child);
+
+        await varManager.prepareFrame(frameRef, 2);
+        sinon.assert.notCalled(miVar.sendVarDelete as sinon.SinonStub);
+        await varManager.prepareFrame(nextFrameRef, 2);
+
+        sinon.assert.calledOnceWithExactly(
+            miVar.sendVarDelete as sinon.SinonStub,
+            gdb,
+            { varname: 'root' }
+        );
+        expect(varManager.getVars(frameRef, 2)).to.be.undefined;
+        expect(varManager.getVars(nextFrameRef, 2)).to.be.undefined;
+    });
+
+    it('keeps recursive frame contexts separate when their PCs are identical', async function () {
+        const outer = { threadId: 1, frameId: 0, pc: '0x200' };
+        const inner = { threadId: 1, frameId: 1, pc: '0x200' };
+
+        await varManager.prepareFrame(outer, 4);
+        await varManager.prepareFrame(inner, 4);
+        varManager.addVar(outer, 4, 'outer', true, false, {
+            name: 'outer-var',
+            numchild: '0',
+            value: '1',
+            type: 'int',
+            _class: 'done',
+        });
+        varManager.addVar(inner, 4, 'inner', true, false, {
+            name: 'inner-var',
+            numchild: '0',
+            value: '2',
+            type: 'int',
+            _class: 'done',
+        });
+
+        await varManager.prepareFrame({ ...outer, pc: '0x204' }, 4);
+
+        sinon.assert.calledOnceWithExactly(
+            miVar.sendVarDelete as sinon.SinonStub,
+            gdb,
+            { varname: 'outer-var' }
+        );
+        expect(varManager.getVars(inner, 4)).to.have.length(1);
+        expect(varManager.getVars(inner, 4)?.[0].varname).to.equal('inner-var');
+    });
+
+    it('logs stale varobj deletion failures without failing frame preparation', async function () {
+        const frameRef = { threadId: 1, frameId: 0, pc: '0x300' };
+        const nextFrameRef = { ...frameRef, pc: '0x304' };
+        const deleteStub = miVar.sendVarDelete as sinon.SinonStub;
+        const verboseStub = sandbox.stub(logger, 'verbose');
+
+        await varManager.prepareFrame(frameRef, 2);
+        varManager.addVar(frameRef, 2, 'local', true, false, {
+            name: 'stale1',
+            numchild: '0',
+            value: '1',
+            type: 'int',
+            _class: 'done',
+        });
+        varManager.addVar(frameRef, 2, 'local2', true, false, {
+            name: 'stale2',
+            numchild: '0',
+            value: '1',
+            type: 'int',
+            _class: 'done',
+        });
+        deleteStub.onCall(0).rejects(new Error('Variable object not found'));
+        deleteStub
+            .onCall(1)
+            .rejects(new Error('Another variable object not found'));
+
+        await varManager.prepareFrame(nextFrameRef, 2);
+
+        sinon.assert.calledTwice(deleteStub);
+        expect(deleteStub.getCalls().map((call) => call.args[1])).to.deep.equal(
+            [{ varname: 'stale1' }, { varname: 'stale2' }]
+        );
+        expect(
+            verboseStub.getCalls().map((call) => call.args[0])
+        ).to.deep.equal([
+            'Failed to delete stale varobj stale1: Error: Variable object not found',
+            'Failed to delete stale varobj stale2: Error: Another variable object not found',
+        ]);
+        expect(varManager.getVars(frameRef, 2)).to.be.undefined;
+        expect(varManager.getVars(nextFrameRef, 2)).to.be.undefined;
     });
 });

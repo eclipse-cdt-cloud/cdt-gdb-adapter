@@ -49,6 +49,7 @@ export interface AttachRequestArguments extends RequestArguments {
 export interface FrameReference {
     threadId: number;
     frameId: number;
+    pc?: string;
 }
 
 export interface FrameVariableReference {

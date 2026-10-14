@@ -644,6 +644,15 @@ describe('evaluate request - watch local variable across lexical scope transitio
         scope = await getScopes(dc);
 
         try {
+            const locals = await dc.variablesRequest({
+                variablesReference:
+                    scope.scopes.body.scopes[0].variablesReference,
+            });
+            expect(
+                locals.body.variables.find((variable) => variable.name === 'x')
+                    ?.value
+            ).to.equal('2');
+
             const second = await dc.evaluateRequest({
                 context: 'watch',
                 expression: 'x',
