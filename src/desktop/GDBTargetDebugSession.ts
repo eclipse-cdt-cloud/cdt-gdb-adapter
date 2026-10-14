@@ -842,9 +842,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         if (this.serialPort !== undefined && this.serialPort.isOpen)
             this.serialPort.close();
 
-        // Only try clean GDB exit if process still up
-        if (this.gdb?.isActive()) {
-            try {
+        try {
+            // Only try detach/disconnect if the primary GDB process is still up
+            if (this.gdb?.isActive()) {
                 // Depending on disconnect scenario, we may lose
                 // GDB backend while sending commands for graceful
                 // shutdown.
@@ -868,18 +868,32 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                     }
                     await this.gdb.sendCommand(command);
                 }
-
-                if (this.auxGdb?.isActive()) {
-                    await this.auxGdb.sendGDBExit();
+            }
+        } catch {
+            // Not much we can do, so ignore errors during
+            // GDB disconnect.
+            this.sendEvent(new OutputEvent('gdb connection lost\n', 'server'));
+        } finally {
+            for (const backend of [this.auxGdb, this.gdb]) {
+                try {
+                    if (backend?.isActive()) {
+                        await backend.sendGDBExit();
+                        this.sendEvent(
+                            new OutputEvent('gdb exited\n', 'server')
+                        );
+                    }
+                } catch (error) {
+                    this.sendEvent(
+                        new OutputEvent(
+                            `GDB process cleanup failed: ${
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error)
+                            }\n`,
+                            'stderr'
+                        )
+                    );
                 }
-                await this.gdb.sendGDBExit();
-                this.sendEvent(new OutputEvent('gdb exited\n', 'server'));
-            } catch {
-                // Not much we can do, so ignore errors during
-                // GDB disconnect.
-                this.sendEvent(
-                    new OutputEvent('gdb connection lost\n', 'server')
-                );
             }
         }
         await this.setSessionState(SessionState.EXITED);
