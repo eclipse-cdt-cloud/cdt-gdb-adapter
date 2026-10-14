@@ -3172,15 +3172,30 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     );
                     mi.sendExecContinue(this.gdb);
                 } else {
-                    const reason =
-                        this.functionBreakpoints.indexOf(result.bkptno) > -1
-                            ? 'function breakpoint'
-                            : 'breakpoint';
-                    this.sendStoppedEvent(
-                        reason,
-                        getThreadId(result),
-                        getAllThreadsStopped(result)
-                    );
+                    const sendStoppedEvent = (reason: string) =>
+                        this.sendStoppedEvent(
+                            reason,
+                            getThreadId(result),
+                            getAllThreadsStopped(result)
+                        );
+                    if (this.functionBreakpoints.indexOf(result.bkptno) > -1) {
+                        sendStoppedEvent('function breakpoint');
+                    } else {
+                        void this.isInstructionBreakpoint(result.bkptno)
+                            .then((isInstructionBreakpoint) =>
+                                sendStoppedEvent(
+                                    isInstructionBreakpoint
+                                        ? 'instruction breakpoint'
+                                        : 'breakpoint'
+                                )
+                            )
+                            .catch((err) => {
+                                logger.warn(
+                                    `Failed to determine breakpoint type: ${err}`
+                                );
+                                sendStoppedEvent('breakpoint');
+                            });
+                    }
                 }
                 break;
             case 'end-stepping-range':

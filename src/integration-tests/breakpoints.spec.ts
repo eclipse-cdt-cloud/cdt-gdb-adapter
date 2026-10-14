@@ -338,26 +338,39 @@ describe('breakpoints', async function () {
 
         const scope = await getScopes(dc);
         const evalRequestOutput = await dc.evaluateRequest({
-            expression: '(unsigned long long)main',
+            expression: '(unsigned long long)$pc',
             context: 'repl',
             frameId: scope.frame.id,
         });
-        const mainAddr = evalRequestOutput.body.result;
-        const mainAddrHex = '0x' + BigInt(mainAddr).toString(16);
+        const instructionAddress = evalRequestOutput.body.result;
+        const instructionAddressHex =
+            '0x' + BigInt(instructionAddress).toString(16);
 
+        const stoppedEvent = dc.waitForEvent('stopped');
         const bpResp = await dc.setInstructionBreakpointsRequest({
             breakpoints: [
                 {
-                    instructionReference: mainAddr,
+                    instructionReference: instructionAddress,
                 },
             ],
         });
         expect(bpResp.body.breakpoints.length).eq(1);
-        expect(bpResp.body.breakpoints[0].instructionReference).eq(mainAddrHex);
+        expect(bpResp.body.breakpoints[0].instructionReference).eq(
+            instructionAddressHex
+        );
         expect(bpResp.body.breakpoints[0].source?.name).eq('count.c');
         expect(bpResp.body.breakpoints[0].source?.path).eq(
             path.join(testProgramsDir, 'count.c')
         );
+        await dc.setBreakpointsRequest({
+            source: {
+                name: 'count.c',
+                path: path.join(testProgramsDir, 'count.c'),
+            },
+            breakpoints: [],
+        });
+        await dc.continueRequest({ threadId: scope.thread.id });
+        expect((await stoppedEvent).body.reason).eq('instruction breakpoint');
     });
 
     it('set an instruction breakpoint with non-numeric sends response', async function () {
