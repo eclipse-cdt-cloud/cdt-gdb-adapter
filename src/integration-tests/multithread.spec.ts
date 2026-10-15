@@ -418,6 +418,94 @@ describe('multithread', async function () {
         }
     });
 
+    it('rereads of variables provide consistent results', async function () {
+        if (!gdbNonStop) {
+            // This test is covering only gdb-non-stop on
+            this.skip();
+        }
+
+        await dc.launchRequest(
+            fillDefaults(this.test, {
+                program,
+            })
+        );
+        await dc.setBreakpointsRequest({
+            source: {
+                path: source,
+            },
+            breakpoints: [
+                {
+                    line: lineTags['LINE_MAIN_ALL_THREADS_STARTED'],
+                },
+                {
+                    line: lineTags['LINE_THREAD_INNER'],
+                },
+            ],
+        });
+
+        const waitForStop = dc.waitForEvent('stopped');
+        await dc.configurationDoneRequest();
+        await waitForStop;
+
+        // make sure that all the threads have stopped
+        // TODO instead of a sleep, wait until all threads have stopped
+        await new Promise((f) => setTimeout(f, 1000));
+        const threads = await dc.threadsRequest();
+        const runningThreads = threads.body.threads.filter(
+            (t) => (t as unknown as { running?: boolean }).running
+        );
+        expect(runningThreads).to.be.an('array').that.is.empty;
+        const nameToId = new Map(
+            threads.body.threads.map((thread) => [thread.name, thread.id])
+        );
+        // Make sure all 5 threads are there
+        expect(nameToId).to.include.keys(Object.keys(threadNames));
+        // and make sure that there is at least 6 threads.
+        // We don't care about the name of the "main" thread
+        expect(threads.body.threads).length.greaterThanOrEqual(6);
+
+        // check that each thread can be communicated with individually
+        const vrs: { vr: number; idInProgram: number }[] = [];
+        for (const [name, idInProgram] of Object.entries(threadNames)) {
+            // There are multiple ids/indexes.
+            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // threadId is the id of the thread in DAP
+            const threadId = nameToId.get(name);
+            if (threadId === undefined) {
+                // unreachable because of expect above
+                fail('unreachable');
+            }
+
+            const stack = await dc.stackTraceRequest({ threadId });
+            const scopes = await dc.scopesRequest({
+                frameId: stack.body.stackFrames[0].id,
+            });
+            const vr = scopes.body.scopes[0].variablesReference;
+            vrs.push({ vr, idInProgram });
+        }
+        // read all the variables twice to make sure caching or repeated access works correctly
+        for (let i = 0; i < 2; i++) {
+            for (const { vr, idInProgram } of vrs) {
+                const vars = await dc.variablesRequest({
+                    variablesReference: vr,
+                });
+                const varnameToValue = new Map(
+                    vars.body.variables.map((variable) => [
+                        variable.name,
+                        variable.value,
+                    ])
+                );
+                expect(varnameToValue.get('thread_id')).to.equal(
+                    idInProgram.toString()
+                );
+
+                expect(varnameToValue.get('thread_id_plus_1')).to.equal(
+                    (idInProgram + 1).toString()
+                );
+            }
+        }
+    });
+
     it('gets and sets register values at different frames for different threads', async function () {
         if (!gdbNonStop) {
             // This test is covering only gdb-non-stop on
