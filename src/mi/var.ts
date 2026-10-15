@@ -156,6 +156,7 @@ export function sendVarListChildren(
 export function sendVarUpdate(
     gdb: IGDBBackend,
     params: {
+        frameRef?: FrameReference;
         name?: string;
         printValues?:
             | MIVarPrintValues.no
@@ -164,6 +165,12 @@ export function sendVarUpdate(
     }
 ): Promise<MIVarUpdateResponse> {
     let command = '-var-update';
+    if (params.frameRef?.threadId !== undefined) {
+        command += ` --thread ${params.frameRef.threadId}`;
+    }
+    if (params.frameRef?.frameId !== undefined) {
+        command += ` --frame ${params.frameRef.frameId}`;
+    }
     if (params.printValues) {
         command += ` ${params.printValues}`;
     } else {
