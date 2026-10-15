@@ -264,6 +264,9 @@ export class GDBTargetDebugSession extends GDBDebugSession {
         this.validateRequestArguments(args);
         await this.setupCommonLoggerAndBackends(args);
         this.initializeSessionArguments(args);
+        this.showGlobalVariables =
+            args.showGlobalVariables ?? this.showGlobalVariables;
+        this.globalSymbolsProvider = this.createGlobalSymbolsProvider(args);
 
         if (request === 'launch') {
             const launchArgs = args as TargetLaunchRequestArguments;
@@ -613,6 +616,7 @@ export class GDBTargetDebugSession extends GDBDebugSession {
             await this.executeOrAbort(gdb.sendFileExecAndSymbols.bind(gdb))(
                 args.program
             );
+            await this.notifySymbolFileLoaded(args.program, true);
         }
         await this.executeOrAbort(gdb.sendEnablePrettyPrint.bind(gdb))();
 
@@ -623,9 +627,16 @@ export class GDBTargetDebugSession extends GDBDebugSession {
                         args.imageAndSymbols.symbolFileName,
                         args.imageAndSymbols.symbolOffset
                     );
+                    await this.notifySymbolFileLoaded(
+                        args.imageAndSymbols.symbolFileName
+                    );
                 } else {
                     await this.executeOrAbort(gdb.sendFileSymbolFile.bind(gdb))(
                         args.imageAndSymbols.symbolFileName
+                    );
+                    await this.notifySymbolFileLoaded(
+                        args.imageAndSymbols.symbolFileName,
+                        true
                     );
                 }
             }

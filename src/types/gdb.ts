@@ -139,6 +139,8 @@ export interface IGDBBackend extends EventEmitter {
      * detail though). */
     queryCurrentThreadId(): Promise<number>;
 
+    queryInferiorId(threadId?: number): Promise<number>;
+
     on(
         event: 'consoleStreamOutput',
         listener: (output: string, category: string) => void

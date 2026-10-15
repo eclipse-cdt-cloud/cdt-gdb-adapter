@@ -49,10 +49,14 @@ export function sendSymbolInfoVars(
         type?: string;
         max_result?: string;
         non_debug?: boolean;
+        threadId?: number;
     }
 ): Promise<MISymbolInfoResponse> {
     let command = '-symbol-info-variables';
     if (params) {
+        if (params.threadId !== undefined) {
+            command += ` --thread ${params.threadId}`;
+        }
         if (params.name) {
             command += ` --name ${params.name}`;
         }
