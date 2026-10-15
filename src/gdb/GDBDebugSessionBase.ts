@@ -2747,6 +2747,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             } else {
                 const vup = await mi.sendVarUpdate(gdb, {
+                    frameRef,
                     name: varobj.varname,
                 });
                 const update = vup.changelist[0];
@@ -3656,6 +3657,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (varobj.isVar && !varobj.isChild) {
                     // request update from GDB
                     const vup = await mi.sendVarUpdate(this.gdb, {
+                        frameRef,
                         name: varobj.varname,
                     });
                     // if changelist is length 0, update is undefined
