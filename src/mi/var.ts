@@ -9,7 +9,7 @@
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
-import { MIResponse } from './base';
+import { appendThreadAndFrame, MIResponse } from './base';
 
 export type DisplayFormat =
     | 'hexadecimal'
@@ -100,13 +100,7 @@ export function sendVarCreate(
         frameRef?: FrameReference;
     }
 ): Promise<MIVarCreateResponse> {
-    let command = '-var-create';
-    if (params.frameRef?.threadId !== undefined) {
-        command += ` --thread ${params.frameRef.threadId}`;
-    }
-    if (params.frameRef?.frameId !== undefined) {
-        command += ` --frame ${params.frameRef.frameId}`;
-    }
+    let command = appendThreadAndFrame('-var-create', params.frameRef);
 
     command += ` ${params.name ? params.name : '-'}`;
     if (params.frameAddr) {
@@ -139,9 +133,10 @@ export function sendVarListChildren(
         name: string;
         from?: number;
         to?: number;
+        frameRef?: FrameReference;
     }
 ): Promise<MIVarListChildrenResponse> {
-    let command = '-var-list-children';
+    let command = appendThreadAndFrame('-var-list-children', params.frameRef);
     if (params.printValues) {
         command += ` ${params.printValues}`;
     }
@@ -164,13 +159,7 @@ export function sendVarUpdate(
             | MIVarPrintValues.simple;
     }
 ): Promise<MIVarUpdateResponse> {
-    let command = '-var-update';
-    if (params.frameRef?.threadId !== undefined) {
-        command += ` --thread ${params.frameRef.threadId}`;
-    }
-    if (params.frameRef?.frameId !== undefined) {
-        command += ` --frame ${params.frameRef.frameId}`;
-    }
+    let command = appendThreadAndFrame('-var-update', params.frameRef);
     if (params.printValues) {
         command += ` ${params.printValues}`;
     } else {
@@ -190,6 +179,7 @@ export function sendVarDelete(
         varname: string;
     }
 ): Promise<void> {
+    // Named varobj delete does not evaluate in a thread/frame context.
     const command = `-var-delete ${params.varname}`;
     return gdb.sendCommand(command);
 }
@@ -202,13 +192,7 @@ export function sendVarAssign(
         frameRef?: FrameReference;
     }
 ): Promise<MIVarAssignResponse> {
-    let command = '-var-assign';
-    if (params.frameRef?.threadId !== undefined) {
-        command += ` --thread ${params.frameRef.threadId}`;
-    }
-    if (params.frameRef?.frameId !== undefined) {
-        command += ` --frame ${params.frameRef.frameId}`;
-    }
+    let command = appendThreadAndFrame('-var-assign', params.frameRef);
     command += ` ${params.varname} ${params.expression}`;
     return gdb.sendCommand(command);
 }
@@ -218,9 +202,13 @@ export function sendVarEvaluateExpression(
     params: {
         varname: string;
         format?: DisplayFormat;
+        frameRef?: FrameReference;
     }
 ): Promise<MIVarEvalResponse> {
-    let command = `-var-evaluate-expression`;
+    let command = appendThreadAndFrame(
+        '-var-evaluate-expression',
+        params.frameRef
+    );
     if (params.format) {
         command += ` -f ${params.format}`;
     }
@@ -230,9 +218,11 @@ export function sendVarEvaluateExpression(
 
 export function sendVarInfoPathExpression(
     gdb: IGDBBackend,
-    name: string
+    name: string,
+    frameRef?: FrameReference
 ): Promise<MIVarPathInfoResponse> {
-    const command = `-var-info-path-expression ${name}`;
+    let command = appendThreadAndFrame('-var-info-path-expression', frameRef);
+    command += ` ${name}`;
     return gdb.sendCommand(command);
 }
 /** @deprecated This function is still here because it was added a long time ago and it might be used by other derived implementations. Please from now on use sendVarSetFormat instead of this function. */
@@ -249,6 +239,7 @@ export async function sendVarSetFormat(
     name: string,
     format: DisplayFormat
 ): Promise<string> {
+    // Format is a property of the varobj, not of the selected thread/frame.
     const command = `-var-set-format ${name} ${format}`;
     const response: MIVarSetFormatResponse = await gdb.sendCommand(command);
     return response.value;
