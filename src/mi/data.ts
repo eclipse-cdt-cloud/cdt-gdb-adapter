@@ -10,7 +10,7 @@
 
 import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
-import { MIResponse, MIRegisterValueInfo } from './base';
+import { appendThreadAndFrame, MIResponse, MIRegisterValueInfo } from './base';
 
 export interface MIDataReadMemoryBytesResponse {
     memory: Array<{
@@ -74,9 +74,11 @@ export function sendDataWriteMemoryBytes(
 
 export function sendDataEvaluateExpression(
     gdb: IGDBBackend,
-    expr: string
+    expr: string,
+    frameRef?: FrameReference
 ): Promise<MIGDBDataEvaluateExpressionResponse> {
-    return gdb.sendCommand(`-data-evaluate-expression "${expr}"`);
+    const command = appendThreadAndFrame('-data-evaluate-expression', frameRef);
+    return gdb.sendCommand(`${command} "${expr}"`);
 }
 
 // https://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Data-Manipulation.html#The-_002ddata_002ddisassemble-Command
