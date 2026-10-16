@@ -82,7 +82,7 @@ describe('multithread', async function () {
         // check that each thread can be communicated with individually
         for (const [name, idInProgram] of Object.entries(threadNames)) {
             // There are multiple ids/indexes.
-            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // idInProgram corresponds to the variable thread_id in the C++ source
             // threadId is the id of the thread in DAP
             const threadId = nameToId.get(name);
             if (threadId === undefined) {
@@ -358,7 +358,7 @@ describe('multithread', async function () {
         // check that each thread can be communicated with individually
         for (const [name, idInProgram] of Object.entries(threadNames)) {
             // There are multiple ids/indexes.
-            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // idInProgram corresponds to the variable thread_id in the C++ source
             // threadId is the id of the thread in DAP
             const threadId = nameToId.get(name);
             if (threadId === undefined) {
@@ -468,7 +468,7 @@ describe('multithread', async function () {
         const vrs: { vr: number; idInProgram: number }[] = [];
         for (const [name, idInProgram] of Object.entries(threadNames)) {
             // There are multiple ids/indexes.
-            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // idInProgram corresponds to the variable thread_id in the C++ source
             // threadId is the id of the thread in DAP
             const threadId = nameToId.get(name);
             if (threadId === undefined) {
@@ -550,7 +550,7 @@ describe('multithread', async function () {
         // check that each thread can be communicated with individually
         for (const [name, idInProgram] of Object.entries(threadNames)) {
             // There are multiple ids/indexes.
-            // idInProgram cooresponds to the variable thread_id in the C++ source
+            // idInProgram corresponds to the variable thread_id in the C++ source
             // threadId is the id of the thread in DAP
             const threadId = nameToId.get(name);
             if (threadId === undefined) {
