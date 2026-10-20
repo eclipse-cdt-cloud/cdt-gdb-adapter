@@ -9,6 +9,8 @@
  *********************************************************************/
 
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
+import { appendThreadAndFrame } from './base';
 
 export interface MICompletion {
     completion?: string;
@@ -18,8 +20,10 @@ export interface MICompletion {
 
 export async function sendCompletions(
     gdb: IGDBBackend,
-    command: string
+    command: string,
+    context?: { frameRef?: FrameReference }
 ): Promise<MICompletion> {
-    const miCommand = `-complete "${command.replace(/(["\\])/g, '\\$1')}"`;
-    return gdb.sendCommand<MICompletion>(miCommand);
+    const miCommand = appendThreadAndFrame('-complete', context?.frameRef);
+    const fullCommand = `${miCommand} "${command.replace(/(["\\])/g, '\\$1')}"`;
+    return gdb.sendCommand<MICompletion>(fullCommand);
 }
