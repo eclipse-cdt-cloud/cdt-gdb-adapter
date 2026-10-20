@@ -105,7 +105,7 @@ server in one debugged process and the test in another.
 ### Prepare a release with a Pull Request
 
 - Check if security scans require dependency updates in [package.json](./package.json).
-  See [here](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/security/code-scanning).
+  See [here](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/security/code-scanning) (project members only).
 - Update [CHANGELOG.md](./CHANGELOG.md).
     - Make sure it contains a section with the new version at the top of the file.  
       If individual commits after the last release already added a new section,
