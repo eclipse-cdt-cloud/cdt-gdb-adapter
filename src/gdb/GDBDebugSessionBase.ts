@@ -891,9 +891,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 trimmedWhiteSpaceLength + 1,
                 effectiveColumn
             );
+            const frameRef = this.resolveFrameRef(args.frameId);
             const completions = await mi.sendCompletions(
                 this.gdb,
-                commandToComplete
+                commandToComplete,
+                { frameRef }
             );
             response.body = {
                 targets: completions.matches.map((completion) => {
