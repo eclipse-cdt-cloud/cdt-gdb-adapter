@@ -967,15 +967,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         } else {
             // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
+                const frameRef = this.resolveFrameRef(args.frameId);
                 const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, {
                     name: `^${varExpression}$`,
+                    frameRef,
                 });
                 if (isFunction.symbols.debug) {
                     throw new Error(
                         `Cannot set data breakpoint for function ${varExpression}`
                     );
                 }
-                const frameRef = this.resolveFrameRef(args.frameId);
                 const address = await mi.sendDataEvaluateExpression(
                     this.gdb,
                     `&${varExpression}`,
