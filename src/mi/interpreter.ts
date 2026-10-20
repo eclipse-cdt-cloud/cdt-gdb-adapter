@@ -9,6 +9,7 @@
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
 import { FrameReference } from '../types/session';
+import { appendThreadAndFrame } from './base';
 export function sendInterpreterExecConsole(
     gdb: IGDBBackend,
     params: {
@@ -19,19 +20,7 @@ export function sendInterpreterExecConsole(
     // In GDB MI, -1 is not a valid value for --thread or --frame.
     // These options expect positive integer IDs. Omitting the option means "all threads"/"current frame".
     // So, only include --thread/--frame if threadId/frameId >= 0.
-    let cmd = '-interpreter-exec';
-    if (
-        params.frameRef?.threadId !== undefined &&
-        params.frameRef.threadId >= 0
-    ) {
-        cmd += ` --thread ${params.frameRef.threadId}`;
-    }
-    if (
-        params.frameRef?.frameId !== undefined &&
-        params.frameRef.frameId >= 0
-    ) {
-        cmd += ` --frame ${params.frameRef.frameId}`;
-    }
+    let cmd = appendThreadAndFrame('-interpreter-exec', params.frameRef);
     const stringifiedCommand = `${params.command}`;
     cmd += ` console "${stringifiedCommand.replace(/(["\\])/g, '\\$1')}"`;
     return gdb.sendCommand(cmd);

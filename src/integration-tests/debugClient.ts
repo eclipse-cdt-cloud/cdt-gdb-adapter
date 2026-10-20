@@ -74,6 +74,9 @@ export class CdtDebugClient extends DebugClient {
                 console.log(err);
                 reject(err);
             });
+            this._cdt_adapterProcess.stderr?.on('data', (data) => {
+                console.log(data.toString());
+            });
 
             if (
                 this._cdt_adapterProcess.stdout === null ||

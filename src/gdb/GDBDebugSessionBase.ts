@@ -891,9 +891,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 trimmedWhiteSpaceLength + 1,
                 effectiveColumn
             );
+            const frameRef = this.resolveFrameRef(args.frameId);
             const completions = await mi.sendCompletions(
                 this.gdb,
-                commandToComplete
+                commandToComplete,
+                { frameRef }
             );
             response.body = {
                 targets: completions.matches.map((completion) => {
@@ -965,8 +967,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         } else {
             // Try to evaluate the address of the expression to see if it's a valid symbol
             try {
+                const frameRef = this.resolveFrameRef(args.frameId);
                 const isFunction = await mi.sendSymbolInfoFunctions(this.gdb, {
                     name: `^${varExpression}$`,
+                    frameRef,
                 });
                 if (isFunction.symbols.debug) {
                     throw new Error(
@@ -975,11 +979,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
                 const address = await mi.sendDataEvaluateExpression(
                     this.gdb,
-                    `&${varExpression}`
+                    `&${varExpression}`,
+                    frameRef
                 );
                 const size = await mi.sendDataEvaluateExpression(
                     this.gdb,
-                    `sizeof(${varExpression})`
+                    `sizeof(${varExpression})`,
+                    frameRef
                 );
                 if (address.value && size.value) {
                     response.body = {
@@ -2283,7 +2289,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 this.sendResponse(response);
                 return;
             }
-            const frameRef = this.frameHandles.get(ref.frameHandle);
+            const frameRef = this.resolveFrameRef(ref.frameHandle);
             if (!frameRef) {
                 this.sendResponse(response);
                 return;
@@ -2345,6 +2351,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     const children = await mi.sendVarListChildren(this.gdb, {
                         name: parentVarname,
                         printValues: mi.MIVarPrintValues.all,
+                        frameRef,
                     });
                     for (const child of children.children) {
                         if (this.isChildOfClass(child)) {
@@ -2409,9 +2416,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             return;
         }
         try {
-            const initialFrameRef = args.frameId
-                ? this.frameHandles.get(args.frameId)
-                : undefined;
+            const initialFrameRef = this.resolveFrameRef(args.frameId);
             const [gdb, frameRef, depth] =
                 await this.getFrameContext(initialFrameRef);
             const varObj = gdb.varManager.getVar(
@@ -2538,6 +2543,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return isInstructionBp;
     }
 
+    /**
+     * Map a DAP `frameId` handle to a GDB FrameReference.
+     *
+     * `undefined` and negative DAP ids (VS Code uses -1 for watch/repl with
+     * no selected frame) are converted to `undefined` on purpose so
+     * VarManager uses the `global` cache key and MI commands omit
+     * `--thread`/`--frame`.
+     */
+    protected resolveFrameRef(frameId?: number): FrameReference | undefined {
+        if (frameId === undefined || frameId < 0) {
+            return undefined;
+        }
+        return this.frameHandles.get(frameId);
+    }
+
     private async getFrameContext(
         frameRef?: FrameReference
     ): Promise<
@@ -2551,6 +2571,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         if (this.auxGdb && this.isRunning) {
             // Target is running and we have an auxiliary GDB connection,
             // hence we don't have a stable stack to ask the depth for.
+            // frameRef is undefined on purpose: aux GDB has no selected inferior/thread.
             return [this.auxGdb, undefined, 0, true];
         }
         // Read stack depth from main GDB connection, in reality
@@ -2648,9 +2669,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             }
 
-            const initialFrameRef = args.frameId
-                ? this.frameHandles.get(args.frameId)
-                : undefined;
+            const initialFrameRef = this.resolveFrameRef(args.frameId);
 
             if (!allowUndefinedFrame && !initialFrameRef) {
                 this.sendResponse(response);
@@ -2747,6 +2766,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 );
             } else {
                 const vup = await mi.sendVarUpdate(gdb, {
+                    frameRef,
                     name: varobj.varname,
                 });
                 const update = vup.changelist[0];
@@ -2787,6 +2807,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             await mi.sendVarEvaluateExpression(gdb, {
                                 varname: varobj.varname,
                                 format: expressionDisplayFormat,
+                                frameRef,
                             })
                         ).value
                       : varobj.value;
@@ -2806,7 +2827,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         memoryReferenceResult =
                             await mi.sendDataEvaluateExpression(
                                 gdb,
-                                `&(${varobj.expression})`
+                                `&(${varobj.expression})`,
+                                frameRef
                             );
                         // Depending on the GDBServer being used, sometimes the result of evaluating an address of a symbol returns "<address> <symbol name>"
                         if (memoryReferenceResult.value?.includes(' ')) {
@@ -3628,7 +3650,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         // dereference the frame handle
-        const frameRef = this.frameHandles.get(ref.frameHandle);
+        const frameRef = this.resolveFrameRef(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);
         }
@@ -3656,6 +3678,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (varobj.isVar && !varobj.isChild) {
                     // request update from GDB
                     const vup = await mi.sendVarUpdate(this.gdb, {
+                        frameRef,
                         name: varobj.varname,
                     });
                     // if changelist is length 0, update is undefined
@@ -3683,7 +3706,11 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         let value = varobj.value;
                         // if we have an array parent entry, we need to display the address.
                         if (arrayRegex.test(varobj.type)) {
-                            value = await this.getAddr(varobj, this.gdb);
+                            value = await this.getAddr(
+                                varobj,
+                                this.gdb,
+                                frameRef
+                            );
                         }
                         variables.push({
                             name: varobj.expression,
@@ -3749,7 +3776,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 let value = varobj.value;
                 // if we have an array parent entry, we need to display the address.
                 if (arrayRegex.test(varobj.type)) {
-                    value = await this.getAddr(varobj, this.gdb);
+                    value = await this.getAddr(varobj, this.gdb, frameRef);
                 }
                 variables.push({
                     name: varobj.expression,
@@ -3777,11 +3804,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         // initialize variables array
         const variables: DebugProtocol.Variable[] = [];
         // dereference the frame handle
-        const initialFrameRef = this.frameHandles.get(ref.frameHandle);
+        const initialFrameRef = this.resolveFrameRef(ref.frameHandle);
         const [gdb, frameRef, depth, isAux] =
             await this.getFrameContext(initialFrameRef);
 
         if (!isAux && !frameRef) {
+            // Stale DAP handle after continue, or watch/repl with no frame
+            // (DAP frameId -1). Both are undefined on purpose.
             return Promise.resolve(variables);
         }
 
@@ -3799,6 +3828,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             children = await mi.sendVarListChildren(gdb, {
                 name: varobj.varname,
                 printValues: mi.MIVarPrintValues.all,
+                frameRef,
             });
             parentVarname = varobj.varname;
         } else {
@@ -3806,6 +3836,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             children = await mi.sendVarListChildren(gdb, {
                 name: ref.varobjName,
                 printValues: mi.MIVarPrintValues.all,
+                frameRef,
             });
         }
         // Grab the full path of parent.
@@ -3816,7 +3847,8 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         while (!topLevelPathExpression && parentVarname) {
             topLevelPathExpression = await this.getFullPathExpression(
                 parentVarname,
-                gdb
+                gdb,
+                frameRef
             );
             parentVarname = parentVarname.substring(
                 0,
@@ -3832,6 +3864,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 const objChildren = await mi.sendVarListChildren(gdb, {
                     name: child.name,
                     printValues: mi.MIVarPrintValues.all,
+                    frameRef,
                 });
                 for (const objChild of objChildren.children) {
                     variables.push({
@@ -3889,11 +3922,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     /** Query GDB using varXX name to get complete variable name */
     protected async getFullPathExpression(
         inputVarName: string,
-        gdb: IGDBBackend
+        gdb: IGDBBackend,
+        frameRef?: FrameReference
     ) {
         const exprResponse = await mi.sendVarInfoPathExpression(
             gdb,
-            inputVarName
+            inputVarName,
+            frameRef
         );
         // result from GDB looks like (parentName).field so remove ().
         return exprResponse.path_expr.replace(/[()]/g, '');
@@ -3920,7 +3955,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         // dereference the frame handle
-        const frameRef = this.frameHandles.get(ref.frameHandle);
+        const frameRef = this.resolveFrameRef(ref.frameHandle);
         if (!frameRef) {
             return Promise.resolve(variables);
         }
@@ -3965,10 +4000,15 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         return Promise.resolve(variables);
     }
 
-    protected async getAddr(varobj: VarObjType, gdb: IGDBBackend) {
+    protected async getAddr(
+        varobj: VarObjType,
+        gdb: IGDBBackend,
+        frameRef?: FrameReference
+    ) {
         const addr = await mi.sendDataEvaluateExpression(
             gdb,
-            `&(${varobj.expression})`
+            `&(${varobj.expression})`,
+            frameRef
         );
         return addr.value ? addr.value : varobj.value;
     }

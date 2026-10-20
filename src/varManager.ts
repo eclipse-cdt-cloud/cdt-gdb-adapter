@@ -204,7 +204,10 @@ export class VarManager {
         varobj: VarObjType
     ): Promise<VarObjType> {
         let returnVar = varobj;
-        const vup = await sendVarUpdate(this.gdb, { name: varobj.varname });
+        const vup = await sendVarUpdate(this.gdb, {
+            frameRef,
+            name: varobj.varname,
+        });
         const update = vup.changelist[0];
         if (update) {
             if (update.in_scope === 'true') {

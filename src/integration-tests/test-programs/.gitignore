@@ -4,6 +4,7 @@ disassemble
 empty
 empty space
 evaluate
+frame_arrays
 mem
 vars
 vars_env
@@ -11,6 +12,7 @@ vars_globals
 watch_local_scope_transition
 segv
 loopforever
+multiinferior
 MultiThread
 MultiThreadRunControl
 *.o
