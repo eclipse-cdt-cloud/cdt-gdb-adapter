@@ -9,6 +9,8 @@
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
 import { standardEscape } from '../util/standardEscape';
+import { FrameReference } from '../types/session';
+import { appendThreadAndFrame } from './base';
 
 export interface MIDebugSymbol {
     line: string;
@@ -72,13 +74,17 @@ export function sendSymbolInfoVars(
 export function sendSymbolInfoFunctions(
     gdb: IGDBBackend,
     params?: {
+        frameRef?: FrameReference;
         name?: string;
         type?: string;
         max_result?: string;
         non_debug?: boolean;
     }
 ): Promise<MISymbolInfoResponse> {
-    let command = '-symbol-info-functions';
+    let command = appendThreadAndFrame(
+        '-symbol-info-functions',
+        params?.frameRef
+    );
     if (params) {
         if (params.name) {
             command += ` --name ${params.name}`;
