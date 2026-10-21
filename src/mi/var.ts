@@ -161,9 +161,16 @@ export function sendVarUpdate(
             | MIVarPrintValues.no
             | MIVarPrintValues.all
             | MIVarPrintValues.simple;
+        frameRef?: FrameReference;
     }
 ): Promise<MIVarUpdateResponse> {
     let command = '-var-update';
+    if (params.frameRef?.threadId !== undefined) {
+        command += ` --thread ${params.frameRef.threadId}`;
+    }
+    if (params.frameRef?.frameId !== undefined) {
+        command += ` --frame ${params.frameRef.frameId}`;
+    }
     if (params.printValues) {
         command += ` ${params.printValues}`;
     } else {

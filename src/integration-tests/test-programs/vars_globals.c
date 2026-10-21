@@ -38,6 +38,25 @@ volatile PARENT_STRUCT *p_s1 = &s1;
 
 volatile int global_int = 42;
 
+static int file_static_int = 17;
+
+static STRUCT_WITH_ARRAY file_static_s0 = {
+    3,
+    4,
+    "static_char"
+};
+
+static STRUCT_WITH_ARRAY *p_file_static_s0 = &file_static_s0;
+
+static PARENT_STRUCT file_static_s1 = {
+    20,
+    5.14f,
+    { 11, 12 },
+    { { 13, 14 }, { 15, 16 } }
+};
+
+static PARENT_STRUCT *p_file_static_s1 = &file_static_s1;
+
 int main()
 {
     // Struct with array
@@ -58,5 +77,19 @@ int main()
     s1.children[0].y += 40;
     s1.children[1].x += 50;
     s1.children[1].y += 60;
+    // Static
+    static int function_static_int = 1;
+    function_static_int += 10;
+    file_static_int += 5;
+    file_static_s0.a += 10;
+    file_static_s0.b += 15;
+    file_static_s1.m += 20;
+    file_static_s1.n *= 3.0f;
+    file_static_s1.child.x += 25;
+    file_static_s1.child.y += 30;
+    file_static_s1.children[0].x += 35;
+    file_static_s1.children[0].y += 40;
+    file_static_s1.children[1].x += 45;
+    file_static_s1.children[1].y += 50;
     return 0;    // RETURN
 }

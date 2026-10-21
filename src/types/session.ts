@@ -36,6 +36,9 @@ export interface RequestArguments extends DebugProtocol.LaunchRequestArguments {
     steppingResponseTimeout?: number;
     updateThreadInfo?: 'missing' | 'when-requested' | 'never';
     run?: RequestArgRun;
+    showGlobalVariables?: boolean;
+    objdumpPath?: string;
+    nmPath?: string;
 }
 
 export interface LaunchRequestArguments extends RequestArguments {
@@ -69,10 +72,59 @@ export interface RegisterVariableReference {
     regname?: string;
 }
 
+export interface GlobalVariableReference {
+    type: 'global';
+    frameHandle: number;
+    inferiorId: number;
+}
+
+export interface GlobalSourceFileObjectReference {
+    type: 'global_source_file_object';
+    frameHandle: number;
+    inferiorId: number;
+    sourceFile: string;
+    fileQualifier?: string;
+}
+
+export interface SymbolProvider {
+    readonly symbolSource: SymbolSource;
+    notifySymbolFileLoaded(inferiorId: number, filePath: string): Promise<void>;
+    getSourceFiles(inferiorId: number, threadId?: number): Promise<string[]>;
+    getSymbolNames(
+        inferiorId: number,
+        sourceFile: string,
+        threadId?: number
+    ): Promise<string[] | undefined>;
+    clearSymbolCache(inferiorId: number): void;
+}
+
+export interface SymbolSource {
+    notifySymbolFileLoaded(inferiorId: number, filePath: string): Promise<void>;
+    getGlobalVariablesByFile(
+        inferiorId: number,
+        threadId?: number
+    ): Promise<Map<string, string[]>>;
+    clearSymbolCache(inferiorId: number): void;
+}
+
+export interface SymbolReader {
+    readGlobalVariablesByFile(
+        symbolFile: string
+    ): Promise<Map<string, string[]>>;
+}
+
+/**
+ * Pseudo source file for global symbols whose source file is not known.
+ * Sources should list it last, after the real source files.
+ */
+export const UNKNOWN_SOURCE_FILE = '<unknown>';
+
 export type VariableReference =
     | FrameVariableReference
     | ObjectVariableReference
-    | RegisterVariableReference;
+    | RegisterVariableReference
+    | GlobalVariableReference
+    | GlobalSourceFileObjectReference;
 
 export interface MemoryRequestArguments {
     address: string;
