@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
 import { IGDBBackend } from '../types/gdb';
+import { FrameReference } from '../types/session';
 
 export interface MIResponse {
     _class: string;
@@ -95,4 +96,23 @@ export interface MIVariableInfo {
 export interface MIRegisterValueInfo {
     number: string;
     value: string;
+}
+
+/**
+ * Append GDB/MI `--thread`/`--frame`.
+ *
+ * GDB rejects negative IDs. Omitting the option uses GDB's implicit
+ * thread/frame selection, which can change unexpectedly (e.g. multi-inferior).
+ */
+export function appendThreadAndFrame(
+    command: string,
+    frameRef?: FrameReference
+): string {
+    if (frameRef?.threadId !== undefined && frameRef.threadId >= 0) {
+        command += ` --thread ${frameRef.threadId}`;
+    }
+    if (frameRef?.frameId !== undefined && frameRef.frameId >= 0) {
+        command += ` --frame ${frameRef.frameId}`;
+    }
+    return command;
 }
