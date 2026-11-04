@@ -1,5 +1,9 @@
 # Change Log
 
+## UNRELEASED
+
+- Implements [`#571`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/571): Remove custom request `cdt-gdb-adapter/Memory` this was only used by the [now removed](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/pull/255) memory browser. The [Memory inspector](https://github.com/eclipse-cdt-cloud/vscode-memory-inspector) uses the standard memory operations.
+
 ## 1.10.0
 
 - Implements [`#528`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/issues/528): Add `run` setting to configure if stopped threads are set running or kept stopped on attach.
