@@ -1,8 +1,13 @@
 # Change Log
 
-## UNRELEASED
+## 2.0.0
 
 - Implements [`#571`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/571): Remove custom request `cdt-gdb-adapter/Memory` this was only used by the [now removed](https://github.com/eclipse-cdt-cloud/cdt-gdb-vscode/pull/255) memory browser. The [Memory inspector](https://github.com/eclipse-cdt-cloud/vscode-memory-inspector) uses the standard memory operations.
+- Fixes [`#582`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/582): Add missing --frame --thread MI args
+- Fixes [`#574`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/574): Refresh variable cache when lexical scope changes
+- Fixes [`#575`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/575): Exit GDB even when detach fails
+- Fixes [`#572`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/572): Report instruction breakpoint stop reasons
+- Fixes [`#565`](https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/pull/565): Invalidate variables after writing memory
 
 ## 1.10.0
 
