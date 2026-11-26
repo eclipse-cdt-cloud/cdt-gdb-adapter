@@ -96,6 +96,39 @@ describe('function breakpoints', async function () {
         await dc.assertStoppedLocation('function breakpoint', { line: 10 });
     });
 
+    it('sets function breakpoints using hexadecimal and decimal addresses', async () => {
+        await dc.setFunctionBreakpointsRequest({
+            breakpoints: [{ name: 'main' }],
+        });
+        await dc.configurationDoneRequest();
+        await dc.assertStoppedLocation('function breakpoint', { line: 14 });
+
+        const scope = await getScopes(dc);
+        const evalResponse = await dc.evaluateRequest({
+            expression: '$pc',
+            context: 'repl',
+            frameId: scope.frame.id,
+        });
+        const address = BigInt(evalResponse.body.result);
+
+        const hexBreakpointResponse =
+            await dc.setFunctionBreakpointsRequest({
+                breakpoints: [{ name: `0x${address.toString(16)}` }],
+            });
+        expect(hexBreakpointResponse.body.breakpoints[0].verified).eq(true);
+
+        const decimalBreakpointResponse =
+            await dc.setFunctionBreakpointsRequest({
+                breakpoints: [{ name: address.toString(10) }],
+            });
+        expect(decimalBreakpointResponse.body.breakpoints[0].verified).eq(
+            true
+        );
+        expect(decimalBreakpointResponse.body.breakpoints[0].id).eq(
+            hexBreakpointResponse.body.breakpoints[0].id
+        );
+    });
+
     it('can set and hit the sub function breakpoint while program is running', async function () {
         if (os.platform() === 'win32' && (!isRemoteTest || !gdbAsync)) {
             // win32 host can only pause remote + mi-async targets

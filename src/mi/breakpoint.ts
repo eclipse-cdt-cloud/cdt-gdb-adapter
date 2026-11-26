@@ -99,6 +99,14 @@ export interface MIBreakpointLocation {
     fn?: string;
 }
 
+export function functionBreakpointAddress(fn: string): string | undefined {
+    const address = fn.startsWith('*') ? fn.slice(1) : fn;
+    if (/^(?:0[xX][\da-fA-F]+|\d+)$/.test(address)) {
+        return `*0x${BigInt(address).toString(16)}`;
+    }
+    return undefined;
+}
+
 function cleanupBreakpointResponse(
     raw: MIBreakInsertResponseInternal
 ): MIBreakInsertResponse {
@@ -144,6 +152,9 @@ export function functionBreakpointLocation(
     fn: string,
     forInsert = false
 ): string {
+    const address = functionBreakpointAddress(fn);
+    if (address) return address;
+
     const version8 = gdb.gdbVersionAtLeast('8.0');
     if (forInsert) {
         return version8 ? `--function ${fn}` : fn;
