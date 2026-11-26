@@ -1643,10 +1643,13 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
 
                 try {
+                    const functionName =
+                        mi.functionBreakpointAddress(bp.vsbp.name) ??
+                        bp.vsbp.name;
                     const options = await this.gdb.getBreakpointOptions(
                         {
                             locationType: 'function',
-                            fn: bp.vsbp.name,
+                            fn: functionName,
                         },
                         {
                             hardware: this.gdb.isUseHWBreakpoint(),
@@ -1654,7 +1657,7 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     );
                     const gdbbp = await mi.sendFunctionBreakpointInsert(
                         this.gdb,
-                        bp.vsbp.name,
+                        functionName,
                         options
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
